@@ -87,10 +87,10 @@ return (
 A multi-step flow also needs:
 
 - A step → stage map that feeds the now marker.
-- A mocked backend on timers, every pending timer cancelled by restart; knobs set durations and outcomes.
+- A mocked backend on timers, every pending timer cancelled by restart and rewind; knobs set durations and outcomes.
 - The app's real components on fixture data; OS surfaces (camera, file chooser, share sheet) faked by default, real under a knob.
 - An **event log** of what the backend would be doing ("+0.4s draft row created in background"), the state the user cannot see on screen.
-- A first-stage dimension flipped before any progress swaps the screen in place.
+- Each stage's inputs (the photo, the typed name, the created record) held where a rewind can keep them and replay the stages after.
 - A combination of options that conflicts resolves to one sensible behaviour, and the event log names it ("auto-open waits for the name").
 
 For sub-shape A (existing page): keep all the existing data fetching above the flow; only the rendered subtree changes per option.
@@ -105,7 +105,7 @@ The panel is how the user steers. It has one job: flip any option in one click w
 
 **Pieces, top to bottom:**
 
-- **Restart**: a button and the `R` key, plus a "restart on design change" toggle, on by default.
+- **Restart**: a button and the `R` key, with a one-line note that a flip rewinds to the option's stage.
 - **One block per stage, in flow order**: the stage number and name, its one-line note, then its dimensions. A stage without dimensions keeps its block, so the timeline stays whole.
 - **Aside blocks** for spanning dimensions, after the stages.
 - **A legend** for the option styles.
@@ -118,7 +118,15 @@ The panel is how the user steers. It has one job: flip any option in one click w
 Behaviour:
 
 - Clicking a chip updates its URL search param (use the framework's router, e.g. `router.replace` on Next, `navigate` on React Router, etc) so every combination is shareable and reload-stable.
-- A design chip restarts the flow while the toggle is on; a knob chip never does.
+- A flip **rewinds** the flow to the stage the option acts on, keeping everything the flow produced before that stage, so the user peeks at another option without redoing the earlier steps:
+  - Option for a later stage than now: nothing moves; it takes effect when the flow gets there.
+  - Option for the current stage: re-applied in place; the stage's own state resets.
+  - Option for an earlier stage: the flow jumps back to it with the earlier inputs kept; that stage and everything after re-run on them (a scan knob reruns the scan on the same photo).
+  - Spanning dimension: rewinds to its earliest stage and clears the value it collects, so the new way of asking shows.
+  - First-stage option: the rewind is a restart.
+  - Several params flipped at once: the earliest stage wins. Knobs rewind the same way as design options.
+  - The event log names each rewind ("D2 changed → rewound to ② Photo, photo kept").
+- Detect a flip by diffing the params against the previous render, after the URL updates; a click handler still holds the old values.
 - `R` restarts. Don't intercept it when an `<input>`, `<textarea>`, or `[contenteditable]` is focused.
 - Hidden in production builds: gate on `process.env.NODE_ENV !== 'production'` or an equivalent check, so a stray prototype merge can't ship the panel to users.
 
@@ -126,7 +134,7 @@ Put the panel in a single shared component so both sub-shapes can reuse it. Loca
 
 ### 5. Hand it over
 
-Check it first at phone width in a browser: every stage reached at least once, every spanning option shown at its own stage, no new console errors. Save screenshots under `prototype-screens/<name>/`.
+Check it first at phone width in a browser: every stage reached at least once, every spanning option shown at its own stage, an earlier-stage option flipped from the last stage rewinds with the earlier state kept, no new console errors. Save screenshots under `prototype-screens/<name>/`.
 
 Surface the run command, the URL, the LAN URL for a phone, and the stage map as a table: stage, what is true, its dimensions. The user will flip through whenever they get to it. The interesting feedback is usually **"I want the entry from b with the name ask from d"**, which is the actual design they want.
 
@@ -150,6 +158,7 @@ The full set of options is the primary source, so it lands on the throwaway bran
 - **Options that differ only in colour or copy.** That's a tweak, not a prototype. Real options disagree about structure.
 - **Sharing too much code between options.** A shared `<Header>` is fine; a shared `<Layout>` defeats the point. Each option should be free to throw out the layout.
 - **A picker that shows one option at a time.** Arrows cycling through values, or a collapsed pill, make every comparison a hunt. Every option stays in view, one click away.
+- **A flip that throws away progress.** Restarting on every flip makes each peek at a later stage cost the whole flow again. Rewind to the option's stage instead.
 - **Options without their stage.** A flat list leaves the user guessing which part of the flow an option changes. File every dimension under its stage and mark where the flow is now.
 - **Wiring options to real mutations.** Read-only prototypes are fine. If an option needs to mutate, point it at a stub: the question is "what should this look like", not "does the backend work".
 - **Promoting the prototype directly to production.** The variant code was written under prototype constraints (no tests, minimal error handling). Rewrite it properly when you fold it in.
