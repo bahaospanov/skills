@@ -41,12 +41,13 @@ touched, Bash edits included, and send at most two follow-up prompts a session.
 
 ### git-gates
 
-Pushing is a deploy, so the agent needs the user's word in their latest typed
-message. If a consent check itself fails, the call is blocked.
+Pushing is a deploy, so the agent needs the user's word in the current turn: the
+prompt that opened it or one typed while it ran. If a consent check itself fails,
+the call is blocked.
 
 | Check | Runs on | Needs | Then |
 | --- | --- | --- | --- |
-| consent | git commit, push; PR/MR merge | commit, push, ship, deploy, pr, mr, tag or release in the latest typed message (a background task's report does not replace it); merge needs "merge"; a protected branch must be named | Call denied |
+| consent | git commit, push; PR/MR merge | commit, push, ship, deploy, pr, mr, tag or release typed in the current turn (a message typed while it runs or a background task's report does not withdraw it); merge needs "merge"; a protected branch must be named | Call denied |
 | grants | Later commits in the session | A message asking for a commit per task, or the grant tool after an authorizing message | Commits spend the grant; pushes never |
 | messages | A git commit | Conventional Commits subject, no reviewer pre-answers, a last line with the issue or ticket (#87, #BLK-23) when your messages or the branch name one; then Haiku: a body only when the cause is subtle | Commit denied |
 | descriptions | Setting an MR/PR description | Fixed-label blocks at column 0 | Call denied |

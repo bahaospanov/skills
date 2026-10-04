@@ -30,6 +30,16 @@ export const verbOf = (command: string): Verb | undefined => {
 
 export const authorizes = (text: string) => AUTH.test(text)
 
+// A prompt typed over a running turn joins the one that opened that turn, so a quick follow-up cannot withdraw its word.
+export const currentTurn = <P extends { turnId?: string | undefined }>(prompts: P[]): P[] => {
+  const last = prompts.at(-1)
+  if (last === undefined) return []
+  if (last.turnId === undefined) return [last]
+  let start = prompts.length - 1
+  while (start > 0 && prompts[start - 1]?.turnId === last.turnId) start--
+  return prompts.slice(Math.max(0, start - 1))
+}
+
 export const authorizesMerge = (text: string) => MERGE_AUTH.test(text)
 
 export const grantRequest = (text: string): number | undefined => {

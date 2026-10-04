@@ -3,6 +3,7 @@ import {
   authorizes,
   authorizesMerge,
   branchesOf,
+  currentTurn,
   grantRequest,
   namesBranch,
   protectedHit,
@@ -11,6 +12,20 @@ import {
 } from '../hooks/consent'
 
 describe('consent', () => {
+  test('prompts typed over a running turn join the prompt that opened it; an idle prompt stands alone', () => {
+    type Typed = { text: string; turnId?: string }
+    const release: Typed = { text: 'update the skill and release' }
+    const quick: Typed = { text: 'ask questions again', turnId: 't1' }
+    const quicker: Typed = { text: 'and the D2 ones', turnId: 't1' }
+    const idle: Typed = { text: 'next task' }
+    const quickAfterIdle: Typed = { text: 'quick', turnId: 't2' }
+    expect(currentTurn([release, quick, quicker])).toEqual([release, quick, quicker])
+    expect(currentTurn([release, quick, idle])).toEqual([idle])
+    expect(currentTurn([release, idle, quickAfterIdle])).toEqual([idle, quickAfterIdle])
+    expect(currentTurn([quick])).toEqual([quick])
+    expect(currentTurn<Typed>([])).toEqual([])
+  })
+
   test('the verb is read outside quotes, merge first', () => {
     expect(verbOf('git commit -m "fix: x"')).toBe('commit')
     expect(verbOf('cd /repo && git push origin main')).toBe('push')

@@ -15,6 +15,7 @@ import {
   authorizes,
   authorizesMerge,
   branchesOf,
+  currentTurn,
   grantRefused,
   grantRequest,
   mergeRefused,
@@ -46,7 +47,7 @@ const COMMIT_REVIEW: Review = { name: 'commit message review', prompt: COMMIT_ME
 const ORDER_REVIEW: Review = { name: 'every commit works', prompt: COMMIT_ORDER, status: 'judging commit order' }
 const LOOKBACK = 30
 
-type Prompt = { text: string; human: boolean }
+type Prompt = { text: string; human: boolean; turnId?: string | undefined }
 type Verdict = { reason: string } | { note?: string }
 
 let prompts: Prompt[] = []
@@ -66,6 +67,12 @@ const recentPrompts = async ($: EngineInterface, count: number): Promise<Prompt[
     .map((m) => ({ text: m.text.replace(REMINDER, '').trim(), human: true }))
     .filter((p) => p.text !== '')
     .slice(-count)
+}
+
+// What the user typed in the current turn: its opening prompt plus anything typed while it ran.
+const typedThisTurn = async ($: EngineInterface) => {
+  const turn = currentTurn(await recentPrompts($, LOOKBACK))
+  return turn.length === 0 ? undefined : turn.filter((p) => p.human).map((p) => p.text)
 }
 
 const git = async ($: EngineInterface, args: string[], cwd?: string) => {
@@ -174,11 +181,10 @@ const consent = async ($: EngineInterface, command: string, verb: Verb): Promise
     }
   }
 
-  const latest = (await recentPrompts($, 1))[0]
-  if (latest === undefined) return { reason: noUserMessage() }
-  const text = latest.human ? latest.text : ''
+  const typed = await typedThisTurn($)
+  if (typed === undefined) return { reason: noUserMessage() }
 
-  if (verb === 'merge') return authorizesMerge(text) ? {} : { reason: mergeRefused(command) }
+  if (verb === 'merge') return typed.some(authorizesMerge) ? {} : { reason: mergeRefused(command) }
 
   if (verb === 'push') {
     const cwd = await repoOf($, command)
@@ -188,18 +194,19 @@ const consent = async ($: EngineInterface, command: string, verb: Verb): Promise
       if (targets === undefined) return { reason: pushUndetermined(command, policy) }
       const hit = protectedHit(targets, policy)
       if (hit !== undefined) {
-        return namesBranch(text, hit)
+        return typed.some((text) => namesBranch(text, hit))
           ? { note: `git-gates: direct push to '${hit}' — authorized by name in the user's message` }
           : { reason: protectedPushRefused(command, hit) }
       }
     }
   }
 
-  if (!authorizes(text)) return { reason: noKeyword(command, grantTool) }
+  if (!typed.some(authorizes)) return { reason: noKeyword(command, grantTool) }
 
-  const uses = verb === 'commit' ? grantRequest(text) : undefined
-  if (uses !== undefined && !(grant?.promptText === text && grant.expiresAt > now)) {
-    grant = spend(openGrant(uses, GRANT_DEFAULT_TTL_S, '', now, text))
+  const asking = verb === 'commit' ? typed.find((text) => grantRequest(text) !== undefined) : undefined
+  const uses = asking === undefined ? undefined : grantRequest(asking)
+  if (asking !== undefined && uses !== undefined && !(grant?.promptText === asking && grant.expiresAt > now)) {
+    grant = spend(openGrant(uses, GRANT_DEFAULT_TTL_S, '', now, asking))
     return {
       note: `git-gates: user message opens a commit grant — ${grant.usesRemaining} further commit(s) allowed for ${GRANT_DEFAULT_TTL_S / 60}m`,
     }
@@ -257,7 +264,7 @@ export const register: Register = (on) => {
   on('prompt.submit', ($, e, next) => {
     if (e.origin.kind === 'plugin' && CONTINUATION_PLUGINS.includes(e.origin.name)) return next(e)
     if (CONTINUATION_ORIGINS.includes(e.origin.kind)) return next(e)
-    prompts = [...prompts, { text: e.text, human: HUMAN_ORIGINS.includes(e.origin.kind) }].slice(-LOOKBACK)
+    prompts = [...prompts, { text: e.text, human: HUMAN_ORIGINS.includes(e.origin.kind), turnId: e.turnId }].slice(-LOOKBACK)
     return next(e)
   })
 
@@ -316,8 +323,7 @@ export const register: Register = (on) => {
     if (verbOf(e.command) !== 'push') return next(e)
     const landed = await landedTarget($, e.command)
     if (landed === undefined) return next(e)
-    const latest = (await recentPrompts($, 1))[0]
-    if (latest?.human && acknowledgesLanded(latest.text)) return next(e)
+    if ((await typedThisTurn($))?.some(acknowledgesLanded)) return next(e)
     return { deny: landedRefused(e.command, landed.branch, landed.base) }
   })
 
@@ -332,8 +338,7 @@ export const register: Register = (on) => {
       $.ui.log(`git-gates (${ORDER_REVIEW.name}): ${shas.length} commits, over ${MAX_SERIES}, not reviewed`)
       return next(e)
     }
-    const latest = (await recentPrompts($, 1))[0]
-    if (latest?.human && acknowledgesOrder(latest.text)) return next(e)
+    if ((await typedThisTurn($))?.some(acknowledgesOrder)) return next(e)
     const commits = await Promise.all(shas.map((sha) => describeCommit($, sha, cwd)))
     if (commits.includes(undefined)) return next(e)
     const review = await judge($, ORDER_REVIEW, { commits }, ORDER_MODEL)

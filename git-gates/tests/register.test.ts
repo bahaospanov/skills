@@ -104,6 +104,8 @@ const world = (on: On, options: World = {}) => {
 const bash = (command: string) => ({ tool: 'Bash' as const, command })
 
 const prompt = (text: string, origin: PromptOrigin = { kind: 'composer' }) => ({ text, origin, wait: false })
+// A prompt typed while the turn `turnId` was running.
+const typedOver = (turnId: string, text: string) => ({ ...prompt(text), turnId })
 
 describe('register', () => {
   test('a commit runs when the latest prompt says so and is denied when it does not', async ($, on) => {
@@ -115,6 +117,30 @@ describe('register', () => {
     const refused = await $.tool.call(bash('git commit -m "fix: b"'))
 
     expect(ran).toEqual(['git commit -m "fix: a"'])
+    expect(refused.deny).toContain('does not\ncontain an authorizing keyword')
+  })
+
+  test('a message typed while the turn runs does not take its authorization away', async ($, on) => {
+    const { ran } = world(on, { files: POLICY })
+
+    await $.prompt.submit(prompt('update the skill, release it and push to dev'))
+    await $.prompt.submit(typedOver('t1', 'ask questions again'))
+    await $.tool.call(bash('git commit -m "fix: a"'))
+    await $.tool.call(bash('git push origin HEAD:dev'))
+
+    expect(ran).toEqual(['git commit -m "fix: a"', 'git push origin HEAD:dev'])
+  })
+
+  test('a word typed while the turn runs authorizes it; the next idle prompt starts over', async ($, on) => {
+    const { ran } = world(on)
+
+    await $.prompt.submit(prompt('tidy the tests'))
+    await $.prompt.submit(typedOver('t1', 'and commit when done'))
+    await $.tool.call(bash('git commit -m "test: tidy"'))
+    await $.prompt.submit(prompt('now the docs'))
+    const refused = await $.tool.call(bash('git commit -m "docs: a"'))
+
+    expect(ran).toEqual(['git commit -m "test: tidy"'])
     expect(refused.deny).toContain('does not\ncontain an authorizing keyword')
   })
 
