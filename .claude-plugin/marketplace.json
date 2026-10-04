@@ -25,6 +25,12 @@
       "name": "lean-scripts",
       "description": "Scripts worth keeping: scripts-review asks Haiku whether a new script could just be typed again when needed.",
       "source": "./lean-scripts"
+    },
+    {
+      "name": "bahaospanov-skills",
+      "description": "Every skill in this repo's skills/ folder.",
+      "source": "./",
+      "strict": false
     }
   ]
 }

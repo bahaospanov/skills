@@ -1,9 +1,29 @@
 # bahaospanov
 
-Bakhtiyar Ospanov's Claude Code mods: plugins built on function hooks. Early access; the API
-changes between releases.
+Bakhtiyar Ospanov's agent skills, and Claude Code mods: plugins built on function hooks.
+
+## Skills
+
+For any agent the [skills CLI](https://github.com/vercel-labs/skills) supports:
+
+```sh
+npx skills add bahaospanov/skills --skill <skill>
+```
+
+Or in Claude Code, all of them as one plugin, invoked as `/bahaospanov-skills:<skill>`:
+
+```
+/plugin marketplace add bahaospanov/skills
+/plugin install bahaospanov-skills@bahaospanov
+```
+
+| Skill | Purpose |
+| --- | --- |
+| [prototype-stages](skills/prototype-stages/SKILL.md) | [mattpocock/skills `prototype`](https://github.com/mattpocock/skills/tree/main/skills/engineering/prototype) (MIT), its UI branch reworked: whole flows, options grouped by stage in a one-click panel |
 
 ## Mods
+
+Early access; the API changes between releases.
 
 One mod per purpose.
 
@@ -60,7 +80,7 @@ an invariant, cut the ones that restate the code or narrate the change.
 | --- | --- | --- | --- |
 | scripts-review | A script written or grown in a git checkout | Haiku: scripts you could just type again when needed | Claude gets the reason |
 
-## Install
+## Install mods
 
 Mods load only with function hooks enabled, so export this in your shell profile first:
 
@@ -71,7 +91,7 @@ export CLAUDE_CODE_ENABLE_FUNCTION_HOOKS=1
 Without it Claude Code skips the mods silently. Then, in Claude Code:
 
 ```
-/plugin marketplace add bahaospanov/claude-mods
+/plugin marketplace add bahaospanov/skills
 /plugin install <mod>@bahaospanov
 ```
 
