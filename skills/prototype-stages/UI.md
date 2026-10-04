@@ -111,7 +111,7 @@ The panel is how the user steers. It has one job: flip any option in one click w
 - **A legend** for the option styles.
 - **Status**: the line saying what exists right now (the main record, the current step, key state), then the last lines of the event log.
 
-**A dimension** is its label, then every option as a chip reading `key name`, all of them visible at once, the selected one filled. Knob chips are dashed. While a dimension's `requires` is unmet, it is dimmed with the condition beside its label.
+**A dimension** is its label, then every option as a chip reading `key name`, all of them visible at once, the selected one filled. Knob chips are dashed. While a dimension's `requires` is unmet, it is dimmed with the condition beside its label. A decided dimension's chosen option carries ★ and an accent ring, its label reads "decided ★b", and it is the default whenever the param is absent.
 
 **The now marker** gives the current stage's block an accent border, a tint, and "◀ now". An aside block lights the same way while its UI is on screen.
 
@@ -140,7 +140,7 @@ Surface the run command, the URL, the LAN URL for a phone, and the stage map as 
 
 ### 6. While the user plays
 
-- A settled dimension is hard-coded and removed from the panel in the same turn; name the dimensions still open.
+- A settled dimension keeps every option: in the same turn its chosen option becomes the ★ default, so the user can still flip back to compare. Drop an option only when the user says to. Name the dimensions still open.
 - A new idea becomes a new option on its dimension, or a new dimension at its stage.
 - Feedback on the panel names friction or confusion; fix the panel's structure for that, then return to the flow.
 
