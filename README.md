@@ -20,6 +20,7 @@ Or in Claude Code, all of them as one plugin, invoked as `/bahaospanov-skills:<s
 | Skill | Purpose |
 | --- | --- |
 | [prototype-stages](skills/prototype-stages/SKILL.md) | [mattpocock/skills `prototype`](https://github.com/mattpocock/skills/tree/main/skills/engineering/prototype) (MIT), its UI branch reworked: whole flows, options grouped by stage in a one-click panel |
+| [scheme](skills/scheme/SKILL.md) | ASCII schematic of a code change: control flow, data flow, before/after, or layers |
 
 ## Mods
 
