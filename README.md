@@ -53,8 +53,11 @@ the call is blocked.
 | descriptions | Setting an MR/PR description | Fixed-label blocks at column 0 | Call denied |
 | landed branch | A git push | The branch's pushed head already sits in a protected branch, and the message names no new MR | Push denied |
 | every commit works | A git push of 2 to 15 commits no remote has | Sonnet: no commit removes something a later one stops using, or uses something a later one adds; skipped when the message says the order is fine | Push denied |
+| stale work | The end of a turn | A branch the session committed to or pushed whose head sits in an integration branch, its worktree clean | Follow-up prompt to remove the worktree and the branch, local and on origin, once checked |
 
 Protected branches come from a repo's own push policy file.
+Integration branches are the protected ones; with no policy, the remote's default branch and any of dev, develop, main, master that exist.
+Deleting a branch on origin needs no keyword when origin's head of it already sits in an integration branch.
 A bare `#87` counts only in a repo with a remote; with no issue tracker, nothing is asked.
 Issues you typed bind only commits in the session's repo and its worktrees; a branch ending in its issue number (`perf/mobile-lcp-89`) lets the message end with that one instead.
 

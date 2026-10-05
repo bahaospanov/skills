@@ -1,7 +1,7 @@
 {
   "name": "git-gates",
-  "version": "0.7.3",
-  "description": "Gates git work: no commit, push or merge without the user's say-so in the current turn; a push to a branch that already landed is refused; a pushed series must leave the project working at every commit; commit messages (format and the issue it is about, then a Haiku review of the body) and MR descriptions kept tidy.",
+  "version": "0.8.0",
+  "description": "Gates git work: no commit, push or merge without the user's say-so in the current turn; a push to a branch that already landed is refused; a pushed series must leave the project working at every commit; commit messages (format and the issue it is about, then a Haiku review of the body) and MR descriptions kept tidy; merged, clean work gets a follow-up to remove its worktree and branches.",
   "author": {
     "name": "Bakhtiyar Ospanov"
   }

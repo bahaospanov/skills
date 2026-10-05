@@ -35,17 +35,28 @@ import { acknowledgesLanded, landedRefused } from './landed-branch'
 import { descriptionFrom, descriptionViolations, expandVars, setsDescription } from './mr-description'
 import { COMMIT_MESSAGE, COMMIT_ORDER } from './prompts'
 import { MODEL, promptFor, SYSTEM, verdictOf, type Review, type Verdict as ReviewVerdict } from './shared/verdict'
+import {
+  defaultBranchOf,
+  deletedBranches,
+  deletionNote,
+  FALLBACK_BASES,
+  staleReport,
+  worktreesOf,
+  type Stale,
+} from './stale-work'
 
 // A --plugin-dir load serves it as mcp__git-gates__grant; the registered name is kept for messages.
 const GRANT_TOOL = /^mcp__(plugin_)?git-gates__grant$/
 const HUMAN_ORIGINS: readonly string[] = ['composer', 'bridge', 'sdk']
 // These follow-ups continue the user's turn, as the Stop hook they replaced did, so they keep their authorization.
-const CONTINUATION_PLUGINS: readonly string[] = ['lean-comments', 'lean-docs']
+const CONTINUATION_PLUGINS: readonly string[] = ['git-gates', 'lean-comments', 'lean-docs']
 // So does a background task the agent started reporting back, or the engine following up a UI action.
 const CONTINUATION_ORIGINS: readonly string[] = ['task-notification', 'auto-continuation']
 const COMMIT_REVIEW: Review = { name: 'commit message review', prompt: COMMIT_MESSAGE, status: 'judging message' }
 const ORDER_REVIEW: Review = { name: 'every commit works', prompt: COMMIT_ORDER, status: 'judging commit order' }
 const LOOKBACK = 30
+const MAX_STALE_FOLLOW_UPS = 2
+const FETCH_TIMEOUT_MS = 20_000
 
 type Prompt = { text: string; human: boolean; turnId?: string | undefined }
 type Verdict = { reason: string } | { note?: string }
@@ -53,6 +64,10 @@ type Verdict = { reason: string } | { note?: string }
 let prompts: Prompt[] = []
 let grant: Grant | undefined
 let grantTool = 'mcp__git-gates__grant'
+// Branches this session committed to or pushed, by repo: the only work the stale check tidies.
+const worked = new Map<string, { dir: string | undefined; branches: Set<string> }>()
+const reportedStale = new Set<string>()
+let staleFollowUps = 0
 
 // Transcript rows carry no origin, so the engine's own user-role rows are told apart by their markup.
 const ENGINE_ROW = /<task-notification>|<local-command-(caveat|stdout|stderr)>/
@@ -129,6 +144,75 @@ const landedTarget = async ($: EngineInterface, command: string) => {
   return undefined
 }
 
+// A repo without a push policy still merges somewhere; only the stale check relies on this guess.
+const integrationBases = async ($: EngineInterface, cwd?: string) => {
+  const policy = await protectedBranches($, cwd)
+  if (policy.length > 0) return policy
+  const head = defaultBranchOf(await git($, ['symbolic-ref', '--quiet', 'refs/remotes/origin/HEAD'], cwd))
+  const bases: string[] = []
+  for (const base of new Set([...(head ? [head] : []), ...FALLBACK_BASES])) {
+    if ((await git($, ['rev-parse', '--verify', '--quiet', `refs/remotes/origin/${base}`], cwd)) !== undefined) bases.push(base)
+  }
+  return bases
+}
+
+const landedBase = async ($: EngineInterface, commit: string, bases: string[], cwd?: string) => {
+  for (const base of bases) if (await isAncestor($, commit, `refs/remotes/origin/${base}`, cwd)) return base
+  return undefined
+}
+
+// Asks origin itself: a stale remote-tracking ref could hide commits pushed since, and the delete would drop them.
+const deletesOnlyLanded = async ($: EngineInterface, branches: string[], cwd?: string) => {
+  const bases = await integrationBases($, cwd)
+  for (const branch of branches) {
+    if (bases.includes(branch)) return false
+    const listed = await git($, ['ls-remote', 'origin', `refs/heads/${branch}`], cwd)
+    const head = listed?.split(/\s/)[0]
+    if (!head || (await landedBase($, head, bases, cwd)) === undefined) return false
+  }
+  return true
+}
+
+const recordWork = async ($: EngineInterface, command: string, verb: Verb) => {
+  if (deletedBranches(command) !== undefined) return
+  const dir = await repoOf($, command)
+  const common = await git($, ['rev-parse', '--path-format=absolute', '--git-common-dir'], dir)
+  if (common === undefined) return
+  const current = await currentBranch($, dir)
+  const branches = verb === 'push' ? (pushTargets(command, current) ?? []) : current ? [current] : []
+  const repo = worked.get(common) ?? { dir, branches: new Set<string>() }
+  for (const branch of branches) if (branch !== '*') repo.branches.add(branch)
+  worked.set(common, repo)
+}
+
+const staleWork = async ($: EngineInterface) => {
+  const reports: { main: string; items: Stale[] }[] = []
+  for (const [common, repo] of worked) {
+    const trees = worktreesOf((await git($, ['worktree', 'list', '--porcelain'], repo.dir)) ?? '')
+    const main = trees[0]?.path
+    if (main === undefined) continue
+    await $.process.run(['git', 'fetch', '--quiet', '--prune', 'origin'], { cwd: main, timeoutMs: FETCH_TIMEOUT_MS }).catch(() => undefined)
+    const bases = await integrationBases($, main)
+    const items: Stale[] = []
+    for (const branch of repo.branches) {
+      if (bases.includes(branch) || reportedStale.has(`${common}\0${branch}`)) continue
+      const local = await git($, ['rev-parse', '--verify', '--quiet', `refs/heads/${branch}`], main)
+      const remote = await git($, ['rev-parse', '--verify', '--quiet', `refs/remotes/origin/${branch}`], main)
+      const head = local ?? remote
+      if (head === undefined) continue
+      const base = await landedBase($, head, bases, main)
+      if (base === undefined) continue
+      if (remote !== undefined && remote !== head && (await landedBase($, remote, bases, main)) === undefined) continue
+      const tree = trees.slice(1).find((wt) => wt.branch === branch)
+      if (tree !== undefined && (await git($, ['status', '--porcelain'], tree.path)) !== '') continue
+      reportedStale.add(`${common}\0${branch}`)
+      items.push({ branch, base, worktree: tree?.path, local: local !== undefined, remote: remote !== undefined })
+    }
+    if (items.length > 0) reports.push({ main, items })
+  }
+  return reports
+}
+
 // Commits the push sends that no remote has yet, oldest first; undefined when git cannot say.
 const unpushedCommits = async ($: EngineInterface, sources: string[], cwd?: string) => {
   const shas: string[] = []
@@ -199,6 +283,9 @@ const consent = async ($: EngineInterface, command: string, verb: Verb): Promise
           : { reason: protectedPushRefused(command, hit) }
       }
     }
+    // Deleting a branch whose head already sits in an integration branch ships nothing.
+    const deleted = deletedBranches(command)
+    if (deleted !== undefined && (await deletesOnlyLanded($, deleted, cwd))) return { note: deletionNote(deleted) }
   }
 
   if (!typed.some(authorizes)) return { reason: noKeyword(command, grantTool) }
@@ -320,7 +407,33 @@ export const register: Register = (on) => {
   )
 
   on('tool.call', { tool: 'Bash' }, async ($, e, next) => {
-    if (verbOf(e.command) !== 'push') return next(e)
+    const verb = verbOf(e.command)
+    const result = await next(e)
+    if (verb !== 'commit' && verb !== 'push') return result
+    if ('deny' in result && result.deny !== undefined) return result
+    await recordWork($, e.command, verb).catch(() => undefined)
+    return result
+  })
+
+  on('turn.complete', async ($, e, next) => {
+    const result = await next(e)
+    if (e.agentId !== undefined || e.reason !== 'answer' || worked.size === 0 || staleFollowUps >= MAX_STALE_FOLLOW_UPS) {
+      return result
+    }
+    const reports = await staleWork($).catch(() => [])
+    if (reports.length === 0) return result
+    staleFollowUps++
+    const branches = reports.flatMap((r) => r.items.map((s) => s.branch))
+    $.ui.log(`git-gates (stale work): ${branches.join(', ')} merged and clean; a follow-up prompt asks to remove them`)
+    const text = reports.map((r) => staleReport(r.items, r.main)).join('\n\n')
+    $.clock.after(0, () => {
+      $.prompt.submit({ text }).catch(() => undefined)
+    })
+    return result
+  })
+
+  on('tool.call', { tool: 'Bash' }, async ($, e, next) => {
+    if (verbOf(e.command) !== 'push' || deletedBranches(e.command) !== undefined) return next(e)
     const landed = await landedTarget($, e.command)
     if (landed === undefined) return next(e)
     if ((await typedThisTurn($))?.some(acknowledgesLanded)) return next(e)
@@ -328,7 +441,7 @@ export const register: Register = (on) => {
   })
 
   on('tool.call', { tool: 'Bash' }, async ($, e, next) => {
-    if (verbOf(e.command) !== 'push') return next(e)
+    if (verbOf(e.command) !== 'push' || deletedBranches(e.command) !== undefined) return next(e)
     const cwd = await repoOf($, e.command)
     const sources = pushSources(e.command, await currentBranch($, cwd))
     if (!sources?.length) return next(e)
