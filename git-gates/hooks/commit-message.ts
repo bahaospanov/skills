@@ -1,6 +1,6 @@
 const INVOKED = /(?:^|[;&|\n])\s*(?:cd\s+\S+\s*&&\s*)*git\s+c(?:ommit)\b/
 
-const CONVENTIONAL = /^(feat|fix|chore|docs|refactor|test|perf|build|ci|style|revert)(\([a-z0-9._/-]+\))?!?: .+/
+const CONVENTIONAL = /^(feat|fix|chore|docs|refactor|test|perf|build|ci|style|revert)(\([a-z0-9._/-]+(,[a-z0-9._/-]+)*\))?!?: .+/
 
 const PREEMPT =
   /\b(no|not?)\s+(\w+\s+){0,2}(change[sd]?|touched|affected|impact)\b|\bnothing (else )?(changed|touched|moved)\b|\b(also|additionally|for completeness|worth noting)\b.*\bunchanged\b/i

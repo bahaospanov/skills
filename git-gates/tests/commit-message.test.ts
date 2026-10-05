@@ -32,9 +32,13 @@ describe('commit-message', () => {
 
   test('the subject must be Conventional Commits and the body must not pre-answer a reviewer', () => {
     expect(commitMessageViolations('fix(api): reject short secrets')).toEqual([])
+    expect(commitMessageViolations('fix(api-py,infra): one change across two apps')).toEqual([])
     expect(commitMessageViolations('Fixed stuff')).toEqual([
       "first line is not Conventional Commits: 'Fixed stuff'",
     ])
+    for (const subject of ['fix(api,): x', 'fix(,api): x', 'fix(api, infra): x']) {
+      expect(commitMessageViolations(subject)).toEqual([`first line is not Conventional Commits: '${subject}'`])
+    }
     expect(commitMessageViolations('fix: x\n\nNothing else changed.')).toEqual([
       'pre-answers a reviewer instead of saying why:\n      Nothing else changed.',
     ])
