@@ -55,7 +55,11 @@ Write down the plan in one line, in the prototype's location or a top-of-file co
 
 This works whether the user is here to push back or not.
 
-### 2. Generate radically different variants
+### 2. Inventory the real screens, then generate radically different variants
+
+Start from the app as it is today: branch the prototype off the latest base and pull before building. For every screen the flow passes through, find the page or components that already render it (header, roster, list, footer, sheets, editors, bars) and list them.
+
+A prototype screen that replaces a real page is a **stand-in**. A stand-in renders that page's real components, every one the page shows, in the page's own layout, on fixture data. New UI has exactly three sources: an option of a dimension, a simulated OS surface or knob, and a screen the app has no page for yet, which is then composed from the app's existing components. Everything else on screen (a footer, a bar, a banner, a helper line, a button) is the real one, so each option is judged against the app the user actually has. Done when every element on every screen is a real component or traces to one of those three sources.
 
 Draft each option of each dimension. Hold each one to:
 
@@ -134,7 +138,7 @@ Put the panel in a single shared component so both sub-shapes can reuse it. Loca
 
 ### 5. Hand it over
 
-Check it first at phone width in a browser: every stage reached at least once, every spanning option shown at its own stage, an earlier-stage option flipped from the last stage rewinds with the earlier state kept, no new console errors. Save screenshots under `prototype-screens/<name>/`.
+Check it first at phone width in a browser: every stage reached at least once, each stand-in matching the real page it replaces (anything the real page shows that the stand-in lacks is a bug), every spanning option shown at its own stage, an earlier-stage option flipped from the last stage rewinds with the earlier state kept, no new console errors. Save screenshots under `prototype-screens/<name>/`.
 
 Surface the run command, the URL, the LAN URL for a phone, and the stage map as a table: stage, what is true, its dimensions. The user will flip through whenever they get to it. The interesting feedback is usually **"I want the entry from b with the name ask from d"**, which is the actual design they want.
 
@@ -142,6 +146,7 @@ Surface the run command, the URL, the LAN URL for a phone, and the stage map as 
 
 - A settled dimension keeps every option: in the same turn its chosen option becomes the ★ default, so the user can still flip back to compare. Drop an option only when the user says to. Name the dimensions still open.
 - A new idea becomes a new option on its dimension, or a new dimension at its stage.
+- When the base branch gains UI that a stand-in shows (a new footer, a restyled bar), rebase and rebuild the stand-in on it in the same turn.
 - Feedback on the panel names friction or confusion; fix the panel's structure for that, then return to the flow.
 
 ### 7. Capture the answer and clean up
@@ -159,6 +164,7 @@ The full set of options is the primary source, so it lands on the throwaway bran
 - **Sharing too much code between options.** A shared `<Header>` is fine; a shared `<Layout>` defeats the point. Each option should be free to throw out the layout.
 - **A picker that shows one option at a time.** Arrows cycling through values, or a collapsed pill, make every comparison a hunt. Every option stays in view, one click away.
 - **A flip that throws away progress.** Restarting on every flip makes each peek at a later stage cost the whole flow again. Rewind to the option's stage instead.
+- **Rebuilt chrome.** A hand-made header, footer, banner or helper line beside or instead of the real one drifts from the app, and the user ends up judging it instead of the option. Render the real component; invent only what an option needs.
 - **Options without their stage.** A flat list leaves the user guessing which part of the flow an option changes. File every dimension under its stage and mark where the flow is now.
 - **Wiring options to real mutations.** Read-only prototypes are fine. If an option needs to mutate, point it at a stub: the question is "what should this look like", not "does the backend work".
 - **Promoting the prototype directly to production.** The variant code was written under prototype constraints (no tests, minimal error handling). Rewrite it properly when you fold it in.
