@@ -26,6 +26,8 @@ const BARE_LABEL = new RegExp(`^(${LABELS.join('|')})\\b`)
 const PREEMPT = /\b(no|not?)\s+(\w+\s+){0,2}(change[sd]?|touched|affected|impact)\b|\bnothing (else )?(changed|touched|moved)\b/i
 const ATTRIBUTION =
   /🤖|\bclaude(\s+code)?\b|\banthropic\b|\bco-authored-by:\s*claude|\bgenerated with\b|\bopus\b|\bsonnet\b|\bhaiku\b/i
+// A file the MR touches is content, not a byline: `CLAUDE.md` alone tripped ATTRIBUTION.
+const TOOL_PATH = /\bclaude\.(md|json|ya?ml)\b|\.claude\/\S*/gi
 
 export type DescriptionSource = { text: string } | { file: string } | { unreadable: string } | undefined
 
@@ -111,7 +113,7 @@ export const descriptionViolations = (text: string): string[] => {
   }
   const preempt = lines.find((line) => PREEMPT.test(line))
   if (preempt !== undefined) found.push(`pre-answers a reviewer:\n      ${preempt.trim().slice(0, 80)}`)
-  const attribution = lines.find((line) => ATTRIBUTION.test(line))
+  const attribution = lines.find((line) => ATTRIBUTION.test(line.replace(TOOL_PATH, '')))
   if (attribution !== undefined) {
     found.push(`names the tool that wrote it — the description is the author's:\n      ${attribution.trim().slice(0, 80)}`)
   }

@@ -47,6 +47,17 @@ describe('mr-description', () => {
     expect(descriptionViolations('### Cause\nThe claim was measured on the dev box.')).toEqual([])
   })
 
+  test('a file named after the tool is content, not a byline', () => {
+    expect(
+      descriptionViolations(
+        '### Scope\n- `CLAUDE.md` points at both files; settings live in `.claude/settings.json` and claude.json.',
+      ),
+    ).toEqual([])
+    expect(descriptionViolations('### Scope\nEdited CLAUDE.md.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)')).toEqual([
+      'names the tool that wrote it — the description is the author\'s:\n      🤖 Generated with [Claude Code](https://claude.com/claude-code)',
+    ])
+  })
+
   test('a JSON body is read, and one piped in is refused rather than waved through', () => {
     expect(descriptionFrom(`curl -X POST "$API" --data '{"title":"t","description":"### Cause\\nwhy"}'`)).toEqual({
       text: '### Cause\nwhy',
