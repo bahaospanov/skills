@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'claude-code/testing'
-import { addedDocLines, docBudgetOfDiff, docNotesOf, tokensOf, turnReport } from '../hooks/docs'
+import { addedDocLines, docBudgetOfDiff, docNotesOf, docPathsOf, tokensOf, turnReport } from '../hooks/docs'
 
 const DIFF = [
   '--- a/app.py',
@@ -22,6 +22,13 @@ describe('docs', () => {
     expect(code).toBe(2)
     expect([...newDocs]).toEqual(['docs/new.md'])
     expect(addedDocLines(DIFF).map((l) => l.body)).toEqual(['# Title', 'Run `make` with `FLAG=1`.'])
+  })
+
+  test('skipped docs are neither counted nor read for repeats', () => {
+    const skip = new Set(docPathsOf(DIFF))
+    expect([...skip]).toEqual(['docs/new.md'])
+    expect(docBudgetOfDiff(DIFF, skip)).toEqual({ perDoc: {}, code: 2, newDocs: new Set() })
+    expect(addedDocLines(DIFF, skip)).toEqual([])
   })
 
   test('only backticked names without spaces count as tokens', () => {

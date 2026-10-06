@@ -1,8 +1,8 @@
 import type { EngineInterface, Register } from 'claude-code'
-import { addedDocLines, docBudgetOfDiff, docNotesOf, MAX_BLOCKS, repeatMessage, tokensOf, turnReport, type RepeatHint } from './docs'
+import { addedDocLines, docBudgetOfDiff, docNotesOf, docPathsOf, MAX_BLOCKS, repeatMessage, SKILL, tokensOf, turnReport, type RepeatHint } from './docs'
 import { DOCUMENTATION } from './prompts'
 import { authorsHistory } from './shared/anchor'
-import { claimedWorktrees, isDoc, nonBlankCount, splitLines, worktreesOf } from './shared/diff'
+import { baseName, claimedWorktrees, isDoc, nonBlankCount, splitLines, worktreesOf } from './shared/diff'
 import { dirOf, isDotfileOrTemp, isTrim } from './shared/paths'
 import { MODEL, promptFor, SYSTEM, verdictOf, type Review, type Verdict } from './shared/verdict'
 
@@ -71,10 +71,21 @@ const markTouched = (path: string) => {
   }
 }
 
+// A skill is instructions read on every use, never a one-time page. The SKILL.md being created does not exist yet when
+// the pre-write check runs, so it is matched by name; the walk stops at the checkout's root.
+const inSkillFolder = async ($: EngineInterface, path: string, root: string) => {
+  if (baseName(path) === SKILL) return true
+  for (let dir = dirOf(path); dir === root || dir.startsWith(`${root}/`); dir = dirOf(dir)) {
+    if (await $.fs.exists(`${dir}/${SKILL}`)) return true
+    if (dir === root) break
+  }
+  return false
+}
+
 const repeatedFact = async ($: EngineInterface, path: string, added: string, old: string) => {
   if (!isDoc(path) || nonBlankCount(added) <= nonBlankCount(old)) return undefined
   const root = await git($, dirOf(path), ['rev-parse', '--show-toplevel'])
-  if (!root) return undefined
+  if (!root || (await inSkillFolder($, path, root))) return undefined
   for (const line of splitLines(added)) {
     if (old.includes(line)) continue
     const tokens = tokensOf(line)
@@ -101,15 +112,20 @@ const judge = async ($: EngineInterface, review: Review, input: object): Promise
 
 const docNotes = async ($: EngineInterface, wt: string, base: string) => {
   const diff = (await git($, wt, ['diff', '--unified=0', base])) ?? ''
-  const { perDoc, code, newDocs } = docBudgetOfDiff(diff)
-  for (const rel of splitLines((await git($, wt, ['ls-files', '--others', '--exclude-standard'])) ?? '')) {
-    if (!isDoc(rel)) continue
+  const untracked = splitLines((await git($, wt, ['ls-files', '--others', '--exclude-standard'])) ?? '').filter(isDoc)
+  const skills = new Set<string>()
+  for (const rel of new Set([...docPathsOf(diff), ...untracked])) {
+    if (await inSkillFolder($, `${wt}/${rel}`, wt)) skills.add(rel)
+  }
+  const { perDoc, code, newDocs } = docBudgetOfDiff(diff, skills)
+  for (const rel of untracked) {
+    if (skills.has(rel)) continue
     newDocs.add(rel)
     const text = await $.fs.read(`${wt}/${rel}`).catch(() => undefined)
     if (text !== undefined) perDoc[rel] = (perDoc[rel] ?? 0) + nonBlankCount(text)
   }
   const hints: RepeatHint[] = []
-  for (const { path, body } of addedDocLines(diff)) {
+  for (const { path, body } of addedDocLines(diff, skills)) {
     if (hints.length >= 4) break
     const tokens = tokensOf(body)
     if (tokens.length < 2) continue
@@ -160,7 +176,9 @@ export const register: Register = (on) => {
     if (result.deny !== undefined || result.isError) return result
     const added = e.tool === 'Write' ? e.content : e.new_string
     const removed = e.tool === 'Write' ? replaced : e.old_string
-    if (isTrim(added, removed) || (await git($, dirOf(path), ['rev-parse', '--show-toplevel'])) === undefined) return result
+    if (isTrim(added, removed)) return result
+    const root = await git($, dirOf(path), ['rev-parse', '--show-toplevel'])
+    if (root === undefined || (await inSkillFolder($, path, root))) return result
 
     const tool_input =
       e.tool === 'Write'

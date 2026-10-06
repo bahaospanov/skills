@@ -84,6 +84,8 @@ Pipelines are read with `gh` on GitHub and, on GitLab, with the `gitlab_token` o
 | docs-no-repeat-code | A doc line being written | Identifiers that already appear together in one code file | Write denied |
 | limit-docs | The end of a turn | New or grown docs, prose outweighing code, doc lines repeating code | Follow-up prompt |
 
+No check reads a skill's folder, the one holding `SKILL.md`, or anything under it: a skill is read again on every use.
+
 ### lean-comments
 
 No comments by default: keep the ones that record a measured number, a trap or
