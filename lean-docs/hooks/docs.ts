@@ -29,11 +29,16 @@ export const DOC_ASK =
 
 export type RepeatHint = { path: string; where: string; tokens: string[] }
 
-export const docBudgetOfDiff = (diff: string) => {
+export const SKILL = 'SKILL.md'
+
+export const docPathsOf = (diff: string) => [...new Set(addedLines(diff).map(({ path }) => path).filter(isDoc))]
+
+export const docBudgetOfDiff = (diff: string, skip: ReadonlySet<string> = new Set()) => {
   const perDoc: Record<string, number> = {}
   const newDocs = new Set<string>()
   let code = 0
   for (const { path, body, isNewFile } of addedLines(diff)) {
+    if (skip.has(path)) continue
     if (isNewFile && isDoc(path)) newDocs.add(path)
     const stripped = body.trim()
     if (stripped === '') continue
@@ -49,8 +54,8 @@ export const docBudgetOfDiff = (diff: string) => {
 
 export const tokensOf = (line: string) => [...line.matchAll(TOKEN)].map((m) => m[1] ?? '').filter((t) => !t.includes(' '))
 
-export const addedDocLines = (diff: string) =>
-  addedLines(diff).filter(({ path }) => isDoc(path)).map(({ path, body }) => ({ path, body }))
+export const addedDocLines = (diff: string, skip: ReadonlySet<string> = new Set()) =>
+  addedLines(diff).filter(({ path }) => isDoc(path) && !skip.has(path)).map(({ path, body }) => ({ path, body }))
 
 export const repeatMessage = (tokens: string[], where: string, line: string) =>
   `lean-docs/docs-no-repeat-code: this line repeats ${tokens.slice(0, 3).join('/')}, already stated in ${where}:\n  ${line.trim().slice(0, 160)}\n` +

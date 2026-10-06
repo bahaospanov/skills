@@ -57,6 +57,7 @@ const world = (on: On, reply = APPROVE) => {
     const text = repo.files[e.path] ?? repo.untracked[e.path.replace(/^\/repo\//, '')]
     return text === undefined ? { deny: `ENOENT: ${e.path}` } : { value: text }
   })
+  on('fs.exists', ($, e) => ({ value: e.path in repo.files || e.path.replace(/^\/repo\//, '') in repo.untracked }))
   on('model.complete', ($, e) => {
     asked.push(e)
     return { value: answered(reply) }
@@ -154,6 +155,57 @@ describe('register', () => {
     expect(refused.deny?.startsWith('lean-docs/docs-no-repeat-code: this line repeats API_URL/config.ts, already stated in src/config.ts:')).toBe(true)
     expect(ran).toEqual([])
     expect(asked).toEqual([])
+  })
+
+  test('skill files: a new SKILL.md, a sibling and a nested file in a skill folder skip docs-review and docs-no-repeat-code', async ($, on) => {
+    const { repo, asked, ran } = world(on, REJECT)
+    repo.files['/repo/skills/deploy/SKILL.md'] = '---\nname: deploy\n---'
+    repo.grep['API_URL'] = ['src/config.ts']
+    repo.grep['config.ts'] = ['src/config.ts']
+    const steps = 'Steps.\nSet `API_URL` in `config.ts`.'
+
+    const written = [
+      await $.tool.call({ tool: 'Write', file_path: '/repo/skills/new/SKILL.md', content: steps }),
+      await $.tool.call({ tool: 'Edit', file_path: '/repo/skills/deploy/rewrite.md', old_string: 'Steps.', new_string: steps }),
+      await $.tool.call({ tool: 'Edit', file_path: '/repo/skills/deploy/refs/trackers.md', old_string: 'Steps.', new_string: steps }),
+    ]
+
+    expect(written.map((call) => [call.deny, call.context])).toEqual([[undefined, undefined], [undefined, undefined], [undefined, undefined]])
+    expect(ran.length).toBe(3)
+    expect(asked).toEqual([])
+  })
+
+  test('skill files: a doc in skills/ but outside any skill folder is still checked', async ($, on) => {
+    const { repo, asked } = world(on, REJECT)
+    repo.files['/repo/skills/deploy/SKILL.md'] = '---\nname: deploy\n---'
+    repo.grep['API_URL'] = ['src/config.ts']
+    repo.grep['config.ts'] = ['src/config.ts']
+
+    const refused = await $.tool.call({ tool: 'Edit', file_path: '/repo/skills/README.md', old_string: 'A.', new_string: 'A.\nSet `API_URL` in `config.ts`.' })
+    const reviewed = await $.tool.call({ tool: 'Edit', file_path: '/repo/skills/README.md', old_string: 'a', new_string: 'a longer page' })
+
+    expect(refused.deny?.startsWith('lean-docs/docs-no-repeat-code:')).toBe(true)
+    expect(reviewed.context).toEqual(['lean-docs/docs-review: one-time procedure'])
+    expect(asked.length).toBe(1)
+  })
+
+  test('limit-docs: prose in a skill folder is not counted; a doc outside one still is', async ($, on) => {
+    const { repo, submitted, clock } = world(on)
+    repo.files['/repo/skills/deploy/SKILL.md'] = '---\nname: deploy\n---'
+    repo.grep['make'] = ['Makefile']
+    repo.grep['FLAG=1'] = ['Makefile']
+
+    await $.tool.call({ tool: 'Bash', command: 'cd /repo && make' })
+    repo.untracked['skills/new/SKILL.md'] = prose(45)
+    repo.untracked['skills/deploy/rewrite.md'] = prose(45)
+    repo.untracked['skills/deploy/refs/trackers.md'] = prose(45)
+    repo.diff = [docDiff('skills/deploy/SKILL.md', 19), '+Run `make` with `FLAG=1`.', docDiff('README.md', 3)].join('\n')
+    await $.turn.complete(turnEnds())
+    await clock.settle()
+
+    expect(submitted.length).toBe(1)
+    expect(submitted[0]).toContain('lean-docs/limit-docs: prose outweighs the change.\n  README.md grew by 3 lines\n')
+    expect(submitted[0]).not.toContain('skills/')
   })
 
   test('limit-docs: a new untracked document sends one follow-up', async ($, on) => {
