@@ -79,22 +79,24 @@ const prompt = (text: string, origin: PromptOrigin = { kind: 'composer' }) => ({
 const turnEnds = () => ({ answer: 'done', durationMs: 1, isAborted: false, turnId: 't1', reason: 'answer' as const })
 
 const CLEANUP = 'cd /repo && git worktree remove .claude/worktrees/a && git branch -D fix/a'
+const FILL_IN = `cd /repo && curl -sS -X PUT "$API/issues/98" --header "PRIVATE-TOKEN: $T" --form "description=<issue-98.md"`
 const CLOSE = `cd /repo && curl -sS -X PUT "$API/issues/98" --header "PRIVATE-TOKEN: $T" --data 'state_event=close'`
 const NOTE = `cd /repo && jq -n --arg b "$T" '{body:$b}' | curl -sS -X POST "$API/issues/98/notes" --data @-`
 
 describe('pipeline first', () => {
-  test('a rebased branch and its issue wait for the pipeline that ships them', TOKEN, async ($, on) => {
+  test('a rebased branch and its issue body wait for the pipeline that ships them', TOKEN, async ($, on) => {
     const { ci, ran, fetched } = world(on)
     await $.prompt.submit(prompt('merged'))
 
     const cleanup = await $.tool.call(bash(CLEANUP))
-    const close = await $.tool.call(bash(CLOSE))
+    const fillIn = await $.tool.call(bash(FILL_IN))
     await $.tool.call(bash(NOTE))
+    await $.tool.call(bash(CLOSE))
 
     expect(cleanup.deny).toContain("'fix/a' landed in 'dev', and pipeline #346")
     expect(cleanup.deny).toContain('is still running')
-    expect(close.deny).toContain('the work on #98 (fix(api): retry torn range #98) landed')
-    expect(ran).toEqual([NOTE])
+    expect(fillIn.deny).toContain('the work on #98 (fix(api): retry torn range #98) landed')
+    expect(ran).toEqual([NOTE, CLOSE])
     expect(fetched[0]).toEqual({
       url: 'https://gitlab.example.com/api/v4/projects/team%2Fapp/pipelines?ref=dev&per_page=20',
       token: 'glpat-test',
@@ -102,8 +104,8 @@ describe('pipeline first', () => {
 
     ci.status = 'success'
     await $.tool.call(bash(CLEANUP))
-    await $.tool.call(bash(CLOSE))
-    expect(ran).toEqual([NOTE, CLEANUP, CLOSE])
+    await $.tool.call(bash(FILL_IN))
+    expect(ran).toEqual([NOTE, CLOSE, CLEANUP, FILL_IN])
   })
 
   test('a failed pipeline holds the work back too', TOKEN, async ($, on) => {

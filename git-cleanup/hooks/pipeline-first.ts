@@ -40,19 +40,16 @@ export const cleanupOf = (command: string): Cleanup | undefined => {
   return cleanup.branches.length + cleanup.worktrees.length > 0 ? cleanup : undefined
 }
 
-const unquote = (token: string) => token.replace(/^['"]|['"]$/g, '')
-
 const REST_ISSUE = /\/issues\/(\d+)(?=['"\s?]|$)/g
-const REST_DONE = /state_event=close|\bstate=closed|(?<![\w-])description\s*[=:"']|"description"\s*:|(?<![\w-])body\s*=|"body"\s*:/
-const CLI_ISSUE = /(?:^|[\s&;|(])(gh|glab)\s+issue\s+(close|edit|update)\s+#?(\d+)\b([^&;|\n]*)/g
+const REST_BODY = /(?<![\w-])description\s*[=:"']|"description"\s*:|(?<![\w-])body\s*=|"body"\s*:/
+const CLI_ISSUE = /(?:^|[\s&;|(])(gh|glab)\s+issue\s+(edit|update)\s+#?(\d+)\b([^&;|\n]*)/g
 const CLI_BODY = /--body(?:-file)?\b|--description\b|(?<![\w-])-[bd]\b/
 
+// A rewritten body (checklist ticks, How to test) says the work shipped; closing is the user's, a comment says nothing.
 export const issuesEditedBy = (command: string): string[] => {
   const found = new Set<string>()
-  if (REST_DONE.test(command)) for (const m of command.matchAll(REST_ISSUE)) found.add(`#${m[1]}`)
-  for (const m of command.matchAll(CLI_ISSUE)) {
-    if (m[2] === 'close' || CLI_BODY.test(m[4] ?? '')) found.add(`#${m[3]}`)
-  }
+  if (REST_BODY.test(command)) for (const m of command.matchAll(REST_ISSUE)) found.add(`#${m[1]}`)
+  for (const m of command.matchAll(CLI_ISSUE)) if (CLI_BODY.test(m[4] ?? '')) found.add(`#${m[3]}`)
   return [...found]
 }
 
@@ -152,7 +149,7 @@ failed or canceled), check the change where it deploys, then retry.`
       : `Find out why and get a green pipeline first.`
   return `git-cleanup (pipeline first): blocking '${command}' — ${what} landed in '${base}', and ${state}.
 
-Removing a branch or closing out its issue says the work is done. It is not
+Removing a branch or filling in its issue says the work is done. It is not
 until the pipeline that ships it passes and the change is checked live.
 ${step}
 

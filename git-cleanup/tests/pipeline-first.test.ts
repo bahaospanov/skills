@@ -13,7 +13,7 @@ import {
 
 const pipeline = (id: string, state: Pipeline['state'], covers: boolean, status: string = state) => ({ id, sha: id, state, status, covers })
 
-describe('pipeline first: what a command cleans up or closes out', () => {
+describe('pipeline first: what a command cleans up or fills in', () => {
   test('branch deletes and worktree removals, but not remote-tracking refs', () => {
     expect(cleanupOf('cd /repo && git worktree remove --force .claude/worktrees/a && git branch -D fix/a fix/b')).toEqual({
       branches: ['fix/a', 'fix/b'],
@@ -24,15 +24,17 @@ describe('pipeline first: what a command cleans up or closes out', () => {
     expect(cleanupOf('git branch fix/a && git worktree list')).toBeUndefined()
   })
 
-  test('closing an issue or rewriting its body, over REST or a CLI', () => {
-    expect(issuesEditedBy(`curl -sS -X PUT "$API/issues/98" --header "PRIVATE-TOKEN: $T" --data 'state_event=close'`)).toEqual(['#98'])
+  test("rewriting an issue's body, over REST or a CLI", () => {
     expect(issuesEditedBy(`curl -sS -X PUT "$API/issues/98" --form "description=<issue-98.md"`)).toEqual(['#98'])
-    expect(issuesEditedBy(`gh api -X PATCH repos/o/r/issues/7 -f state=closed`)).toEqual(['#7'])
-    expect(issuesEditedBy('gh issue close 12 --comment done')).toEqual(['#12'])
+    expect(issuesEditedBy(`gh api -X PATCH repos/o/r/issues/7 -f body=@body.md`)).toEqual(['#7'])
+    expect(issuesEditedBy('gh issue edit 12 --body-file body.md')).toEqual(['#12'])
     expect(issuesEditedBy('glab issue update 5 --description "x"')).toEqual(['#5'])
   })
 
-  test('a comment, a label change or a new issue is not closing anything out', () => {
+  test('closing, a comment, a label change or a new issue is not filling anything in', () => {
+    expect(issuesEditedBy(`curl -sS -X PUT "$API/issues/98" --header "PRIVATE-TOKEN: $T" --data 'state_event=close'`)).toEqual([])
+    expect(issuesEditedBy(`gh api -X PATCH repos/o/r/issues/7 -f state=closed`)).toEqual([])
+    expect(issuesEditedBy('gh issue close 12 --comment done')).toEqual([])
     expect(issuesEditedBy(`jq -n --arg b "$T" '{body:$b}' | curl -X POST "$API/issues/98/notes" --data @-`)).toEqual([])
     expect(issuesEditedBy('gh issue edit 12 --add-label bug')).toEqual([])
     expect(issuesEditedBy(`curl -X POST "$API/issues" --form "description=<new.md"`)).toEqual([])

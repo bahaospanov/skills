@@ -63,13 +63,13 @@ Issues you typed bind only commits in the session's repo and its worktrees; a br
 
 ### git-cleanup
 
-Merged is not shipped: a branch is cleaned up and its issue closed out only once
-the pipeline holding the merge has passed.
+Merged is not shipped: a branch is cleaned up and its issue filled in only once
+the pipeline holding the merge has passed. Closing the issue is left to you.
 
 | Check | Runs on | Needs | Then |
 | --- | --- | --- | --- |
 | merged first | Removing a worktree or branch, local or on origin | The branch sits in an integration branch, a merged PR/MR has it as source branch, or the current turn's message says it merged (or to abandon it) | Call denied |
-| pipeline first | Removing a worktree or branch, local or on origin; closing an issue or rewriting its body | The work (the branch, or the newest integration commit naming the issue) landed and a pipeline holding it passed; skipped when the message says not to wait | Call denied while it runs or after it failed |
+| pipeline first | Removing a worktree or branch, local or on origin; rewriting an issue's body (checklist ticks, How to test) | The work (the branch, or the newest integration commit naming the issue) landed and a pipeline holding it passed; skipped when the message says not to wait | Call denied while it runs or after it failed |
 | stale work | The end of a turn | A branch the session committed to or pushed that sits in an integration branch, its worktree clean, no pipeline holding it still running or failed | Follow-up prompt to remove the worktree and the branch, local and on origin, once checked |
 
 Integration branches are found as git-gates finds them.

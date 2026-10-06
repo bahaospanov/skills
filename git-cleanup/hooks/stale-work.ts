@@ -34,8 +34,8 @@ export const staleReport = (items: Stale[], main: string) => {
   return `git-cleanup (stale work): this session's work below is merged and its worktree is clean:
 ${lines.join('\n')}
 
-If it is finished and checked (verified where it deploys, its ticket closed
-out), remove it now, from the main checkout:
+If it is finished and checked (verified where it deploys), remove it now,
+from the main checkout:
 ${commands.map((c) => `  ${c}`).join('\n')}
 
 \`branch -d\` may call a branch unmerged when the local base lags behind

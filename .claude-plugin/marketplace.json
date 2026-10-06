@@ -13,7 +13,7 @@
     },
     {
       "name": "git-cleanup",
-      "description": "Cleans up after merged work, once it shipped: removing a branch needs git, the forge or the user to say it merged; removing it or closing out its issue waits for the pipeline holding it to pass; merged, clean work gets a follow-up to remove its worktree and branches.",
+      "description": "Cleans up after merged work, once it shipped: removing a branch needs git, the forge or the user to say it merged; removing it or filling in its issue waits for the pipeline holding it to pass; merged, clean work gets a follow-up to remove its worktree and branches.",
       "source": "./git-cleanup"
     },
     {
