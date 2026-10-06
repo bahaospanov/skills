@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'claude-code/testing'
-import { defaultBranchOf, deletedBranches, staleReport, worktreesOf } from '../hooks/stale-work'
+import { defaultBranchOf, deletedBranches } from '../hooks/shared/git-commands'
+import { staleReport, worktreesOf } from '../hooks/stale-work'
 
 describe('stale work', () => {
   test('a push that only deletes names the branches it deletes', () => {
