@@ -1,5 +1,5 @@
 import type { EngineInterface, Register } from 'claude-code'
-import { commandDir, commitMessageViolations, invokesCommit, messageFrom, runsGitCommit } from './commit-message'
+import { commitMessageViolations, invokesCommit, messageFrom, runsGitCommit } from './commit-message'
 import {
   acknowledgesOrder,
   commitOrderRefused,
@@ -14,8 +14,7 @@ import {
 import {
   authorizes,
   authorizesMerge,
-  branchesOf,
-  currentTurn,
+  deletionNote,
   grantRefused,
   grantRequest,
   mergeRefused,
@@ -24,26 +23,26 @@ import {
   noUserMessage,
   protectedHit,
   protectedPushRefused,
-  pushTargets,
   pushUndetermined,
-  verbOf,
-  type Verb,
 } from './consent'
 import { GRANT_DEFAULT_TTL_S, grantArgsOf, isLive, openGrant, spend, type Grant } from './grants'
-import { missingRefViolation, refsInBranch, refsInText, tailRefInBranch } from './issue-refs'
 import { acknowledgesLanded, landedRefused } from './landed-branch'
 import { descriptionFrom, descriptionViolations, expandVars, setsDescription } from './mr-description'
 import { COMMIT_MESSAGE, COMMIT_ORDER } from './prompts'
-import { MODEL, promptFor, SYSTEM, verdictOf, type Review, type Verdict as ReviewVerdict } from './shared/verdict'
 import {
+  branchesOf,
+  commandDir,
+  currentTurn,
   defaultBranchOf,
   deletedBranches,
-  deletionNote,
   FALLBACK_BASES,
-  staleReport,
-  worktreesOf,
-  type Stale,
-} from './stale-work'
+  pushTargets,
+  verbOf,
+  type Verb,
+} from './shared/git-commands'
+import { missingRefViolation, refsInBranch, refsInText, tailRefInBranch } from './shared/issue-refs'
+import { MODEL, promptFor, SYSTEM, verdictOf, type Review, type Verdict as ReviewVerdict } from './shared/verdict'
+import { staleReport, worktreesOf, type Stale } from './stale-work'
 
 // A --plugin-dir load serves it as mcp__git-gates__grant; the registered name is kept for messages.
 const GRANT_TOOL = /^mcp__(plugin_)?git-gates__grant$/

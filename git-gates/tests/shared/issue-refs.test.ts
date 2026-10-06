@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'claude-code/testing'
-import { missingRefViolation, refsInBranch, refsInText, tailRefInBranch } from '../hooks/issue-refs'
+import { missingRefViolation, refsInBranch, refsInText, tailRefInBranch } from '../../hooks/shared/issue-refs'
 
 describe('issue-refs', () => {
   test('a message mentions issue numbers, issue URLs and tracker keys', () => {

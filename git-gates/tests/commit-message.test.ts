@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'claude-code/testing'
-import { commandDir, commitMessageViolations, invokesCommit, messageFrom, runsGitCommit } from '../hooks/commit-message'
+import { commitMessageViolations, invokesCommit, messageFrom, runsGitCommit } from '../hooks/commit-message'
+import { commandDir } from '../hooks/shared/git-commands'
 
 describe('commit-message', () => {
   test('Haiku is asked about any command that commits, git -C included', () => {

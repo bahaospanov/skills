@@ -1,15 +1,6 @@
 import { describe, expect, test } from 'claude-code/testing'
-import {
-  authorizes,
-  authorizesMerge,
-  branchesOf,
-  currentTurn,
-  grantRequest,
-  namesBranch,
-  protectedHit,
-  pushTargets,
-  verbOf,
-} from '../hooks/consent'
+import { authorizes, authorizesMerge, grantRequest, namesBranch, protectedHit } from '../hooks/consent'
+import { branchesOf, currentTurn, pushTargets, verbOf } from '../hooks/shared/git-commands'
 
 describe('consent', () => {
   test('prompts typed over a running turn join the prompt that opened it; an idle prompt stands alone', () => {
