@@ -19,6 +19,7 @@ Or in Claude Code, all of them as one plugin, invoked as `/bahaospanov-skills:<s
 
 | Skill | Purpose |
 | --- | --- |
+| [deploy-to-prod](skills/deploy-to-prod/SKILL.md) | Integration branch to production: squash iterative commits, cut waves around migrations and one-time steps, ship wave by wave with a runbook issue. Invoke by hand |
 | [prototype-stages](skills/prototype-stages/SKILL.md) | [mattpocock/skills `prototype`](https://github.com/mattpocock/skills/tree/main/skills/engineering/prototype) (MIT), its UI branch reworked: whole flows, options grouped by stage in a one-click panel |
 | [scheme](skills/scheme/SKILL.md) | ASCII schematic of a code change: control flow, data flow, before/after, or layers |
 
