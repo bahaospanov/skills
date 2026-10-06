@@ -1,12 +1,17 @@
 {
   "name": "bahaospanov",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "scripts": {
     "typecheck": "tsc -p .",
-    "check:shared": "node scripts/check-shared.mjs"
+    "check:shared": "node scripts/check-shared.mjs",
+    "check:version": "node scripts/sync-plugin-versions.mjs --check",
+    "changeset": "changeset",
+    "version": "changeset version && node scripts/sync-plugin-versions.mjs"
   },
   "devDependencies": {
+    "@changesets/cli": "^2.31.1",
     "typescript": "^7.0.2"
   }
 }

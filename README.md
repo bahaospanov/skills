@@ -145,6 +145,7 @@ load several.
 ```sh
 npm run typecheck                 # tsc over every mod and its tests
 npm run check:shared              # hooks/shared/ copies are identical across mods
+npm run check:version             # every plugin.json carries package.json's version
 claude plugin validate ./<mod>    # what the engine sees the module hook and call
 claude plugin test ./<mod>        # the mod's tests/
 ```
