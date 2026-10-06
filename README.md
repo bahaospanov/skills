@@ -31,6 +31,7 @@ One mod per purpose.
 | Mod | Purpose |
 | --- | --- |
 | [git-gates](#git-gates) | Git work is authorized and tidy |
+| [git-cleanup](#git-cleanup) | Merged work is cleaned up once it shipped |
 | [lean-docs](#lean-docs) | Docs worth keeping |
 | [lean-comments](#lean-comments) | Comments worth keeping |
 | [lean-scripts](#lean-scripts) | Scripts worth keeping |
@@ -53,13 +54,26 @@ the call is blocked.
 | descriptions | Setting an MR/PR description | Fixed-label blocks at column 0 | Call denied |
 | landed branch | A git push | The branch's pushed head already sits in a protected branch, and the message names no new MR | Push denied |
 | every commit works | A git push of 2 to 15 commits no remote has | Sonnet: no commit removes something a later one stops using, or uses something a later one adds; skipped when the message says the order is fine | Push denied |
-| stale work | The end of a turn | A branch the session committed to or pushed whose head sits in an integration branch, its worktree clean | Follow-up prompt to remove the worktree and the branch, local and on origin, once checked |
 
 Protected branches come from a repo's own push policy file.
 Integration branches are the protected ones; with no policy, the remote's default branch and any of dev, develop, main, master that exist.
 Deleting a branch on origin needs no keyword when origin's head of it already sits in an integration branch.
 A bare `#87` counts only in a repo with a remote; with no issue tracker, nothing is asked.
 Issues you typed bind only commits in the session's repo and its worktrees; a branch ending in its issue number (`perf/mobile-lcp-89`) lets the message end with that one instead.
+
+### git-cleanup
+
+Merged is not shipped: a branch is cleaned up and its issue closed out only once
+the pipeline holding the merge has passed.
+
+| Check | Runs on | Needs | Then |
+| --- | --- | --- | --- |
+| pipeline first | Removing a worktree or branch, local or on origin; closing an issue or rewriting its body | The work (the branch, or the newest integration commit naming the issue) landed and a pipeline holding it passed; skipped when the message says not to wait | Call denied while it runs or after it failed |
+| stale work | The end of a turn | A branch the session committed to or pushed that sits in an integration branch, its worktree clean, no pipeline holding it still running or failed | Follow-up prompt to remove the worktree and the branch, local and on origin, once checked |
+
+Integration branches are found as git-gates finds them.
+A branch sits in an integration branch when its head does, or when every commit of it has a copy there (a rebase merge).
+Pipelines are read with `gh` on GitHub and, on GitLab, with the `gitlab_token` option: a `read_api` token, asked when the plugin is enabled, kept in the keychain on macOS and in `~/.claude/.credentials.json` elsewhere. With no token or no pipeline holding the work, nothing is held back and a log line says why.
 
 ### lean-docs
 

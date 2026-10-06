@@ -3,24 +3,17 @@ import { describe, expect, mock, test, tier, type Engine } from 'claude-code/tes
 
 tier('user')
 
-const USAGE = { input_tokens: 0, output_tokens: 0, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 }
 const WT = '/repo/.claude/worktrees/a'
 
 type Repo = { landed: boolean; dirty: boolean; remoteBranch: boolean }
 
-// A repo at /repo with no push policy, origin/HEAD -> main, an origin/dev, and the worktree WT on fix/a.
+// A repo at /repo with no push policy and no forge remote, origin/HEAD -> main, an origin/dev, and the worktree WT on fix/a.
 const world = (on: On) => {
   const repo: Repo = { landed: false, dirty: false, remoteBranch: true }
-  const ran: string[] = []
   const submitted: string[] = []
   const clock = mock.clock(on)
   mock.env(on, { HOME: '/Users/me' })
-  on('session.cwd', () => ({ value: '/repo' }))
-  on('model.complete', () => ({ value: { isAnswered: true as const, text: '{"ok": true}', usage: USAGE } }))
-  on('ui.status', () => ({ value: undefined }))
   on('ui.log', () => ({ value: undefined }))
-  on('tool.register', ($, e) => ({ value: { tool: `mcp__git-gates__${e.name}` } }))
-  on('session.messages', () => ({ value: [] }))
   on('fs.read', ($, e) => ({ deny: `ENOENT: ${e.path}` }))
   on('prompt.submit', ($, e) => {
     if (e.origin.kind === 'plugin') submitted.push(e.text)
@@ -35,7 +28,6 @@ const world = (on: On) => {
     if (args === 'git rev-parse --path-format=absolute --git-common-dir') return ok('/repo/.git\n')
     if (args === 'git rev-parse --show-toplevel') return ok(`${e.init?.cwd ?? '/repo'}\n`)
     if (args === 'git rev-parse --abbrev-ref HEAD') return ok(inWorktree ? 'fix/a\n' : 'dev\n')
-    if (args === 'git remote') return ok('origin\n')
     if (args === 'git worktree list --porcelain') {
       return ok(`worktree /repo\nHEAD 1111\nbranch refs/heads/dev\n\nworktree ${WT}\nHEAD a1\nbranch refs/heads/fix/a\n`)
     }
@@ -44,18 +36,12 @@ const world = (on: On) => {
     if (/^git rev-parse --verify --quiet refs\/remotes\/origin\/(main|dev)$/.test(args)) return ok('base\n')
     if (args === 'git rev-parse --verify --quiet refs/heads/fix/a') return ok('a1\n')
     if (args === 'git rev-parse --verify --quiet refs/remotes/origin/fix/a') return repo.remoteBranch ? ok('a1\n') : no
-    if (args === 'git ls-remote origin refs/heads/fix/a') return ok('a1\trefs/heads/fix/a\n')
-    if (args === 'git ls-remote origin refs/heads/dev') return ok('base\trefs/heads/dev\n')
     if (args === 'git merge-base --is-ancestor a1 refs/remotes/origin/dev') return repo.landed ? ok('') : no
-    if (args === 'git merge-base --is-ancestor base refs/remotes/origin/dev') return ok('')
     if (args === 'git status --porcelain') return ok(repo.dirty ? ' M app.ts\n' : '')
     return no
   })
-  on('tool.call', { tool: 'Bash' }, ($, e) => {
-    ran.push(e.command)
-    return { result: { stdout: '', stderr: '', interrupted: false } }
-  })
-  return { repo, ran, submitted, clock }
+  on('tool.call', { tool: 'Bash' }, () => ({ result: { stdout: '', stderr: '', interrupted: false } }))
+  return { repo, submitted, clock }
 }
 
 const bash = (command: string) => ({ tool: 'Bash' as const, command })
@@ -108,20 +94,5 @@ describe('stale work', () => {
     await $.turn.complete(turnEnds({ agentId: 'a1' }))
     await clock.settle()
     expect(submitted).toEqual([])
-  })
-
-  test('deleting a landed branch on origin needs no keyword; an unlanded or integration one does', async ($, on) => {
-    const { repo, ran } = world(on)
-    await $.prompt.submit(prompt('thanks, looks good'))
-
-    const early = await $.tool.call(bash('cd /repo && git push origin --delete fix/a'))
-    expect(early.deny).toContain('does not\ncontain an authorizing keyword')
-
-    repo.landed = true
-    await $.tool.call(bash('cd /repo && git worktree remove x && git push origin --delete fix/a'))
-    const base = await $.tool.call(bash('cd /repo && git push origin --delete dev'))
-
-    expect(ran).toEqual(['cd /repo && git worktree remove x && git push origin --delete fix/a'])
-    expect(base.deny).toContain('does not\ncontain an authorizing keyword')
   })
 })

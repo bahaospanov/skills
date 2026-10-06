@@ -1,0 +1,4 @@
+{
+  "description": "Holds branch removal and issue close-out until merged work's pipeline passes, and asks to remove merged, clean work",
+  "modules": ["./register.ts"]
+}
