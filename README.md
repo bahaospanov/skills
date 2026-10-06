@@ -68,12 +68,13 @@ the pipeline holding the merge has passed.
 
 | Check | Runs on | Needs | Then |
 | --- | --- | --- | --- |
+| merged first | Removing a worktree or branch, local or on origin | The branch sits in an integration branch, a merged PR/MR has it as source branch, or the current turn's message says it merged (or to abandon it) | Call denied |
 | pipeline first | Removing a worktree or branch, local or on origin; closing an issue or rewriting its body | The work (the branch, or the newest integration commit naming the issue) landed and a pipeline holding it passed; skipped when the message says not to wait | Call denied while it runs or after it failed |
 | stale work | The end of a turn | A branch the session committed to or pushed that sits in an integration branch, its worktree clean, no pipeline holding it still running or failed | Follow-up prompt to remove the worktree and the branch, local and on origin, once checked |
 
 Integration branches are found as git-gates finds them.
 A branch sits in an integration branch when its head does, or when every commit of it has a copy there (a rebase merge).
-Pipelines are read with `gh` on GitHub and, on GitLab, with the `gitlab_token` option: a `read_api` token, asked when the plugin is enabled, kept in the keychain on macOS and in `~/.claude/.credentials.json` elsewhere. With no token or no pipeline holding the work, nothing is held back and a log line says why.
+Pipelines are read with `gh` on GitHub and, on GitLab, with the `gitlab_token` option: a `read_api` token, asked when the plugin is enabled, kept in the keychain on macOS and in `~/.claude/.credentials.json` elsewhere. With no token or no pipeline holding the work, the pipeline check holds nothing back and a log line says why; merged first still applies, and on GitLab sees a squash merge only with the token.
 
 ### lean-docs
 

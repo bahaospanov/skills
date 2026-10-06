@@ -1,4 +1,5 @@
 import type { EngineInterface, Register } from 'claude-code'
+import { listsAny, saysMerged, unmergedRefused } from './merged-first'
 import {
   acknowledgesPipeline,
   cleanupOf,
@@ -33,7 +34,9 @@ const PIPELINE_PAGE = 20
 const ISSUE_LOOKBACK = 200
 
 type Prompt = { text: string; turnId?: string | undefined }
-type Held = { what: string; base: string; coverage: Exclude<Coverage, { kind: 'green' | 'unknown' }> }
+type Held =
+  | { kind: 'pipeline'; what: string; base: string; coverage: Exclude<Coverage, { kind: 'green' | 'unknown' }> }
+  | { kind: 'unmerged'; branch: string; bases: string[] }
 
 let typed: Prompt[] = []
 let gitlabToken: string | undefined
@@ -134,7 +137,25 @@ const issueLanding = async ($: EngineInterface, ref: string, bases: string[], cw
   return undefined
 }
 
-const heldWork = async ($: EngineInterface, command: string): Promise<Held | undefined> => {
+// Covers squash merges, whose commits `git cherry` cannot match.
+const mergedOnForge = async ($: EngineInterface, branch: string, cwd?: string) => {
+  const url = await git($, ['remote', 'get-url', 'origin'], cwd)
+  const remote = url === undefined ? undefined : remoteOf(url)
+  if (remote === undefined) return false
+  if (remote.host === 'github.com') {
+    const argv = ['gh', 'pr', 'list', '--head', branch, '--state', 'merged', '--limit', '1', '--json', 'number']
+    const run = await $.process.run(argv, cwd === undefined ? undefined : { cwd }).catch(() => undefined)
+    return run?.exitCode === 0 && listsAny(run.stdout)
+  }
+  if (gitlabToken === undefined) return false
+  const api = `https://${remote.host}/api/v4/projects/${encodeURIComponent(remote.path)}/merge_requests`
+  const response = await $.http.fetch(`${api}?source_branch=${encodeURIComponent(branch)}&state=merged&per_page=1`, {
+    headers: { 'PRIVATE-TOKEN': gitlabToken },
+  })
+  return response.ok && listsAny(response.text)
+}
+
+const heldWork = async ($: EngineInterface, command: string, saidMerged: boolean): Promise<Held | undefined> => {
   const cleanup = cleanupOf(command)
   const branches = [...(cleanup?.branches ?? []), ...(deletedBranches(command) ?? [])]
   const issues = issuesEditedBy(command)
@@ -156,8 +177,10 @@ const heldWork = async ($: EngineInterface, command: string): Promise<Held | und
     const head =
       (await git($, ['rev-parse', '--verify', '--quiet', `refs/heads/${branch}`], cwd)) ??
       (await git($, ['rev-parse', '--verify', '--quiet', `refs/remotes/origin/${branch}`], cwd))
-    const base = head === undefined ? undefined : await landedBase($, head, bases, cwd)
-    if (head !== undefined && base !== undefined) work.push({ what: `'${branch}'`, head, base })
+    if (head === undefined) continue
+    const base = await landedBase($, head, bases, cwd)
+    if (base !== undefined) work.push({ what: `'${branch}'`, head, base })
+    else if (!saidMerged && !(await mergedOnForge($, branch, cwd))) return { kind: 'unmerged', branch, bases }
   }
   for (const ref of issues) {
     const landing = await issueLanding($, ref, bases, cwd)
@@ -166,7 +189,7 @@ const heldWork = async ($: EngineInterface, command: string): Promise<Held | und
   for (const item of work) {
     const shipped = await coverage($, item.head, item.base, cwd)
     if (shipped.kind === 'unknown') $.ui.log(`git-cleanup (pipeline first): ${item.what}: pipeline unknown (${shipped.why}); not gating`)
-    if (shipped.kind === 'waiting' || shipped.kind === 'failed') return { what: item.what, base: item.base, coverage: shipped }
+    if (shipped.kind === 'waiting' || shipped.kind === 'failed') return { kind: 'pipeline', what: item.what, base: item.base, coverage: shipped }
   }
   return undefined
 }
@@ -222,13 +245,18 @@ export const register: Register = (on, options) => {
   })
 
   on('tool.call', { tool: 'Bash' }, async ($, e, next) => {
-    const held = await heldWork($, e.command)
+    const turn = currentTurn(typed)
+    const held = await heldWork($, e.command, turn.some((p) => saysMerged(p.text)))
     if (held === undefined) return next(e)
-    if (currentTurn(typed).some((p) => acknowledgesPipeline(p.text))) return next(e)
+    if (held.kind === 'unmerged') {
+      $.ui.log(`git-cleanup (merged first): nothing says '${held.branch}' is merged`)
+      return { deny: unmergedRefused(e.command, held.branch, held.bases) }
+    }
+    if (turn.some((p) => acknowledgesPipeline(p.text))) return next(e)
     $.ui.log(`git-cleanup (pipeline first): ${held.what} waits on its pipeline`)
     return { deny: pipelineRefused(e.command, held.what, held.base, held.coverage) }
   }).catch(($, e, next) => {
-    $.ui.log(`git-cleanup (pipeline first): the check failed (${next.error.message ?? next.error.kind}); not gating`)
+    $.ui.log(`git-cleanup: the cleanup check failed (${next.error.message ?? next.error.kind}); not gating`)
     return undefined
   })
 
