@@ -1,0 +1,5 @@
+interface:
+  display_name: "Deploy to prod"
+  short_description: "Ship the integration branch to production in squashed waves"
+policy:
+  allow_implicit_invocation: false

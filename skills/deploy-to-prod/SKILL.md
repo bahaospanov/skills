@@ -22,10 +22,10 @@ History and production move only on the user's word in their latest message: pla
 
 Read CLAUDE.md / AGENTS.md, the docs they point to on CI, deploys, the tracker and commits, the CI config, and the git remote. Find:
 
-- source and target branch, and how production is promoted: a fast-forward push of the target branch, or a tag push (and its naming). Docs silent → infer from the CI workflow rules and the target's protection (who may push, force push refused; [`trackers.md`](trackers.md)), and mark it inferred in the plan. Any other mechanism (MR merge only, a manual job) puts the run in **runbook-only** mode: steps 1–9, and the runbook gives the user the exact promotion to perform.
+- source and target branch, and how production is promoted: a fast-forward push of the target branch, or a tag push (and its naming). Docs silent → infer from the CI workflow rules and the target's protection (who may push, force push refused; [`TRACKERS.md`](TRACKERS.md)), and mark it inferred in the plan. Any other mechanism (MR merge only, a manual job) puts the run in **runbook-only** mode: steps 1–9, and the runbook gives the user the exact promotion to perform.
 - the CI jobs that migrate and deploy, their order (migrate before or after deploy), and the paths each deploy job ships (its change rules, or its build context when it has none). Grep a large CI config for stages, rules, changes and needs.
 - the migration directory and how the tool orders revisions
-- the tracker and how to reach it — [`trackers.md`](trackers.md)
+- the tracker and how to reach it — [`TRACKERS.md`](TRACKERS.md)
 - the check commands that gate a push, per app, with the install each needs in a fresh worktree
 - read-only probes CI or docs use to confirm a deploy (health URLs, smoke jobs, read-only APIs) — the only channels the run probes production through
 - the user's account on the tracker, as the docs or the user name it. A recipe that reads the current user returns the token's owner, often a bot.
@@ -47,9 +47,9 @@ Done when every target-only commit has its source twin listed for dropping, or t
 
 Walk every commit in `<target>..<source>`:
 
-- **issue refs** — `#N` and issue URLs in the message. A commit without one gets its MR looked up ([`trackers.md`](trackers.md)): "Closes #N" lines and a source branch name ending in a number.
+- **issue refs** — `#N` and issue URLs in the message. A commit without one gets its MR looked up ([`TRACKERS.md`](TRACKERS.md)): "Closes #N" lines and a source branch name ending in a number.
 - **tickets** — read every referenced issue in full: description, non-system notes, and the descriptions of its MRs — the ones that close it or carry an in-range commit, not those that only mention it. Deploy steps often live in the MR. Extract deploy steps, env vars, feature flags, ordering hints, any **not-for-prod** statement (not for prod, blocked, pending, a draft MR), and gaps worth a ⚑ in the plan (no how-to-test, open questions). A not-for-prod statement with a condition ("held until X") is checked now: met → no hold; unmet → hold; unverifiable → a question in the plan. Fetch everything to scratch files first, in parallel; past five tickets, sub-agents each take about 50 KB of those files and return this extraction.
-- **migrations** — every added or changed revision, classified per [`migrations.md`](migrations.md).
+- **migrations** — every added or changed revision, classified per [`MIGRATIONS.md`](MIGRATIONS.md).
 - **one-time scripts** — new CLI commands and script files in the diff; commands a ticket or MR says to run; untracked files in worktrees; files under script-like directories (`scripts/`, `ops/`, `one-off/`, migrations) on local and remote branches holding commits the source lacks (`git cherry` shows a `+`), when the path is absent from the source tree — one hit per path. A branch hit outside this deploy is a note in the plan, nothing more; a script the deploy needs that lives only on such a branch is **missing** — a question in the plan. For each script in the deploy: what it does, its **timing**, and its **dev status** — `done`, `not run`, `failed/partial` or `unknown` — from ticket and MR notes, CI jobs that ran it, and dev's state probed through the step 1 channels; a status only a host shell or database session can show stays `unknown`. Every status but `done` is a question in the plan.
 - **unshipped paths** — changed paths no deploy job ships. Each becomes a manual step with its likely action (install a unit, apply a compose diff, import a dashboard) and its timing, or `unknown — ask`; tooling and docs get a no-action line.
 
@@ -63,7 +63,7 @@ Done when every commit has its refs (or none), every ticket is read, every migra
 
 **Waves.** One wave by default; a signal cuts another:
 
-- a contract migration ships in a later wave than the code that stops using what it removes ([`migrations.md`](migrations.md))
+- a contract migration ships in a later wave than the code that stops using what it removes ([`MIGRATIONS.md`](MIGRATIONS.md))
 - a one-time script that must run between two changes cuts between them
 - an ordering hint in a ticket
 - commits whose ticket or MR is not-for-prod go to the hold wave, with every commit that builds on them; when the trial cannot move a held group to the end, ask the user. An open issue or a missing how-to-test is a ⚑, never a hold.
@@ -75,7 +75,7 @@ A cut moves only the signalled commits and what builds on them — by the files 
 
 **Messages.** The repo's convention, read from its docs and the target's recent log. The prefix is `feat` when any commit in the group is one, else the type most of its commits carry, the first commit's on a tie; scopes combine, a scope-less commit contributing the apps its files touch; every `#N` and flattened `!N` is kept. The subject describes the whole group; the body joins the unique original bodies. The first commit's author stays; other authors become `Co-authored-by` trailers; the author date is the group's newest. The message carries only what the original commits carried.
 
-The annotated rebase todo is the plan file ([`rewrite.md`](rewrite.md)); a re-plan edits its lines. Trial-run the rewrite in a scratch worktree ([`rewrite.md`](rewrite.md)). A group whose move conflicts keeps its original position, and the plan marks it. Done when the trial is tree-identical and every commit sits in exactly one group and one wave.
+The annotated rebase todo is the plan file ([`REWRITE.md`](REWRITE.md)); a re-plan edits its lines. Trial-run the rewrite in a scratch worktree ([`REWRITE.md`](REWRITE.md)). A group whose move conflicts keeps its original position, and the plan marks it. Done when the trial is tree-identical and every commit sits in exactly one group and one wave.
 
 ### 6. Present — consent 1
 
@@ -115,15 +115,15 @@ The user may toggle groups, move commits between waves, and send commits to the 
 
 ### 7. Rewrite and verify
 
-Apply the approved plan per [`rewrite.md`](rewrite.md). Done when the result is tree-identical and every wave tip except the last passes the checks; a failing tip moves its cut, back to step 6.
+Apply the approved plan per [`REWRITE.md`](REWRITE.md). Done when the result is tree-identical and every wave tip except the last passes the checks; a failing tip moves its cut, back to step 6.
 
 ### 8. New log — consent 2, force push
 
-Show `git log --oneline <target>..` of the rewrite with wave tips marked. On the user's word: push the backup tag, then force-push with lease ([`rewrite.md`](rewrite.md)). The source's CI may run every job: the rewritten branch shares no before-SHA with the old one.
+Show `git log --oneline <target>..` of the rewrite with wave tips marked. On the user's word: push the backup tag, then force-push with lease ([`REWRITE.md`](REWRITE.md)). The source's CI may run every job: the rewritten branch shares no before-SHA with the old one.
 
 ### 9. Runbook
 
-Wait for the source pipeline on the rewritten tip to go green. Then create the runbook issue ([`trackers.md`](trackers.md)), assigned to the user, unlabelled:
+Wait for the source pipeline on the rewritten tip to go green. Then create the runbook issue ([`TRACKERS.md`](TRACKERS.md)), assigned to the user, unlabelled:
 
 ```
 Deploy <source> → <target>, <date>. Backup: `backup/<source>-<date>-<sha>`.

@@ -1,0 +1,15 @@
+{
+  "name": "bahaospanov-skills",
+  "version": "0.1.0",
+  "description": "Bakhtiyar Ospanov's agent skills: deploy-to-prod, prototype-stages, scheme.",
+  "author": {
+    "name": "Bakhtiyar Ospanov"
+  },
+  "repository": "https://github.com/bahaospanov/skills",
+  "license": "MIT",
+  "skills": [
+    "./skills/deploy-to-prod",
+    "./skills/prototype-stages",
+    "./skills/scheme"
+  ]
+}

@@ -34,8 +34,7 @@
     {
       "name": "bahaospanov-skills",
       "description": "Every skill in this repo's skills/ folder.",
-      "source": "./",
-      "strict": false
+      "source": "./"
     }
   ]
 }

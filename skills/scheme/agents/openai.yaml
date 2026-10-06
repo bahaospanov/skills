@@ -1,0 +1,3 @@
+interface:
+  display_name: "Scheme"
+  short_description: "ASCII schematic of a code change"
