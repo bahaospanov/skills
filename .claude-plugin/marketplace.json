@@ -12,6 +12,11 @@
       "source": "./git-gates"
     },
     {
+      "name": "git-cleanup",
+      "description": "Cleans up after merged work, once it shipped: removing its branches or closing out its issue waits for the pipeline holding it to pass; merged, clean work gets a follow-up to remove its worktree and branches.",
+      "source": "./git-cleanup"
+    },
+    {
       "name": "lean-docs",
       "description": "Docs worth keeping: docs-review asks Haiku whether new text will be read again, docs-no-repeat-code blocks lines that restate code, limit-docs sends a follow-up when a turn adds too much prose.",
       "source": "./lean-docs"

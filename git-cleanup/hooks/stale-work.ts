@@ -31,15 +31,15 @@ export const staleReport = (items: Stale[], main: string) => {
       ...(s.remote ? [`git push origin --delete ${s.branch}`] : []),
     ]),
   ]
-  return `git-gates (stale work): this session's work below is merged and its worktree is clean:
+  return `git-cleanup (stale work): this session's work below is merged and its worktree is clean:
 ${lines.join('\n')}
 
-If it is finished and checked (deployed where it deploys, verified, its ticket
-closed out), remove it now, from the main checkout:
+If it is finished and checked (verified where it deploys, its ticket closed
+out), remove it now, from the main checkout:
 ${commands.map((c) => `  ${c}`).join('\n')}
 
 \`branch -d\` may call a branch unmerged when the local base lags behind
-origin; its head is in origin, so -D is safe then. Deleting a landed branch on
-origin needs no keyword. If a check is still pending, say what is left
-instead and clean up when it passes: this note does not repeat.`
+origin or the merge rebased it; its commits are in origin, so -D is safe then.
+If a check is still pending, say what is left instead and clean up when it
+passes: this note does not repeat.`
 }
