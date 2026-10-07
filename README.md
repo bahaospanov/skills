@@ -106,6 +106,8 @@ an invariant, cut the ones that restate the code or narrate the change.
 | limit-edits | A Write or Edit | More than 3 added comment lines, or a comment-heavy region around the edit | Claude gets the guidance |
 | limit-turns | The end of a turn | More than 3 new comment lines per file in the turn's diff | Follow-up prompt |
 
+No check reads a file installed under `~/.agents/skills`, `~/.claude/skills` or `~/.claude/plugins`: it is someone else's code. A link from there into a checkout is followed, and the file is checked.
+
 ### lean-scripts
 
 | Check | Runs on | Flags | Then |

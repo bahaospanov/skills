@@ -8,6 +8,7 @@ import { addedSignal, densitySignal, editGuidance } from './signals'
 type Owned = { head: string; seen: string; baseline: Set<string>; status: string; touched: boolean }
 
 const MAX_UNTRACKED_CHARS = 512_000
+const INSTALL_ROOTS = ['.agents/skills', '.claude/skills', '.claude/plugins']
 
 let worktrees: string[] | undefined
 const owned = new Map<string, Owned>()
@@ -35,6 +36,14 @@ const addedComments = async ($: EngineInterface, wt: string, base: string) => {
     if (comments.length > 0) (found[rel] ??= []).push(...comments)
   }
   return found
+}
+
+// Decided on where the file lands: ~/.claude/skills/<name> may link back into a source checkout, which stays checked.
+const isInstalled = async ($: EngineInterface, path: string) => {
+  const home = await $.env.get('HOME')
+  if (!home) return false
+  const real = (await $.fs.stat(path, { resolve: true }).catch(() => undefined))?.realPath ?? path
+  return INSTALL_ROOTS.some((root) => real.startsWith(`${home}/${root}/`))
 }
 
 const statusOf = async ($: EngineInterface, wt: string) => (await git($, wt, ['status', '--porcelain'])) ?? ''
@@ -95,7 +104,7 @@ const overBudget = async ($: EngineInterface) => {
     const before = findings.length
     for (const [path, lines] of Object.entries(await addedComments($, wt, info.head))) {
       const fresh = lines.filter((line) => !info.baseline.has(keyOf(path, line)))
-      if (fresh.length > ADD_LIMIT) findings.push({ path, lines: fresh })
+      if (fresh.length > ADD_LIMIT && !(await isInstalled($, `${wt}/${path}`))) findings.push({ path, lines: fresh })
     }
     if (findings.length > before) bases.push(info.head)
   }
@@ -122,7 +131,7 @@ export const register: Register = (on) => {
     const path = e.file_path
     const text = e.tool === 'Write' ? e.content : e.new_string
     const marks = prefixes(path)
-    if (!path || !text || !marks) return result
+    if (!path || !text || !marks || (await isInstalled($, path))) return result
     const body = await $.fs.read(path).catch(() => undefined)
     const findings = [addedSignal(text, marks, path), body === undefined ? undefined : densitySignal(path, body, text, marks)].filter(
       (finding): finding is string => finding !== undefined,

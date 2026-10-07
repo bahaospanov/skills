@@ -12,6 +12,7 @@ type Repo = {
   untracked: Record<string, string>
   grep: Record<string, string[]>
   files: Record<string, string>
+  links: Record<string, string>
 }
 
 const diffAdding = (path: string, lines: string[]) =>
@@ -19,12 +20,18 @@ const diffAdding = (path: string, lines: string[]) =>
 
 // Beneath the mod: one git worktree at /repo whose HEAD, diff, untracked files and grep hits the test sets. `status`
 // follows the diff unless a test pins it, standing in for work that reached the checkout without this session's hand.
-const world = (on: On) => {
-  const repo: Repo = { diff: '', diffs: {}, head: 'abc', untracked: {}, grep: {}, files: {} }
+const world = (on: On, home = '/Users/me') => {
+  const repo: Repo = { diff: '', diffs: {}, head: 'abc', untracked: {}, grep: {}, files: {}, links: {} }
   const logs: string[] = []
   const submitted: string[] = []
   const ran: string[] = []
   const clock = mock.clock(on)
+  mock.env(on, { HOME: home })
+  on('fs.stat', ($, e) => {
+    const link = Object.keys(repo.links).find((from) => e.path.startsWith(`${from}/`))
+    const realPath = link === undefined ? e.path : `${repo.links[link]}${e.path.slice(link.length)}`
+    return { value: { kind: 'file' as const, size: 0, mtimeMs: 0, isLink: false, ...(e.resolve ? { realPath } : {}) } }
+  })
   const status = () =>
     repo.status ??
     [repo.diff === '' ? '' : ' M tracked', ...Object.keys(repo.untracked).map((file) => `?? ${file}`)].filter((line) => line !== '').join('\n')
@@ -94,6 +101,31 @@ describe('register', () => {
     expect(logs).toEqual(['lean-comments/limit-edits: 1 signal(s) on app.py'])
   })
 
+  test('installed skills and plugin copies skip limit-edits, reached through a link too', async ($, on) => {
+    const { repo, logs } = world(on)
+    repo.links['/Users/me/.claude/skills/wizard'] = '/Users/me/.agents/skills/wizard'
+    const added = [...comments(4), 'x = 1'].join('\n')
+
+    const answered = [
+      await $.tool.call({ tool: 'Edit', file_path: '/Users/me/.agents/skills/wizard/template.sh', old_string: 'x = 0', new_string: added }),
+      await $.tool.call({ tool: 'Edit', file_path: '/Users/me/.claude/skills/wizard/template.sh', old_string: 'x = 0', new_string: added }),
+      await $.tool.call({ tool: 'Edit', file_path: '/Users/me/.claude/plugins/cache/x/hooks/run.py', old_string: 'x = 0', new_string: added }),
+    ]
+
+    expect(answered.map((call) => call.context)).toEqual([undefined, undefined, undefined])
+    expect(logs).toEqual([])
+  })
+
+  test('a skill linked from an install root into a source checkout is still checked', async ($, on) => {
+    const { repo } = world(on)
+    repo.links['/Users/me/.claude/skills/deploy'] = '/repo/skills/deploy'
+    const added = [...comments(4), 'x = 1'].join('\n')
+
+    const answered = await $.tool.call({ tool: 'Edit', file_path: '/Users/me/.claude/skills/deploy/run.sh', old_string: 'x = 0', new_string: added })
+
+    expect(answered.context?.[0]?.startsWith('lean-comments/limit-edits on run.sh:\n- This edit adds 4 comment-only lines (soft limit 3).')).toBe(true)
+  })
+
   test('a turn whose diff breaks the comment budget gets one follow-up prompt', async ($, on) => {
     const { repo, submitted, clock, logs } = world(on)
 
@@ -108,6 +140,19 @@ describe('register', () => {
     expect(submitted[0]).toContain("lean-comments/limit-turns: this turn's diff adds more comment lines than the budget of 3 per file.")
     expect(submitted[0]).toContain('app.py - 5 added comment lines:')
     expect(logs).toEqual(["lean-comments/limit-turns: this turn's diff is over budget; a follow-up prompt asks to prune"])
+  })
+
+  test('installed files in a checkout at home are left out of the turn report', async ($, on) => {
+    const { repo, submitted, clock } = world(on, '/repo')
+
+    await $.tool.call({ tool: 'Bash', command: 'cd /repo && make' })
+    repo.diff = [diffAdding('.agents/skills/wizard/template.sh', comments(5)), diffAdding('app.py', comments(5))].join('\n')
+    await $.turn.complete(turnEnds())
+    await clock.settle()
+
+    expect(submitted.length).toBe(1)
+    expect(submitted[0]).toContain('app.py - 5 added comment lines:')
+    expect(submitted[0]).not.toContain('.agents/')
   })
 
   test('a session gets at most two follow-ups', async ($, on) => {
