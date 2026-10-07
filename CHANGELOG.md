@@ -1,5 +1,11 @@
 # bahaospanov
 
+## 1.0.1
+
+### Patch Changes
+
+- 6c17732: - **lean-comments**: files installed under `~/.agents/skills`, `~/.claude/skills` or `~/.claude/plugins` skip both comment checks; a link from there into a checkout is still checked.
+
 ## 1.0.0
 
 ### Major Changes
