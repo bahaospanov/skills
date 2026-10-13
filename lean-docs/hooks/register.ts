@@ -1,7 +1,7 @@
 import type { EngineInterface, Register } from 'claude-code'
 import { addedDocLines, docBudgetOfDiff, docNotesOf, docPathsOf, MAX_BLOCKS, repeatMessage, SKILL, tokensOf, turnReport, type RepeatHint } from './docs'
 import { DOCUMENTATION } from './prompts'
-import { authorsHistory } from './shared/anchor'
+import { amends, authorsHistory } from './shared/anchor'
 import { baseName, claimedWorktrees, isDoc, nonBlankCount, splitLines, worktreesOf } from './shared/diff'
 import { dirOf, isDotfileOrTemp, isTrim } from './shared/paths'
 import { MODEL, promptFor, SYSTEM, verdictOf, type Review, type Verdict } from './shared/verdict'
@@ -45,6 +45,16 @@ const claim = async ($: EngineInterface, blob: string) => {
   }
 }
 
+// The command text alone kept 6aed9cb across `git reset --hard origin/dev && git cherry-pick -n 6aed9cb`, and ten dev
+// commits read as this session's. An amend replaces HEAD on the same parent instead of descending from it.
+const authoredMove = async ($: EngineInterface, wt: string, command: string | undefined, from: string, to: string) => {
+  if (command === undefined || !authorsHistory(command)) return false
+  if ((await git($, wt, ['merge-base', '--is-ancestor', from, to])) !== undefined) return true
+  if (!amends(command)) return false
+  const [was, now] = splitLines((await git($, wt, ['rev-parse', `${from}^`, `${to}^`])) ?? '')
+  return was !== undefined && was === now
+}
+
 // Between two of our own calls another agent sharing the checkout can commit, fast-forward or reset it, and every line
 // arriving that way would otherwise read as this turn's work.
 const settle = async ($: EngineInterface, command?: string) => {
@@ -52,10 +62,9 @@ const settle = async ($: EngineInterface, command?: string) => {
     let next = info
     const head = await git($, wt, ['rev-parse', 'HEAD'])
     if (head !== undefined && head !== next.seen) {
-      next =
-        command !== undefined && authorsHistory(command)
-          ? { ...next, seen: head }
-          : { ...next, head, seen: head, status: await statusOf($, wt) }
+      next = (await authoredMove($, wt, command, next.seen, head))
+        ? { ...next, seen: head }
+        : { ...next, head, seen: head, status: await statusOf($, wt) }
     }
     if (!next.touched) {
       const status = await statusOf($, wt)

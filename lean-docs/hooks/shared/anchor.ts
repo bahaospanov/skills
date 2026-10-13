@@ -4,6 +4,8 @@ const AUTHORS_HISTORY = /\bgit\b[^;&|]*\b(?:commit|merge|am|cherry-pick|revert)\
 
 export const authorsHistory = (command: string) => AUTHORS_HISTORY.test(command)
 
+export const amends = (command: string) => /\bgit\b[^;&|]*\bcommit\b[^;&|]*\s--amend\b/.test(command)
+
 export const shortSha = (sha: string) => sha.slice(0, 7)
 
 export const baseNote = (bases: readonly string[]) => {

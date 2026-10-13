@@ -1,5 +1,5 @@
 import type { ModelCompleteRequest, On } from 'claude-code'
-import { describe, expect, mock, test, tier } from 'claude-code/testing'
+import { describe, expect, mock, test, tier, type Engine } from 'claude-code/testing'
 
 tier('user')
 
@@ -16,7 +16,8 @@ type Repo = {
   diff: string
   diffs: Record<string, string>
   head: string
-  commitTo?: string
+  parents: Record<string, string>
+  movesTo?: string
   status?: string
   untracked: Record<string, string>
   grep: Record<string, string[]>
@@ -26,7 +27,9 @@ type Repo = {
 // Beneath the mod: a git worktree at /repo (HOME /Users/me) whose HEAD, diff, untracked files, grep hits and disk the
 // test sets. `status` follows the diff unless a test pins it, standing in for work this session's hand never made.
 const world = (on: On, reply = APPROVE) => {
-  const repo: Repo = { diff: '', diffs: {}, head: 'abc', untracked: {}, grep: {}, files: {} }
+  const repo: Repo = { diff: '', diffs: {}, head: 'abc', parents: {}, untracked: {}, grep: {}, files: {} }
+  const descends = (commit: string | undefined, from: string): boolean =>
+    commit !== undefined && (commit === from || descends(repo.parents[commit], from))
   const asked: ModelCompleteRequest[] = []
   const logs: string[] = []
   const submitted: string[] = []
@@ -45,6 +48,13 @@ const world = (on: On, reply = APPROVE) => {
     if (args.endsWith('rev-parse --show-toplevel')) return answer(/^(-C \/repo|rev-parse)/.test(args) ? '/repo\n' : undefined)
     if (args === '-C /repo worktree list --porcelain') return answer('worktree /repo\nHEAD abc\n')
     if (args === '-C /repo rev-parse HEAD') return answer(`${repo.head}\n`)
+    const [, from, to] = args.match(/^-C \/repo merge-base --is-ancestor (\S+) (\S+)$/) ?? []
+    if (from !== undefined && to !== undefined) return answer(descends(to, from) ? '' : undefined)
+    const [, was, now] = args.match(/^-C \/repo rev-parse (\S+)\^ (\S+)\^$/) ?? []
+    if (was !== undefined && now !== undefined) {
+      const parents = [repo.parents[was], repo.parents[now]]
+      return answer(parents.includes(undefined) ? undefined : `${parents.join('\n')}\n`)
+    }
     if (args === '-C /repo status --porcelain') return answer(status())
     const base = args.match(/^-C \/repo diff --unified=0 (.+)$/)
     if (base?.[1] !== undefined) return answer(repo.diffs[base[1]] ?? repo.diff)
@@ -74,7 +84,7 @@ const world = (on: On, reply = APPROVE) => {
   on('turn.complete', ($, e) => ({ text: e.answer }))
   on('tool.call', { tool: 'Bash' }, ($, e) => {
     ran.push(e.command)
-    if (repo.commitTo !== undefined && e.command.includes('commit')) repo.head = repo.commitTo
+    if (repo.movesTo !== undefined) [repo.head, repo.movesTo] = [repo.movesTo, undefined]
     return { result: { stdout: '', stderr: '', interrupted: false } }
   })
   on('tool.call', { tool: 'Write' }, ($, e) => {
@@ -102,6 +112,16 @@ const prose = (n: number, tag = 'Step') => Array.from({ length: n }, (_, i) => `
 
 const docDiff = (path: string, n: number) =>
   [`--- a/${path}`, `+++ b/${path}`, `@@ -1,0 +2,${n} @@`, ...Array.from({ length: n }, (_, i) => `+Step ${i}.`)].join('\n')
+
+// HEAD leaves abc for `to` inside `command`; a diff against abc would then blame THEIRS.md on this session.
+const moveHead = async ($: Engine, repo: Repo, command: string, to: string) => {
+  await $.tool.call({ tool: 'Bash', command: 'cd /repo && make' })
+  repo.movesTo = to
+  repo.diffs['abc'] = docDiff('THEIRS.md', 19)
+  await $.tool.call({ tool: 'Bash', command })
+  repo.diff = docDiff('README.md', 19)
+  await $.turn.complete(turnEnds())
+}
 
 describe('register', () => {
   test('docs-review: a grown doc in a checkout is reviewed and a rejection reaches the model as context', async ($, on) => {
@@ -234,6 +254,74 @@ describe('register', () => {
     await clock.settle()
 
     expect(submitted).toEqual([])
+  })
+
+  test('limit-docs: a commit written by this session keeps its prose in the report', async ($, on) => {
+    const { repo, submitted, clock } = world(on)
+    repo.parents = { def: 'abc' }
+
+    await $.tool.call({ tool: 'Bash', command: 'cd /repo && make' })
+    repo.diff = docDiff('README.md', 19)
+    repo.movesTo = 'def'
+    repo.diffs['def'] = ''
+    await $.tool.call({ tool: 'Bash', command: 'git -C /repo commit -m "docs: x"' })
+    await $.turn.complete(turnEnds())
+    await clock.settle()
+
+    expect(submitted[0]).toContain('README.md')
+    expect(submitted[0]).toContain('Diff base: abc')
+  })
+
+  test('limit-docs: an amend keeps the base: it replaces HEAD on the same parent instead of descending from it', async ($, on) => {
+    const { repo, submitted, clock } = world(on)
+    repo.parents = { def: 'abc', fed: 'abc' }
+
+    await $.tool.call({ tool: 'Bash', command: 'cd /repo && make' })
+    repo.diff = docDiff('README.md', 19)
+    repo.diffs = { def: '', fed: '' }
+    repo.movesTo = 'def'
+    await $.tool.call({ tool: 'Bash', command: 'git -C /repo commit -m "docs: x"' })
+    repo.movesTo = 'fed'
+    await $.tool.call({ tool: 'Bash', command: 'git -C /repo commit --amend --no-edit' })
+    await $.turn.complete(turnEnds())
+    await clock.settle()
+
+    expect(submitted[0]).toContain('README.md')
+    expect(submitted[0]).toContain('Diff base: abc')
+  })
+
+  test('limit-docs: a reset onto another line re-anchors though the same command cherry-picks', async ($, on) => {
+    const { repo, submitted, clock } = world(on)
+    repo.parents = { abc: 'p1', dev: 'p2', p2: 'p1' }
+
+    await moveHead($, repo, 'git reset --hard origin/dev && git cherry-pick -n abc && git status --short', 'dev')
+    await clock.settle()
+
+    expect(submitted[0]).toContain('README.md')
+    expect(submitted[0]).toContain('Diff base: dev')
+    expect(submitted[0]).not.toContain('THEIRS.md')
+  })
+
+  test('limit-docs: a rebase re-anchors, a commit in the same command included', async ($, on) => {
+    const { repo, submitted, clock } = world(on)
+    repo.parents = { abc: 'p1', dev: 'p1', bca: 'dev', fix: 'bca' }
+
+    await moveHead($, repo, 'git rebase origin/dev && git commit -am fix', 'fix')
+    await clock.settle()
+
+    expect(submitted[0]).toContain('Diff base: fix')
+    expect(submitted[0]).not.toContain('THEIRS.md')
+  })
+
+  test('limit-docs: a fast-forward under an unrelated command re-anchors: descending from the base is not enough', async ($, on) => {
+    const { repo, submitted, clock } = world(on)
+    repo.parents = { def: 'abc' }
+
+    await moveHead($, repo, 'cd /repo && make test', 'def')
+    await clock.settle()
+
+    expect(submitted[0]).toContain('Diff base: def')
+    expect(submitted[0]).not.toContain('THEIRS.md')
   })
 
   test("limit-docs: another agent's uncommitted prose in a checkout this session only read is not reported", async ($, on) => {
