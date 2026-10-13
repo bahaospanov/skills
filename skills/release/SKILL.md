@@ -1,10 +1,10 @@
 ---
-name: deploy-to-prod
+name: release
 description: Promote what the integration branch holds to production — squash iterative commits, cut the work into waves, ship wave by wave with a runbook issue.
 disable-model-invocation: true
 ---
 
-# deploy-to-prod
+# release
 
 Promote the commits the **source** branch (integration, usually `dev`) holds and the **target** (production, usually `main`) lacks. Arguments `[source] [target]` override what step 1 finds.
 
