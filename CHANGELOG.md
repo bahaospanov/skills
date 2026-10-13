@@ -1,5 +1,11 @@
 # bahaospanov
 
+## 1.1.0
+
+### Minor Changes
+
+- 79e09ce: - **bahaospanov-skills**: skill **deploy-to-prod** renamed **release**; invoke it as `/release`. `/deploy-to-prod` is gone.
+
 ## 1.0.2
 
 ### Patch Changes
