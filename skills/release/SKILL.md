@@ -1,6 +1,6 @@
 ---
 name: release
-description: Promote what the integration branch holds to production — squash iterative commits, cut the work into waves, ship wave by wave with a runbook issue.
+description: Promote what the integration branch holds to production — fold fixup commits into their parent, cut the work into waves, ship wave by wave with a runbook issue.
 disable-model-invocation: true
 ---
 
@@ -8,13 +8,14 @@ disable-model-invocation: true
 
 Promote the commits the **source** branch (integration, usually `dev`) holds and the **target** (production, usually `main`) lacks. Arguments `[source] [target]` override what step 1 finds.
 
-- **wave** — a prefix of the rewritten source shipped as one promotion: the target moves to the wave's **tip**, CI migrates and deploys, the manual steps run, then the next wave. Waves are prefixes so the target always fast-forwards.
+- **wave** — a prefix of the source, as it is or rewritten, shipped as one promotion: the target moves to the wave's **tip**, CI migrates and deploys, the manual steps run, then the next wave. Waves are prefixes so the target always fast-forwards.
 - **hold wave** — the last wave, commits whose ticket or MR says not-for-prod; stays on the source, unpromoted this run.
-- **squash group** — commits that finished one piece of work in several tries, rewritten as one.
+- **fold** — a commit that is not a step of its own (a fixup, a rework) merged into the earlier commit it patches, its **parent**. Every other commit ships as it is, even when several share one issue.
+- **rewrite** — new history for the source, made only when the plan needs it: a fold, a drop or a move. Without one, history stays untouched and steps 7–8 are skipped.
 - **tree-identical** — the rewritten source tip has byte-for-byte the tree of the old one. The rewrite changes history only.
 - **runbook** — the tracker issue that carries the deploy: one checklist per wave.
 
-History and production move only on the user's word in their latest message: plan approval (step 6), force push (step 8), and one "go" per wave (step 10).
+History and production move only on the user's word in their latest message: plan approval (step 6), force push (step 8, after a rewrite), and one "go" per wave (step 10).
 
 ## Steps
 
@@ -61,73 +62,82 @@ Done when every commit has its refs (or none), every ticket is read, every migra
 
 ### 5. Plan
 
-**Squash groups.** Commits join one group when they share the same issue refs, wherever they sit in the range. Commits without a ref join when they share a scope, overlap in files, the later ones use fix / fixup / review wording, and no other issue's commit sits between them. A group holds one issue's work: two different refs never share a group. Merge commits flatten into their commits. A commit and its revert, both in range, drop as a pair. A wave cut inside a group splits it, at an MR boundary when there is one.
+**Folds.** Every commit ships as it is by default; a shared issue ref is no reason to combine commits. A commit folds into an earlier in-range commit, its parent, only when it is not a step of its own:
+
+- autosquash or patch wording — `fixup!`, `squash!`, `amend!`, wip, typo, lint, review fix; the parent is the commit it names, else the latest earlier one touching the same files
+- it reworks its parent — the lines it removes or changes blame to that one in-range commit, and it adds nothing new: B undoes or replaces A
+
+A commit and its revert, both in range, drop as a pair. Merge commits flatten into their commits. A fold joins its parent's wave; one that builds on a commit past the wave cut ships unfolded in its own wave.
 
 **Waves.** One wave by default; a signal cuts another:
 
 - a contract migration ships in a later wave than the code that stops using what it removes ([`MIGRATIONS.md`](MIGRATIONS.md))
 - a one-time script that must run between two changes cuts between them
 - an ordering hint in a ticket
-- commits whose ticket or MR is not-for-prod go to the hold wave, with every commit that builds on them; when the trial cannot move a held group to the end, ask the user. An open issue or a missing how-to-test is a ⚑, never a hold.
+- commits whose ticket or MR is not-for-prod go to the hold wave, with every commit that builds on them; when the trial cannot move held commits to the end, ask the user. An open issue or a missing how-to-test is a ⚑, never a hold.
 - a script the user confirms is not `done` on dev, or **missing**, goes to the hold wave with the commits whose code needs its result; code that works without the result ships, and only the script waits.
 
 A cut moves only the signalled commits and what builds on them — by the files they touch, or by meaning: a commit that relies on a contract migration's result stays after it even when it rebases cleanly before. Everything else stays in the earlier wave.
 
-**Order.** Waves in sequence. Inside a wave, issue-linked groups first, in the order of their first commit, then the unlinked commits.
+**Order.** Waves in sequence. Inside a wave, commits keep their source order; a fold sits at its parent.
 
-**Messages.** The repo's convention, read from its docs and the target's recent log. The prefix is `feat` when any commit in the group is one, else the type most of its commits carry, the first commit's on a tie; scopes combine, a scope-less commit contributing the apps its files touch; every `#N` and flattened `!N` is kept. The subject describes the whole group; the body joins the unique original bodies. The first commit's author stays; other authors become `Co-authored-by` trailers; the author date is the group's newest. The message carries only what the original commits carried.
+**Messages.** A fold keeps its parent's message. The parent's author stays; other authors become `Co-authored-by` trailers; the author date is the newest. A new subject is written only when two peers are each half of one change, in the repo's convention, read from its docs and the target's recent log: `feat` when either is one, scopes combine, every `#N` and flattened `!N` kept, the unique bodies joined. The message carries only what the original commits carried.
 
-The annotated rebase todo is the plan file ([`REWRITE.md`](REWRITE.md)); a re-plan edits its lines. Trial-run the rewrite in a scratch worktree ([`REWRITE.md`](REWRITE.md)). A group whose move conflicts keeps its original position, and the plan marks it. Done when the trial is tree-identical and every commit sits in exactly one group and one wave.
+**Rewrite.** The plan rewrites history only for a fold, a drop (a step 3 twin, a revert pair) or a move (held commits not already at the tip, a wave cut that reorders). Without one, history stays untouched: waves are prefixes of the source as it is, promotion pushes the original tip SHAs, and each tip's own green pipeline is its check — the exact SHA, stronger than tree-identical; a tip with no pipeline of its own gets the checks in a scratch worktree ([`REWRITE.md`](REWRITE.md), Verify). No backup tag, no force push, open MRs keep their base.
+
+When the plan rewrites, the annotated rebase todo is the plan file ([`REWRITE.md`](REWRITE.md)); a re-plan edits its lines. Trial-run the rewrite in a scratch worktree ([`REWRITE.md`](REWRITE.md)). A fold or move that conflicts keeps its original position, and the plan marks it. Done when every commit sits in exactly one wave, and a rewrite's trial is tree-identical.
 
 ### 6. Present — consent 1
 
 Show the plan as one wave timeline in a fenced block, laid out as below:
 
-- a header line (range, commit counts, waves, trial result, how promotion was found), then the step 3 drops
-- per wave: manual steps by timing, a `FLAG` line per feature flag at its timing (name, what it gates, prod value, kind), squash groups numbered for toggling (old short SHAs → one new line), single commits as `(kept)` lines, CI auto-steps with migration risk tags, `unknown — ask` and no-action lines, what the wave waits for
+- a header line (range, commit counts, waves, trial result or `history untouched`, how promotion was found), then the step 3 drops
+- per wave: manual steps by timing, a `FLAG` line per feature flag at its timing (name, what it gates, prod value, kind), commits as `(kept)` lines, folds numbered for toggling (parent ◀ fold SHAs, the reason), CI auto-steps with migration risk tags, `unknown — ask` and no-action lines, what the wave waits for
 - the hold wave, numbered questions, ⚑ flags, notes (branch hits outside this deploy)
-- a closing line: the groups, and `backup/*` tags older than 30 days for the user to delete — age from the date in the tag name, else the tagged commit's date
+- a closing line: the folds, and `backup/*` tags older than 30 days for the user to delete — age from the date in the tag name, else the tagged commit's date
 
 ```
-dev → main · 14 commits → 7 (1 dropped) · 2 waves · trial tree-identical ✓ · promote: ff push of main (inferred)
+dev → main · 11 commits → 8 (1 dropped, 2 folded) · 2 waves · trial tree-identical ✓ · promote: ff push of main (inferred)
 drop   5e6f7a8 fix(api): webhook retry #36   (twin of main 1f2e3d4)
-wave 1 ─ tip: docs: deploy notes                          ─────────
+wave 1 ─ tip: chore(infra): backup timer                  ─────────
   ├ BEFORE promote: add EXPORT_BUCKET to the prod env (#41)          unprobed
   ├ FLAG BEFORE promote: EXPORT_PAGE_ENABLED → /exports page (#41) · prod: off (404) · build-time · ? 3
-  ├ [1] #41  a1b2c3d d4e5f6a 0a1b2c3 ─▶ feat(api,web): order export #41
-  ├ [2] #38  b7c8d9e e0f1a2b         ─▶ fix(api): refund rounding #38 ⚑
-  ├     #40  c9d0e1f                    (kept)
-  ├     unlinked 3c4d5e6                (kept, moved to wave end)
+  ├     #41  a1b2c3d feat(api): order export job #41           (kept)
+  ├ [1] #41  d4e5f6a ◀ 0a1b2c3  feat(web): export page #41     fixup! wording
+  ├ [2] #38  b7c8d9e ◀ e0f1a2b  fix(api): refund rounding #38 ⚑   e0f1a2b replaces b7c8d9e's rounding call
+  ├     #40  c9d0e1f fix(web): cart stops reading /coupons #40 (kept)
+  ├     unlinked 3c4d5e6 chore(infra): backup timer            (kept)
   ├ CI   migrate: 0007_export_jobs [expand] ▶ deploy ▶ smoke
   ├ MANUAL after deploy: `cli export-backfill` (#41) · dev: done (#41 note)
   ├ MANUAL unknown — ask: install infra/backup.timer (3c4d5e6)
   └ no action: docs/**, scripts/dev-seed.sh
 wave 2 ─ tip: refactor(api): drop legacy coupons #44      ─────────
-  ├ [3] #44  f1e2d3c 0b9a8c7         ─▶ refactor(api,admin): drop legacy coupons #44
+  ├     #44  0b9a8c7 refactor(admin): coupons page removed #44 (kept)
+  ├     #44  f1e2d3c refactor(api): drop legacy coupons #44    (kept)
   ├ CI   migrate: 0008_drop_coupons [contract] ▶ deploy
-  └ waits: wave 1 web stops reading /coupons (d4e5f6a)
+  └ waits: wave 1 web stops reading /coupons (c9d0e1f)
 hold   ─ 9ab12cd feat(web): gift cards #47  (MR !52 is a draft)
 ? 1 0008_drop_coupons shares f1e2d3c with the code that stops using it: accept the migrate→deploy window?
-? 2 `cli coupons-archive` (#44) dev: unknown. Ran on dev? If not, it holds; [3] ships without it.
+? 2 `cli coupons-archive` (#44) dev: unknown. Ran on dev? If not, it holds; f1e2d3c ships without it.
 ? 3 EXPORT_PAGE_ENABLED (#41): enable on prod? Build-time: set it before promote, later means a rebuild; left off, /exports ships dark.
 ⚑ #38: open, no how-to-test
 notes: branch fix/paypal-guard has migrations/0006_webhooks.py, absent from dev
-groups [1] 3→1 [2] 2→1 [3] 2→1 · backup tags > 30 d: none
+folds [1] [2] · backup tags > 30 d: none
 ```
 
-The user may toggle groups, move commits between waves, and send commits to the hold wave. Re-plan from step 5 on any change. Done when the user approves this exact plan.
+The user may toggle folds, move commits between waves, and send commits to the hold wave. Re-plan from step 5 on any change. Done when the user approves this exact plan.
 
 ### 7. Rewrite and verify
 
-Apply the approved plan per [`REWRITE.md`](REWRITE.md). Done when the result is tree-identical and every wave tip except the last passes the checks; a failing tip moves its cut, back to step 6.
+Skipped when history stays untouched. Otherwise apply the approved plan per [`REWRITE.md`](REWRITE.md). Done when the result is tree-identical and every wave tip except the last passes the checks; a failing tip moves its cut, back to step 6.
 
 ### 8. New log — consent 2, force push
 
-Show `git log --oneline <target>..` of the rewrite with wave tips marked. On the user's word: push the backup tag, then force-push with lease ([`REWRITE.md`](REWRITE.md)). The source's CI may run every job: the rewritten branch shares no before-SHA with the old one.
+Skipped with step 7. Show `git log --oneline <target>..` of the rewrite with wave tips marked, and the open MRs and branches built on the old source: after the push each needs `git rebase --onto origin/<source> <old tip>`. On the user's word: push the backup tag, then force-push with lease ([`REWRITE.md`](REWRITE.md)). The source's CI may run every job: the rewritten branch shares no before-SHA with the old one.
 
 ### 9. Runbook
 
-Wait for the source pipeline on the rewritten tip to go green. Then create the runbook issue ([`TRACKERS.md`](TRACKERS.md)), assigned to the user, unlabelled:
+After a rewrite, wait for the source pipeline on the rewritten tip to go green. Then create the runbook issue ([`TRACKERS.md`](TRACKERS.md)), assigned to the user, unlabelled:
 
 ```
 Deploy <source> → <target>, <date>. Backup: `backup/<source>-<date>-<sha>`.
@@ -148,7 +158,7 @@ Deploy <source> → <target>, <date>. Backup: `backup/<source>-<date>-<sha>`.
 
 One flag line per flag the user enables, among its timing's steps. A how-to-test item for flag-gated code names the flag, `(once <FLAG> is on)`; while that flag is off, the item stays open and the wave does not wait on it.
 
-Referencing each `#N` cross-links the source issues. The user closes the runbook issue; the run never does.
+The backup sentence appears only after a rewrite. Referencing each `#N` cross-links the source issues. The user closes the runbook issue; the run never does.
 
 ### 10. Ship waves
 
@@ -162,4 +172,4 @@ Per wave, in order:
 
 A red pipeline or a failed probe stops the run: report the failing job and the decisive log line, note it in the runbook, ship no later wave. Fix-forward or revert is the user's call.
 
-A later run starts over at step 1: the source is already squashed, so it plans only the remaining waves.
+A later run starts over at step 1: the target already holds what shipped, so it plans only the remaining waves.

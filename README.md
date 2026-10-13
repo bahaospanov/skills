@@ -23,7 +23,7 @@ Pick one: installing both leaves every skill twice.
 
 Reachable only when you type them (Claude Code: `disable-model-invocation: true`; Codex: `policy.allow_implicit_invocation: false` in `agents/openai.yaml`).
 
-- **[release](skills/release/SKILL.md)**: Integration branch to production: squash iterative commits, cut waves around migrations and one-time steps, ship wave by wave with a runbook issue.
+- **[release](skills/release/SKILL.md)**: Integration branch to production: fold fixup commits into their parent, cut waves around migrations and one-time steps, ship wave by wave with a runbook issue.
 
 ### Model-invoked
 

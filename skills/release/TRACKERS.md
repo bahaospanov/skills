@@ -26,7 +26,7 @@ Load a token into the environment and pass it in a header; never print it.
 | edit body | `PUT issues/<iid>` with `description` | `gh issue edit <n> --body-file …` |
 
 - Run independent GETs in parallel (`xargs -P 8`), writing each response to a scratch file.
-- A commit squashed by an earlier run has no MR of its own: the lookup returns `[]`. Take MRs from the issue's linked MRs instead.
+- A commit an earlier run rewrote has no MR of its own: the lookup returns `[]`. Take MRs from the issue's linked MRs instead.
 - Send long bodies from a file (`--form description=<file` / `--body-file`), never inline in the command.
 - The token may belong to a bot: the user's account comes from the docs naming it, or from the user — never from a "current user" call, even one the docs' own recipes make.
 - Poll a pipeline at an interval matched to how long the last few took, not a fixed short one.
