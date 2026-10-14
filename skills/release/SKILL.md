@@ -1,6 +1,6 @@
 ---
 name: release
-description: Promote what the integration branch holds to production — fold fixup commits into their parent, cut the work into waves, ship wave by wave with a runbook issue.
+description: Promote what the integration branch holds to production — fold fixup commits into their parent, cut the work into waves, ship wave by wave with a runbook issue, then a phone-sized release album.
 disable-model-invocation: true
 ---
 
@@ -175,5 +175,9 @@ Per wave, in order:
 5. Hand the user the wave's manual steps and how-to-test items; wait until they report them done.
 
 A red pipeline or a failed probe stops the run: report the failing job and the decisive log line, note it in the runbook, ship no later wave. Fix-forward or revert is the user's call.
+
+### 11. Report
+
+Once the user confirms the last shipped wave works on production, build the release album ([`REPORT.md`](REPORT.md)): phone-sized images of the changes users can see, for the user to post. A run with no user-visible change says so and has no album. Done when every image is viewed and fits, and the user has the folder and a caption.
 
 A later run starts over at step 1: the target already holds what shipped, so it plans only the remaining waves.
