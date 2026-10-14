@@ -168,10 +168,10 @@ The backup sentence appears only after a rewrite. Referencing each `#N` cross-li
 
 Per wave, in order:
 
-1. Hand the user the wave's before-promote steps (and, in wave 1, the any-time ones); wait for their "deploy" for this wave.
+1. Hand the user the wave's before-promote steps (and, in wave 1, the any-time ones); wait for their "deploy" for this wave. A flag the user asks the run to set goes through the flag script ([`TRACKERS.md`](TRACKERS.md), Scripts).
 2. Promote, after `git fetch`: resolve the tip to its full SHA (`git rev-parse --verify <tip>^{commit}`), confirm `git merge-base --is-ancestor origin/<target> <sha>`, then `git push origin "<sha>:refs/heads/<target>"` with the SHA written out literally — a short SHA can be mistyped, and a shell variable before `:` can be read as a modifier (zsh `$T:r…`). A failed check or a rejected push means the target moved — stop. Or push the wave's tag.
-3. Watch the target's pipeline: call out each after-migrate and during-deploy step the moment its job finishes; wait for green; run the read-only probes.
-4. Tick the wave's automatic items in the runbook.
+3. Watch the target's pipeline with the watch script or `gh run watch` ([`TRACKERS.md`](TRACKERS.md)): call out each after-migrate and during-deploy step the moment its job finishes; wait for green; run the read-only probes.
+4. Tick the wave's automatic items in the runbook with the tick script.
 5. Hand the user the wave's manual steps and how-to-test items; wait until they report them done.
 
 A red pipeline or a failed probe stops the run: report the failing job and the decisive log line, note it in the runbook, ship no later wave. Fix-forward or revert is the user's call.
