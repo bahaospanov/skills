@@ -14,10 +14,13 @@ Promote the commits the **source** branch (integration, usually `dev`) holds and
 - **rewrite** — new history for the source, made only when the plan needs it: a fold, a drop or a move. Without one, history stays untouched and steps 7–8 are skipped.
 - **tree-identical** — the rewritten source tip has byte-for-byte the tree of the old one. The rewrite changes history only.
 - **runbook** — the tracker issue that carries the deploy: one checklist per wave.
+- **live view** — a page outside the terminal the user watches the run on, when one is named; it mirrors the run.
 
-History and production move only on the user's word in their latest message: plan approval (step 6), force push (step 8, after a rewrite), and one "go" per wave (step 10).
+History and production move only on the user's word in their latest message: plan approval (step 6), force push (step 8, after a rewrite), and one "go" per wave (step 10). A tick on the live view never stands in for it.
 
 ## Steps
+
+With a live view, every state change below also goes to it: [`LIVEVIEW.md`](LIVEVIEW.md).
 
 ### 1. Discover
 
@@ -31,6 +34,7 @@ Read CLAUDE.md / AGENTS.md, the docs they point to on CI, deploys, the tracker a
 - the check commands that gate a push, per app, with the install each needs in a fresh worktree
 - read-only probes CI or docs use to confirm a deploy (health URLs, smoke jobs, read-only APIs) — the only channels the run probes production through
 - the user's account on the tracker, as the docs or the user name it. A recipe that reads the current user returns the token's owner, often a bot.
+- a live view, when the docs, the agent's memory or the user name one: its URL and its contract ([`LIVEVIEW.md`](LIVEVIEW.md)). None named → the run goes without one.
 
 Done when each item has a value or is recorded as unknown with the reason. Ask the user only for what the repo cannot answer. An unreachable tracker is not a stop: the run continues without tickets, says so in the plan, and prints the runbook in the terminal.
 
