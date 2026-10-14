@@ -1,5 +1,11 @@
 # bahaospanov
 
+## 1.8.0
+
+### Minor Changes
+
+- 11dcf2e: - **bahaospanov-skills**: **release** close-out posts the release album to the runbook as one note, caption then images, with the new `scripts/gitlab-issue-images.sh`; on GitHub the images go on the release entry and the comment links them, since the API has no issue uploads.
+
 ## 1.7.0
 
 ### Minor Changes
