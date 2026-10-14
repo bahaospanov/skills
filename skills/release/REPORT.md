@@ -9,7 +9,7 @@ Changes someone outside can see: pages, UI, behaviour, link previews, emails, se
 - one change per slide; a headline of up to six words with one accent word, one line under it, one big visual
 - small changes share a closing "Also new" slide, up to four bullets with a short line each
 - up to six slides
-- the top line of every slide: brand · version, when the run has one · date · `n / total`
+- the top line of every slide: brand · version · date · `n / total`
 - copy in the language of the product's public site
 
 ## Format

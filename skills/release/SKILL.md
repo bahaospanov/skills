@@ -1,6 +1,6 @@
 ---
 name: release
-description: Promote what the integration branch holds to production — fold fixup commits into their parent, cut the work into waves, ship wave by wave with a runbook issue, then a phone-sized release album.
+description: Promote what the integration branch holds to production — fold fixup commits into their parent, cut the work into waves, ship wave by wave with a runbook issue, then tag a SemVer release, close the shipped issues and build a phone-sized release album.
 disable-model-invocation: true
 ---
 
@@ -16,7 +16,7 @@ Promote the commits the **source** branch (integration, usually `dev`) holds and
 - **runbook** — the tracker issue that carries the deploy: one checklist per wave.
 - **live view** — a page outside the terminal the user watches the run on, when one is named; it mirrors the run.
 
-History and production move only on the user's word in their latest message: plan approval (step 6), "push" for the force push (step 8, after a rewrite), and "deploy" per wave (step 10) — words a push gate such as git-gates lets a push through on, so ask for them by name. A tick on the live view never stands in for it.
+History and production move only on the user's word in their latest message: plan approval (step 6), "push" for the force push (step 8, after a rewrite), "deploy" per wave (step 10), and "release" for the version tag (step 11) — words a push gate such as git-gates lets a push through on, so ask for them by name. A tick on the live view never stands in for it.
 
 ## Steps
 
@@ -34,6 +34,7 @@ Read CLAUDE.md / AGENTS.md, the docs they point to on CI, deploys, the tracker a
 - the check commands that gate a push, per app, with the install each needs in a fresh worktree
 - read-only probes CI or docs use to confirm a deploy (health URLs, smoke jobs, read-only APIs) — the only channels the run probes production through
 - the user's account on the tracker, as the docs or the user name it. A recipe that reads the current user returns the token's owner, often a bot.
+- version tags on the target (`v<major>.<minor>.<patch>`), and the tracker's labels for work shipped to production (`shipped::prod`) and for a release's runbook (`type::release`): the existing ones, else those names
 - a live view, when the docs, the agent's memory or the user name one: its URL and its contract ([`LIVEVIEW.md`](LIVEVIEW.md)). None named → the run goes without one.
 
 Done when each item has a value or is recorded as unknown with the reason. Ask the user only for what the repo cannot answer. An unreachable tracker is not a stop: the run continues without tickets, says so in the plan, and prints the runbook in the terminal.
@@ -158,11 +159,16 @@ Deploy <source> → <target>, <date>. Backup: `backup/<source>-<date>-<sha>`.
 
 ## Hold
 - <sha> <subject> — <why held>
+
+## Close out
+- [ ] version tag and release entry
+- [ ] shipped issues labelled and closed
+- [ ] release album
 ```
 
 One flag line per flag the user enables, among its timing's steps. A how-to-test item for flag-gated code names the flag, `(once <FLAG> is on)`; while that flag is off, the item stays open and the wave does not wait on it.
 
-The backup sentence appears only after a rewrite. Referencing each `#N` cross-links the source issues. The user closes the runbook issue; the run never does.
+The backup sentence appears only after a rewrite. Referencing each `#N` cross-links the source issues. The run closes the runbook issue only at close-out (step 11).
 
 ### 10. Ship waves
 
@@ -176,8 +182,15 @@ Per wave, in order:
 
 A red pipeline or a failed probe stops the run: report the failing job and the decisive log line, note it in the runbook, ship no later wave. Fix-forward or revert is the user's call.
 
-### 11. Report
+### 11. Close out
 
-Once the user confirms the last shipped wave works on production, build the release album ([`REPORT.md`](REPORT.md)): phone-sized images of the changes users can see, for the user to post. A run with no user-visible change says so and has no album. Done when every image is viewed and fits, and the user has the folder and a caption.
+Once the user confirms production works after the last shipped wave (or after the waves that shipped, when the run stopped), ask for their "release". Then, in order, ticking the runbook's close-out items:
+
+1. **Version.** `scripts/next-version.sh <shipped tip>` prints the previous tag and the next SemVer from the commits since it: a breaking `!` or `BREAKING CHANGE:` → major, any `feat` → minor, else patch; no previous tag → `v1.0.0`, unless the user names another. `git tag -a <v> -m <v> <full sha>`, `git push origin <v>`, then a release entry named `<v>` whose notes list the shipped issues (`- #N title`) and the runbook ([`TRACKERS.md`](TRACKERS.md)).
+2. **Issues.** `scripts/issue-close.sh` per issue a shipped commit references: note `Shipped to production in <v> (runbook #R)`, the production label, closed. An issue with work left — a held commit, an open MR — gets `--keep-open` and `Partly shipped in <v>: <shas>`, no label.
+3. **Report.** The release album ([`REPORT.md`](REPORT.md)): phone-sized images of the changes users can see, `<v>` on every slide, for the user to post. A run with no user-visible change says so and has no album.
+4. **Runbook.** `scripts/issue-close.sh --dates <first day of the run> <today> <runbook> "Released as <v>: <release link>" type::release`.
+
+Done when the tag and its release entry exist, every shipped issue is closed or noted, every album image is viewed and fits, the user has the album folder and a caption, and the runbook is closed.
 
 A later run starts over at step 1: the target already holds what shipped, so it plans only the remaining waves.
