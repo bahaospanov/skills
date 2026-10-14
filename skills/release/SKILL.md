@@ -16,7 +16,7 @@ Promote the commits the **source** branch (integration, usually `dev`) holds and
 - **runbook** — the tracker issue that carries the deploy: one checklist per wave.
 - **live view** — a page outside the terminal the user watches the run on, when one is named; it mirrors the run.
 
-History and production move only on the user's word in their latest message: plan approval (step 6), force push (step 8, after a rewrite), and one "go" per wave (step 10). A tick on the live view never stands in for it.
+History and production move only on the user's word in their latest message: plan approval (step 6), "push" for the force push (step 8, after a rewrite), and "deploy" per wave (step 10) — words a push gate such as git-gates lets a push through on, so ask for them by name. A tick on the live view never stands in for it.
 
 ## Steps
 
@@ -137,7 +137,7 @@ Skipped when history stays untouched. Otherwise apply the approved plan per [`RE
 
 ### 8. New log — consent 2, force push
 
-Skipped with step 7. Show `git log --oneline <target>..` of the rewrite with wave tips marked, and the open MRs and branches built on the old source: after the push each needs `git rebase --onto origin/<source> <old tip>`. On the user's word: push the backup tag, then force-push with lease ([`REWRITE.md`](REWRITE.md)). The source's CI may run every job: the rewritten branch shares no before-SHA with the old one.
+Skipped with step 7. Show `git log --oneline <target>..` of the rewrite with wave tips marked, and the open MRs and branches built on the old source: after the push each needs `git rebase --onto origin/<source> <old tip>`. On the user's "push": push the backup tag, then force-push with lease ([`REWRITE.md`](REWRITE.md)). The source's CI may run every job: the rewritten branch shares no before-SHA with the old one.
 
 ### 9. Runbook
 
@@ -149,7 +149,7 @@ Deploy <source> → <target>, <date>. Backup: `backup/<source>-<date>-<sha>`.
 ## Wave 1 — <tip sha> <subject>
 - [ ] manual, before promote: <step> (<sha>, #N)
 - [ ] flag, <timing>: set <FLAG> in <where>, <build-time | runtime> (#N)
-- [ ] promote: `git push origin <tip>:<target>`
+- [ ] promote: `git push origin <full tip sha>:refs/heads/<target>`
 - [ ] pipeline green: <link>
 - [ ] auto: migrations <revisions> (CI)
 - [ ] manual, when <job> finishes: <step> (#N)
@@ -168,8 +168,8 @@ The backup sentence appears only after a rewrite. Referencing each `#N` cross-li
 
 Per wave, in order:
 
-1. Hand the user the wave's before-promote steps (and, in wave 1, the any-time ones); wait for their "go" for this wave.
-2. Promote: `git push origin <tip>:<target>` (a fast-forward; a rejection means the target moved — stop), or push the wave's tag.
+1. Hand the user the wave's before-promote steps (and, in wave 1, the any-time ones); wait for their "deploy" for this wave.
+2. Promote, after `git fetch`: resolve the tip to its full SHA (`git rev-parse --verify <tip>^{commit}`), confirm `git merge-base --is-ancestor origin/<target> <sha>`, then `git push origin "<sha>:refs/heads/<target>"` with the SHA written out literally — a short SHA can be mistyped, and a shell variable before `:` can be read as a modifier (zsh `$T:r…`). A failed check or a rejected push means the target moved — stop. Or push the wave's tag.
 3. Watch the target's pipeline: call out each after-migrate and during-deploy step the moment its job finishes; wait for green; run the read-only probes.
 4. Tick the wave's automatic items in the runbook.
 5. Hand the user the wave's manual steps and how-to-test items; wait until they report them done.
