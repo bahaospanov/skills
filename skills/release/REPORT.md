@@ -25,6 +25,6 @@ In a report folder: the docs' or the agent's memory's place for release reports,
 3. Write the slides, then render: `node scripts/report/render.mjs album.html <report folder>/<date>/`.
 4. View every PNG. Done when no text overlaps or clips, no slide is half empty, and each slide reads at phone width.
 5. Hand the user the folder and a caption ready to paste: one line per slide's change, then the site link.
-6. Post the caption and the images to the runbook as one note, with the image script ([`TRACKERS.md`](TRACKERS.md)), so the album stays with the release record.
+6. Append a `## Release album` section to the runbook's description, the caption then the images, with the image script ([`TRACKERS.md`](TRACKERS.md)), so the album stays with the release record.
 
 Both scripts need `playwright-core` and a local Chrome: they resolve `playwright-core` from the current directory, or from the `PLAYWRIGHT_CORE` path (an app's `node_modules/playwright-core`).

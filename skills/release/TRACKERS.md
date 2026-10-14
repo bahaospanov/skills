@@ -27,7 +27,7 @@ Load a token into the environment and pass it in a header; never print it.
 | watch a pipeline | `scripts/gitlab-pipeline-watch.sh <id> [seconds]` | `gh run watch <id> --exit-status` |
 | tick runbook items | `scripts/issue-tick.sh <iid> <text>…` | same script, through `gh` |
 | close with a note and labels | `scripts/issue-close.sh [--keep-open] [--dates <start> <due>] <iid> <note> [label]…`; a missing label is created on first use | same script, through `gh`; no dates |
-| note with images | `scripts/gitlab-issue-images.sh <iid> <note file> <image>…` | `gh release upload <v> <image>…`, then `gh issue comment <n> --body-file …` with `![](https://github.com/<owner>/<repo>/releases/download/<v>/<image>)` per image: the API has no issue uploads |
+| images in the description | `scripts/gitlab-issue-images.sh <iid> <section file> <image>…` | `gh release upload <v> <image>…`, then `gh issue edit <n> --body-file …`, the body plus the section and `![](https://github.com/<owner>/<repo>/releases/download/<v>/<image>)` per image: the API has no issue uploads |
 | release entry | `POST releases` with `tag_name`, `name`, `description` | `gh release create <v> --title <v> --notes-file …` |
 | set a flag in an env File variable | `scripts/gitlab-file-var-line.sh [--add] <variable> <NAME> <value>` | no File variables: `gh variable set <NAME> --body <value>`; a secret is write-only, so the user sets it |
 
@@ -43,5 +43,5 @@ Load a token into the environment and pass it in a header; never print it.
 
 - **gitlab-pipeline-watch** prints the jobs each time one changes status and exits when the pipeline ends: 0 on success, 1 otherwise, naming the failed jobs. Run it in the background; its exit is the signal.
 - **issue-tick** re-reads the body and ticks every open item whose line contains one of the texts. A text matching no open item fails the run and writes nothing.
-- **gitlab-issue-images** uploads each image to the project and posts one note: the note file's text, then the images in order. Prints the note's link. Uploads in a private project show only to signed-in members.
+- **gitlab-issue-images** uploads each image to the project and appends to the issue's description: the section file's text, then the images in order. Prints the issue's link. Uploads in a private project show only to signed-in members.
 - **gitlab-file-var-line** changes one `NAME=value` line of a File variable that holds production secrets, without printing the file: it refuses unless the edit touches that line alone, keeps type, protection, masking and scope, reads the value back byte for byte, and deletes its copies. Values show only when they look like a flag (`0/1`, `true/false`, `yes/no`, `on/off`).
