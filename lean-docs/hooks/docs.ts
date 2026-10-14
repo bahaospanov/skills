@@ -33,6 +33,9 @@ export const SKILL = 'SKILL.md'
 
 export const docPathsOf = (diff: string) => [...new Set(addedLines(diff).map(({ path }) => path).filter(isDoc))]
 
+// `changeset version` folds a changeset into CHANGELOG.md and deletes it: one-time by design, never a page that rots.
+export const isChangeset = (path: string) => /(^|\/)\.changeset\/[^/]+\.md$/.test(path)
+
 export const docBudgetOfDiff = (diff: string, skip: ReadonlySet<string> = new Set()) => {
   const perDoc: Record<string, number> = {}
   const newDocs = new Set<string>()

@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'claude-code/testing'
-import { addedDocLines, docBudgetOfDiff, docNotesOf, docPathsOf, tokensOf, turnReport } from '../hooks/docs'
+import { addedDocLines, docBudgetOfDiff, docNotesOf, docPathsOf, isChangeset, tokensOf, turnReport } from '../hooks/docs'
 
 const DIFF = [
   '--- a/app.py',
@@ -16,6 +16,17 @@ const DIFF = [
 ].join('\n')
 
 describe('docs', () => {
+  test('a changeset is a .md directly in a .changeset folder', () => {
+    expect([
+      isChangeset('.changeset/fix.md'),
+      isChangeset('/repo/.changeset/fix.md'),
+      isChangeset('/repo/.changeset/README.md'),
+      isChangeset('/repo/.changeset/config.json'),
+      isChangeset('/repo/docs/.changeset/nested/fix.md'),
+      isChangeset('/repo/docs/changeset.md'),
+    ]).toEqual([true, true, true, false, false, false])
+  })
+
   test('prose is counted per doc, new docs are marked, and non-comment lines are code', () => {
     const { perDoc, code, newDocs } = docBudgetOfDiff(DIFF)
     expect(perDoc).toEqual({ 'docs/new.md': 2 })

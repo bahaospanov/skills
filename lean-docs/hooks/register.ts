@@ -1,5 +1,5 @@
 import type { EngineInterface, Register } from 'claude-code'
-import { addedDocLines, docBudgetOfDiff, docNotesOf, docPathsOf, MAX_BLOCKS, repeatMessage, SKILL, tokensOf, turnReport, type RepeatHint } from './docs'
+import { addedDocLines, docBudgetOfDiff, docNotesOf, docPathsOf, isChangeset, MAX_BLOCKS, repeatMessage, SKILL, tokensOf, turnReport, type RepeatHint } from './docs'
 import { DOCUMENTATION } from './prompts'
 import { amends, authorsHistory } from './shared/anchor'
 import { baseName, claimedWorktrees, isDoc, nonBlankCount, splitLines, worktreesOf } from './shared/diff'
@@ -94,7 +94,7 @@ const inSkillFolder = async ($: EngineInterface, path: string, root: string) => 
 const repeatedFact = async ($: EngineInterface, path: string, added: string, old: string) => {
   if (!isDoc(path) || nonBlankCount(added) <= nonBlankCount(old)) return undefined
   const root = await git($, dirOf(path), ['rev-parse', '--show-toplevel'])
-  if (!root || (await inSkillFolder($, path, root))) return undefined
+  if (!root || isChangeset(path) || (await inSkillFolder($, path, root))) return undefined
   for (const line of splitLines(added)) {
     if (old.includes(line)) continue
     const tokens = tokensOf(line)
@@ -122,19 +122,19 @@ const judge = async ($: EngineInterface, review: Review, input: object): Promise
 const docNotes = async ($: EngineInterface, wt: string, base: string) => {
   const diff = (await git($, wt, ['diff', '--unified=0', base])) ?? ''
   const untracked = splitLines((await git($, wt, ['ls-files', '--others', '--exclude-standard'])) ?? '').filter(isDoc)
-  const skills = new Set<string>()
+  const exempt = new Set<string>()
   for (const rel of new Set([...docPathsOf(diff), ...untracked])) {
-    if (await inSkillFolder($, `${wt}/${rel}`, wt)) skills.add(rel)
+    if (isChangeset(rel) || (await inSkillFolder($, `${wt}/${rel}`, wt))) exempt.add(rel)
   }
-  const { perDoc, code, newDocs } = docBudgetOfDiff(diff, skills)
+  const { perDoc, code, newDocs } = docBudgetOfDiff(diff, exempt)
   for (const rel of untracked) {
-    if (skills.has(rel)) continue
+    if (exempt.has(rel)) continue
     newDocs.add(rel)
     const text = await $.fs.read(`${wt}/${rel}`).catch(() => undefined)
     if (text !== undefined) perDoc[rel] = (perDoc[rel] ?? 0) + nonBlankCount(text)
   }
   const hints: RepeatHint[] = []
-  for (const { path, body } of addedDocLines(diff, skills)) {
+  for (const { path, body } of addedDocLines(diff, exempt)) {
     if (hints.length >= 4) break
     const tokens = tokensOf(body)
     if (tokens.length < 2) continue
@@ -187,7 +187,7 @@ export const register: Register = (on) => {
     const removed = e.tool === 'Write' ? replaced : e.old_string
     if (isTrim(added, removed)) return result
     const root = await git($, dirOf(path), ['rev-parse', '--show-toplevel'])
-    if (root === undefined || (await inSkillFolder($, path, root))) return result
+    if (root === undefined || isChangeset(path) || (await inSkillFolder($, path, root))) return result
 
     const tool_input =
       e.tool === 'Write'

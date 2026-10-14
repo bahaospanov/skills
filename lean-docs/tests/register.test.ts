@@ -209,6 +209,30 @@ describe('register', () => {
     expect(asked.length).toBe(1)
   })
 
+  test('changesets: a changeset skips docs-review and docs-no-repeat-code, and limit-docs does not count it', async ($, on) => {
+    const { repo, asked, ran, submitted, clock } = world(on, REJECT)
+    repo.grep['API_URL'] = ['src/config.ts']
+    repo.grep['config.ts'] = ['src/config.ts']
+    const note = '---\n"pkg": minor\n---\n\nSet `API_URL` in `config.ts`.'
+
+    await $.tool.call({ tool: 'Bash', command: 'cd /repo && make' })
+    const written = [
+      await $.tool.call({ tool: 'Write', file_path: '/repo/.changeset/api-url.md', content: note }),
+      await $.tool.call({ tool: 'Edit', file_path: '/repo/.changeset/api-url.md', old_string: 'Set', new_string: 'Set it once:\nSet' }),
+    ]
+    repo.untracked['.changeset/api-url.md'] = prose(45)
+    repo.diff = docDiff('README.md', 3)
+    await $.turn.complete(turnEnds())
+    await clock.settle()
+
+    expect(written.map((call) => [call.deny, call.context])).toEqual([[undefined, undefined], [undefined, undefined]])
+    expect(ran.length).toBe(3)
+    expect(asked).toEqual([])
+    expect(submitted.length).toBe(1)
+    expect(submitted[0]).toContain('README.md grew by 3 lines')
+    expect(submitted[0]).not.toContain('.changeset/')
+  })
+
   test('limit-docs: prose in a skill folder is not counted; a doc outside one still is', async ($, on) => {
     const { repo, submitted, clock } = world(on)
     repo.files['/repo/skills/deploy/SKILL.md'] = '---\nname: deploy\n---'
