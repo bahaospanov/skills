@@ -1,5 +1,11 @@
 # bahaospanov
 
+## 1.8.1
+
+### Patch Changes
+
+- 5726c55: - **bahaospanov-skills**: **release** puts the album in the runbook's description, a `## Release album` section, instead of a comment; `gitlab-issue-images.sh` now appends to the description.
+
 ## 1.8.0
 
 ### Minor Changes
