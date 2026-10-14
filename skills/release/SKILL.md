@@ -163,7 +163,7 @@ Deploy <source> → <target>, <date>. Backup: `backup/<source>-<date>-<sha>`.
 ## Close out
 - [ ] version tag and release entry
 - [ ] shipped issues labelled and closed
-- [ ] release album
+- [ ] release album, posted here
 ```
 
 One flag line per flag the user enables, among its timing's steps. A how-to-test item for flag-gated code names the flag, `(once <FLAG> is on)`; while that flag is off, the item stays open and the wave does not wait on it.
@@ -188,9 +188,9 @@ Once the user confirms production works after the last shipped wave (or after th
 
 1. **Version.** `scripts/next-version.sh <shipped tip>` prints the previous tag and the next SemVer from the commits since it: a breaking `!` or `BREAKING CHANGE:` → major, any `feat` → minor, else patch; no previous tag → `v1.0.0`, unless the user names another. `git tag -a <v> -m <v> <full sha>`, `git push origin <v>`, then a release entry named `<v>` whose notes list the shipped issues (`- #N title`) and the runbook ([`TRACKERS.md`](TRACKERS.md)).
 2. **Issues.** `scripts/issue-close.sh` per issue a shipped commit references: note `Shipped to production in <v> (runbook #R)`, the production label, closed. An issue with work left — a held commit, an open MR — gets `--keep-open` and `Partly shipped in <v>: <shas>`, no label.
-3. **Report.** The release album ([`REPORT.md`](REPORT.md)): phone-sized images of the changes users can see, `<v>` on every slide, for the user to post. A run with no user-visible change says so and has no album.
+3. **Report.** The release album ([`REPORT.md`](REPORT.md)): phone-sized images of the changes users can see, `<v>` on every slide, for the user to post, and posted to the runbook as a note. A run with no user-visible change says so and has no album.
 4. **Runbook.** `scripts/issue-close.sh --dates <first day of the run> <today> <runbook> "Released as <v>: <release link>" type::release`.
 
-Done when the tag and its release entry exist, every shipped issue is closed or noted, every album image is viewed and fits, the user has the album folder and a caption, and the runbook is closed.
+Done when the tag and its release entry exist, every shipped issue is closed or noted, every album image is viewed and fits, the user has the album folder and a caption, the album is on the runbook, and the runbook is closed.
 
 A later run starts over at step 1: the target already holds what shipped, so it plans only the remaining waves.
