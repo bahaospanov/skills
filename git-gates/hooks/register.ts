@@ -26,6 +26,7 @@ import {
   pushUndetermined,
 } from './consent'
 import { GRANT_DEFAULT_TTL_S, grantArgsOf, isLive, openGrant, spend, type Grant } from './grants'
+import { acknowledgesStaleBase, FETCH_TIMEOUT_MS, mrOpeningOf, staleBaseRefused, type MrOpening } from './fresh-base'
 import { acknowledgesLanded, landedRefused } from './landed-branch'
 import { descriptionFrom, descriptionViolations, expandVars, setsDescription } from './mr-description'
 import { COMMIT_MESSAGE, COMMIT_ORDER } from './prompts'
@@ -134,6 +135,23 @@ const landedTarget = async ($: EngineInterface, command: string) => {
     }
   }
   return undefined
+}
+
+// Origin's copy of the source is what the MR shows; a branch not pushed yet falls back to the local one.
+const staleBase = async ($: EngineInterface, command: string, opening: MrOpening) => {
+  const cwd = await repoOf($, command)
+  const target = opening.target ?? defaultBranchOf(await git($, ['symbolic-ref', '--quiet', 'refs/remotes/origin/HEAD'], cwd))
+  const source = opening.source ?? (await currentBranch($, cwd))
+  if (target === undefined || source === undefined) return undefined
+  await $.process
+    .run(['git', 'fetch', '--quiet', 'origin', target], { ...(cwd === undefined ? {} : { cwd }), timeoutMs: FETCH_TIMEOUT_MS })
+    .catch(() => undefined)
+  const base = await git($, ['rev-parse', '--verify', '--quiet', `refs/remotes/origin/${target}`], cwd)
+  const head =
+    (await git($, ['rev-parse', '--verify', '--quiet', `refs/remotes/origin/${source}`], cwd)) ??
+    (await git($, ['rev-parse', '--verify', '--quiet', `refs/heads/${source}`], cwd))
+  if (base === undefined || head === undefined || (await isAncestor($, base, head, cwd))) return undefined
+  return { source, target }
 }
 
 // A repo without a push policy still merges somewhere; only the landed-delete exemption relies on this guess.
@@ -364,6 +382,14 @@ export const register: Register = (on) => {
     if (landed === undefined) return next(e)
     if ((await typedThisTurn($))?.some(acknowledgesLanded)) return next(e)
     return { deny: landedRefused(e.command, landed.branch, landed.base) }
+  })
+
+  on('tool.call', { tool: 'Bash' }, async ($, e, next) => {
+    const opening = mrOpeningOf(e.command)
+    if (opening === undefined) return next(e)
+    if ((await typedThisTurn($))?.some(acknowledgesStaleBase)) return next(e)
+    const stale = await staleBase($, e.command, opening)
+    return stale === undefined ? next(e) : { deny: staleBaseRefused(e.command, stale.source, stale.target) }
   })
 
   on('tool.call', { tool: 'Bash' }, async ($, e, next) => {

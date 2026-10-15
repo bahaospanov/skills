@@ -19,6 +19,8 @@ type World = {
   gitFails?: boolean
   landedIn?: string
   remote?: boolean
+  // Whether origin's source branch contains origin's target (`dev`) once fetched.
+  base?: 'fresh' | 'stale'
   review?: string
   unanswered?: boolean
   // Commits no remote has yet, oldest first, keyed by sha.
@@ -55,6 +57,14 @@ const world = (on: On, options: World = {}) => {
       }
       if (args === `git merge-base --is-ancestor cafe123 refs/remotes/origin/${options.landedIn}`) {
         return { value: { exitCode: 0, stdout: '', stderr: '' } }
+      }
+    }
+    if (options.base !== undefined) {
+      if (args.startsWith('git rev-parse --verify --quiet refs/remotes/origin/')) {
+        return { value: { exitCode: 0, stdout: args.endsWith('/dev') ? 'base1\n' : 'head1\n', stderr: '' } }
+      }
+      if (args === 'git merge-base --is-ancestor base1 head1') {
+        return { value: { exitCode: options.base === 'fresh' ? 0 : 1, stdout: '', stderr: '' } }
       }
     }
     const unpushed = options.unpushed ?? {}
@@ -157,6 +167,31 @@ describe('register', () => {
     await $.tool.call(bash('git push'))
 
     expect(ran).toEqual(['git push'])
+  })
+
+  test('a merge request on a stale target is denied until the user says the old base is intended', async ($, on) => {
+    const { ran } = world(on, { base: 'stale' })
+    const open = 'curl -sS -X POST "$API/merge_requests" --form source_branch=feat/x --form target_branch=dev --form "title=x"'
+
+    await $.prompt.submit(prompt('ship'))
+    const refused = await $.tool.call(bash(open))
+
+    expect(refused.deny).toContain("'feat/x' does not contain the latest 'dev'")
+    expect(ran).toEqual([])
+
+    await $.prompt.submit(prompt('no rebase, open it'))
+    await $.tool.call(bash(open))
+
+    expect(ran).toEqual([open])
+  })
+
+  test('a merge request whose source has the latest target opens', async ($, on) => {
+    const { ran } = world(on, { base: 'fresh' })
+
+    await $.prompt.submit(prompt('ship'))
+    await $.tool.call(bash('gh pr create --base dev --head feat/x --title x'))
+
+    expect(ran).toEqual(['gh pr create --base dev --head feat/x --title x'])
   })
 
   test('a prompt the user did not type takes the authorization away', async ($, on) => {
