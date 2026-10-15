@@ -1,5 +1,5 @@
 import type { EngineInterface, Register } from 'claude-code'
-import { commitMessageViolations, invokesCommit, messageFrom, runsGitCommit } from './commit-message'
+import { aiAttributionViolations, commitMessageViolations, invokesCommit, messageFrom, runsGitCommit } from './commit-message'
 import {
   acknowledgesOrder,
   commitOrderRefused,
@@ -393,7 +393,11 @@ export const register: Register = (on) => {
       source === undefined ? undefined : 'text' in source ? source.text : await $.fs.read(source.file).catch(() => undefined)
     const refs = text ? await mentionedRefs($, await repoOf($, e.command)) : undefined
     const missingRef = text && refs ? missingRefViolation(text, refs.required, refs.accepted) : undefined
-    const found = text ? [...commitMessageViolations(text), ...(missingRef ? [missingRef] : [])] : []
+    const found = [
+      ...(text ? commitMessageViolations(text) : []),
+      ...(missingRef ? [missingRef] : []),
+      ...aiAttributionViolations(e.command, text),
+    ]
     const verdict: Verdict = found.length > 0 ? { reason: `git-gates (commit message): ${found.join('; ')}` } : {}
     return enforce($, verdict, /commit-message-guard/, () => next(e))
   })

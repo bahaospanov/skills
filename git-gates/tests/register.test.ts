@@ -390,6 +390,25 @@ describe('register', () => {
     expect(ran).toEqual([])
   })
 
+  test('a commit crediting Claude as co-author is denied without asking Haiku', async ($, on) => {
+    const { ran, asked } = world(on)
+
+    await $.prompt.submit(prompt('commit'))
+    const inMessage = await $.tool.call(
+      bash("git commit -F - <<'EOF'\nfix: a\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\nEOF"),
+    )
+    const asTrailer = await $.tool.call(bash('git commit -m "fix: a" --trailer "Co-authored-by: Claude <noreply@anthropic.com>"'))
+    const footer = await $.tool.call(bash('git commit -m "fix: a" -m "🤖 Generated with [Claude Code](https://claude.com/claude-code)"'))
+    await $.tool.call(bash('git commit -m "fix: a"'))
+
+    const reason = 'git-gates (commit message): a Co-Authored-By trailer credits Claude; commit without it'
+    expect(inMessage.deny).toBe(reason)
+    expect(asTrailer.deny).toBe(reason)
+    expect(footer.deny).toBe('git-gates (commit message): a "Generated with Claude" line credits Claude; commit without it')
+    expect(ran).toEqual(['git commit -m "fix: a"'])
+    expect(asked.length).toBe(1)
+  })
+
   test('a ticket in the branch name counts as mentioned', async ($, on) => {
     const { ran } = world(on, { branch: 'feat/BLK-7-login' })
 

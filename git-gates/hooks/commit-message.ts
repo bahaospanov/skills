@@ -5,6 +5,11 @@ const CONVENTIONAL = /^(feat|fix|chore|docs|refactor|test|perf|build|ci|style|re
 const PREEMPT =
   /\b(no|not?)\s+(\w+\s+){0,2}(change[sd]?|touched|affected|impact)\b|\bnothing (else )?(changed|touched|moved)\b|\b(also|additionally|for completeness|worth noting)\b.*\bunchanged\b/i
 
+// `--trailer` takes `key=value` as well as `key: value`; the noreply@anthropic.com address alone names it too.
+const AI_COAUTHOR = /co-authored-by\s*[:=][^\n]*\b(claude|anthropic)\b/i
+// Claude Code's own footer: `🤖 Generated with [Claude Code](https://claude.com/claude-code)`.
+const AI_GENERATED = /\bgenerated\s+(with|by)\s+\[?claude\b/i
+
 export type MessageSource = { text: string } | { file: string } | undefined
 
 export const invokesCommit = (command: string) => INVOKED.test(command)
@@ -21,6 +26,15 @@ export const messageFrom = (command: string): MessageSource => {
   if (dashM.length > 0) return { text: dashM.join('\n\n') }
   const file = command.match(/-F\s+(\S+)/)?.[1]
   return file === undefined ? undefined : { file }
+}
+
+// The command is read too: a `--trailer` flag never shows up in the message text.
+export const aiAttributionViolations = (command: string, message: string | undefined) => {
+  const says = (pattern: RegExp) => pattern.test(command) || (message !== undefined && pattern.test(message))
+  return [
+    ...(says(AI_COAUTHOR) ? ['a Co-Authored-By trailer credits Claude; commit without it'] : []),
+    ...(says(AI_GENERATED) ? ['a "Generated with Claude" line credits Claude; commit without it'] : []),
+  ]
 }
 
 const quoted = (text: string) => (text.includes("'") && !text.includes('"') ? `"${text}"` : `'${text.replace(/'/g, "\\'")}'`)
