@@ -25,11 +25,12 @@ import {
   protectedPushRefused,
   pushUndetermined,
 } from './consent'
+import { acknowledgesSplit, FOLLOW_UP_MODEL, followUpsRefused, markedFollowUp } from './follow-ups'
 import { GRANT_DEFAULT_TTL_S, grantArgsOf, isLive, openGrant, spend, type Grant } from './grants'
 import { acknowledgesStaleBase, FETCH_TIMEOUT_MS, mrOpeningOf, staleBaseRefused, type MrOpening } from './fresh-base'
 import { acknowledgesLanded, landedRefused } from './landed-branch'
 import { descriptionFrom, descriptionViolations, expandVars, setsDescription } from './mr-description'
-import { COMMIT_MESSAGE, COMMIT_ORDER } from './prompts'
+import { COMMIT_MESSAGE, COMMIT_ORDER, FOLLOW_UPS } from './prompts'
 import {
   branchesOf,
   commandDir,
@@ -53,6 +54,7 @@ const CONTINUATION_PLUGINS: readonly string[] = ['git-cleanup', 'lean-comments',
 const CONTINUATION_ORIGINS: readonly string[] = ['task-notification', 'auto-continuation']
 const COMMIT_REVIEW: Review = { name: 'commit message review', prompt: COMMIT_MESSAGE, status: 'judging message' }
 const ORDER_REVIEW: Review = { name: 'every commit works', prompt: COMMIT_ORDER, status: 'judging commit order' }
+const FOLLOW_UP_REVIEW: Review = { name: 'one commit per change', prompt: FOLLOW_UPS, status: 'judging follow-up commits' }
 const LOOKBACK = 30
 
 type Prompt = { text: string; human: boolean; turnId?: string | undefined }
@@ -61,6 +63,10 @@ type Verdict = { reason: string } | { note?: string }
 let prompts: Prompt[] = []
 let grant: Grant | undefined
 let grantTool = 'mcp__git-gates__grant'
+// Prompts the user typed this session; `prompts` is capped, so it cannot tell a new one apart.
+let typedCount = 0
+// The branch commits last held for the user to choose on, and how many prompts they had typed by then.
+let held: { series: string; reason: string; typed: number } | undefined
 
 // Transcript rows carry no origin, so the engine's own user-role rows are told apart by their markup.
 const ENGINE_ROW = /<task-notification>|<local-command-(caveat|stdout|stderr)>/
@@ -154,7 +160,7 @@ const staleBase = async ($: EngineInterface, command: string, opening: MrOpening
   return { source, target }
 }
 
-// A repo without a push policy still merges somewhere; only the landed-delete exemption relies on this guess.
+// A repo without a push policy still merges somewhere; only the landed-delete exemption and the follow-up review rely on this guess.
 const integrationBases = async ($: EngineInterface, cwd?: string) => {
   const policy = await protectedBranches($, cwd)
   if (policy.length > 0) return policy
@@ -188,6 +194,23 @@ const unpushedCommits = async ($: EngineInterface, sources: string[], cwd?: stri
   const shas: string[] = []
   for (const source of sources) {
     const listed = await git($, ['rev-list', '--reverse', source, '--not', '--remotes'], cwd)
+    if (listed === undefined) return undefined
+    for (const sha of listed.split('\n')) if (sha !== '' && !shas.includes(sha)) shas.push(sha)
+  }
+  return shas
+}
+
+// Every commit the branch's MR will carry, pushed or not, oldest first; undefined when no base is on origin.
+const branchCommits = async ($: EngineInterface, sources: string[], bases: string[], cwd?: string) => {
+  const refs: string[] = []
+  for (const base of bases) {
+    const ref = `refs/remotes/origin/${base}`
+    if ((await git($, ['rev-parse', '--verify', '--quiet', ref], cwd)) !== undefined) refs.push(ref)
+  }
+  if (refs.length === 0) return undefined
+  const shas: string[] = []
+  for (const source of sources) {
+    const listed = await git($, ['rev-list', '--reverse', '--no-merges', source, '--not', ...refs], cwd)
     if (listed === undefined) return undefined
     for (const sha of listed.split('\n')) if (sha !== '' && !shas.includes(sha)) shas.push(sha)
   }
@@ -322,6 +345,7 @@ export const register: Register = (on) => {
     if (e.origin.kind === 'plugin' && CONTINUATION_PLUGINS.includes(e.origin.name)) return next(e)
     if (CONTINUATION_ORIGINS.includes(e.origin.kind)) return next(e)
     prompts = [...prompts, { text: e.text, human: HUMAN_ORIGINS.includes(e.origin.kind), turnId: e.turnId }].slice(-LOOKBACK)
+    if (HUMAN_ORIGINS.includes(e.origin.kind)) typedCount++
     return next(e)
   })
 
@@ -410,6 +434,42 @@ export const register: Register = (on) => {
     if (review?.ok !== false) return next(e)
     $.ui.log(`git-gates (${ORDER_REVIEW.name}): ${review.reason}`)
     return { deny: commitOrderRefused(e.command, review.reason) }
+  })
+
+  // The whole branch, not just this push: pushing after every commit sends one at a time.
+  on('tool.call', { tool: 'Bash' }, async ($, e, next) => {
+    if (verbOf(e.command) !== 'push' || deletedBranches(e.command) !== undefined) return next(e)
+    const cwd = await repoOf($, e.command)
+    const current = await currentBranch($, cwd)
+    const bases = await integrationBases($, cwd)
+    const targets = pushTargets(e.command, current)
+    // A push straight to an integration branch lands a series someone laid out, release commit included.
+    if (targets === undefined || targets.some((t) => t === '*' || bases.includes(t))) return next(e)
+    const sources = pushSources(e.command, current)
+    if (!sources?.length || !(await unpushedCommits($, sources, cwd))?.length) return next(e)
+    const shas = await branchCommits($, sources, bases, cwd)
+    if (shas === undefined || shas.length < MIN_SERIES) return next(e)
+    if (shas.length > MAX_SERIES) {
+      $.ui.log(`git-gates (${FOLLOW_UP_REVIEW.name}): ${shas.length} commits, over ${MAX_SERIES}, not reviewed`)
+      return next(e)
+    }
+    if ((await typedThisTurn($))?.some(acknowledgesSplit)) return next(e)
+    // The choice is the user's: once they have typed anything after the hold, these commits go as they are.
+    const series = shas.join(' ')
+    if (held?.series === series) {
+      return typedCount > held.typed ? next(e) : { deny: followUpsRefused(e.command, held.reason) }
+    }
+    const commits = await Promise.all(shas.map((sha) => describeCommit($, sha, cwd)))
+    if (commits.includes(undefined)) return next(e)
+    let reason = markedFollowUp(commits.flatMap((c) => (c ? [c.subject] : [])))
+    if (reason === undefined) {
+      const review = await judge($, FOLLOW_UP_REVIEW, { commits }, FOLLOW_UP_MODEL)
+      if (review?.ok === false) reason = review.reason
+    }
+    if (reason === undefined) return next(e)
+    held = { series, reason, typed: typedCount }
+    $.ui.log(`git-gates (${FOLLOW_UP_REVIEW.name}): ${reason}`)
+    return { deny: followUpsRefused(e.command, reason) }
   })
 
   on('tool.call', { tool: 'Bash' }, async ($, e, next) => {

@@ -25,6 +25,10 @@ type World = {
   unanswered?: boolean
   // Commits no remote has yet, oldest first, keyed by sha.
   unpushed?: Record<string, { subject: string; files: string; diff?: string }>
+  // The branch's commits origin already has, oldest first; they come before `unpushed`.
+  pushed?: Record<string, { subject: string; files: string; diff?: string }>
+  // Branches origin has, as remote-tracking refs.
+  origin?: string[]
 }
 
 const USAGE = { input_tokens: 0, output_tokens: 0, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 }
@@ -67,12 +71,18 @@ const world = (on: On, options: World = {}) => {
         return { value: { exitCode: options.base === 'fresh' ? 0 : 1, stdout: '', stderr: '' } }
       }
     }
+    const tracked = /^git rev-parse --verify --quiet refs\/remotes\/origin\/(.+)$/.exec(args)?.[1]
+    if (tracked !== undefined && options.origin?.includes(tracked)) {
+      return { value: { exitCode: 0, stdout: `${tracked}1\n`, stderr: '' } }
+    }
     const unpushed = options.unpushed ?? {}
+    const branch = { ...options.pushed, ...unpushed }
     const shown = /^git show (-s --format=%s|--format= --name-status|--format= -U0 --no-color --diff-filter=AM) (\w+)$/.exec(args)
     if (args.startsWith('git rev-list --reverse ')) {
-      return { value: { exitCode: 0, stdout: Object.keys(unpushed).map((sha) => `${sha}\n`).join(''), stderr: '' } }
+      const listed = args.endsWith(' --not --remotes') ? unpushed : branch
+      return { value: { exitCode: 0, stdout: Object.keys(listed).map((sha) => `${sha}\n`).join(''), stderr: '' } }
     }
-    const commit = shown?.[2] === undefined ? undefined : unpushed[shown[2]]
+    const commit = shown?.[2] === undefined ? undefined : branch[shown[2]]
     if (shown && commit) {
       const part = shown[1] === '-s --format=%s' ? commit.subject : shown[1] === '--format= --name-status' ? commit.files : (commit.diff ?? '')
       return { value: { exitCode: 0, stdout: `${part}\n`, stderr: '' } }
@@ -594,6 +604,106 @@ describe('register', () => {
     const { ran, asked } = world(on, { unpushed: PROVIDER_FIRST, review: '{"ok": false, "reason": "x"}' })
 
     await $.prompt.submit(prompt('push it, the order is fine'))
+    await $.tool.call(bash('git push'))
+
+    expect(asked).toHaveLength(0)
+    expect(ran).toEqual(['git push'])
+  })
+
+  // The menu went up in one push; its mobile fix follows alone.
+  const MENU = { p1: { subject: 'feat(web): catalog menu next to the logo #107', files: 'A\tweb/components/CatalogMenu.vue' } }
+  const MENU_FIX = { u1: { subject: 'fix(web): catalog menu on mobile #107', files: 'M\tweb/components/CatalogMenu.vue' } }
+  const BRANCH = { files: POLICY, origin: ['dev', 'main'], pushed: MENU, unpushed: MENU_FIX }
+
+  const FOLLOW_UP = '{"ok": false, "reason": "catalog menu on mobile fixes catalog menu next to the logo"}'
+
+  test('a push adding a follow-up to a commit origin already has is held for the user with the reason', async ($, on) => {
+    const { ran, asked } = world(on, { ...BRANCH, review: FOLLOW_UP })
+
+    await $.prompt.submit(prompt('ship'))
+    const held = await $.tool.call(bash('git push'))
+
+    expect(held.deny).toContain('git-gates (one commit per change)')
+    expect(held.deny).toContain('fixes catalog menu next to the logo')
+    expect(held.deny).toContain('recommend folding them, and ask')
+    expect(asked[0]?.prompt).toContain('catalog menu next to the logo')
+    expect(asked[0]?.prompt).toContain('catalog menu on mobile')
+    expect(asked[0]?.model).toBe('claude-sonnet-5-5')
+    expect(ran).toEqual([])
+  })
+
+  test('a retry before the user answers is held again without asking the model', async ($, on) => {
+    const { ran, asked } = world(on, { ...BRANCH, review: FOLLOW_UP })
+
+    await $.prompt.submit(prompt('ship'))
+    await $.tool.call(bash('git push'))
+    const again = await $.tool.call(bash('git push'))
+
+    expect(again.deny).toContain('fixes catalog menu next to the logo')
+    expect(asked).toHaveLength(1)
+    expect(ran).toEqual([])
+  })
+
+  test('once the user answers, the held commits go as they are', async ($, on) => {
+    const { ran, asked } = world(on, { ...BRANCH, review: FOLLOW_UP })
+
+    await $.prompt.submit(prompt('ship'))
+    await $.tool.call(bash('git push'))
+    await $.prompt.submit(prompt('no, push them as they are'))
+    await $.tool.call(bash('git push'))
+
+    expect(asked).toHaveLength(1)
+    expect(ran).toEqual(['git push'])
+  })
+
+  test('commits the review finds separate are pushed', async ($, on) => {
+    const { ran, asked } = world(on, BRANCH)
+
+    await $.prompt.submit(prompt('push'))
+    await $.tool.call(bash('git push'))
+
+    expect(asked).toHaveLength(1)
+    expect(ran).toEqual(['git push'])
+  })
+
+  test('a commit marked fixup! is held without asking the model', async ($, on) => {
+    const { ran, asked } = world(on, {
+      ...BRANCH,
+      unpushed: { u1: { subject: 'fixup! feat(web): catalog menu next to the logo #107', files: 'M\tweb/components/CatalogMenu.vue' } },
+    })
+
+    await $.prompt.submit(prompt('push'))
+    const refused = await $.tool.call(bash('git push'))
+
+    expect(refused.deny).toContain("is marked to fold into 'feat(web): catalog menu next to the logo #107'")
+    expect(asked).toHaveLength(0)
+    expect(ran).toEqual([])
+  })
+
+  test('the user saying to keep the commits skips the review', async ($, on) => {
+    const { ran, asked } = world(on, { ...BRANCH, review: '{"ok": false, "reason": "x"}' })
+
+    await $.prompt.submit(prompt('push, keep the commits'))
+    await $.tool.call(bash('git push'))
+
+    expect(asked).toHaveLength(0)
+    expect(ran).toEqual(['git push'])
+  })
+
+  test('a push straight to an integration branch is not reviewed', async ($, on) => {
+    const { ran, asked } = world(on, { ...BRANCH, review: '{"ok": false, "reason": "x"}' })
+
+    await $.prompt.submit(prompt('push to main'))
+    await $.tool.call(bash('git push origin HEAD:main'))
+
+    expect(asked).toHaveLength(0)
+    expect(ran).toEqual(['git push origin HEAD:main'])
+  })
+
+  test('a branch of one commit costs no review', async ($, on) => {
+    const { ran, asked } = world(on, { ...BRANCH, pushed: {}, review: '{"ok": false, "reason": "x"}' })
+
+    await $.prompt.submit(prompt('push'))
     await $.tool.call(bash('git push'))
 
     expect(asked).toHaveLength(0)

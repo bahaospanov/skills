@@ -65,6 +65,7 @@ the call is blocked.
 | fresh base | Opening an MR/PR: `gh pr create`, `glab mr create`, a GitLab API POST to `merge_requests` | The source branch, as origin has it, contains the target's latest commit, fetched first; skipped when the message says not to rebase | Call denied |
 | landed branch | A git push | The branch's pushed head already sits in a protected branch, and the message names no new MR | Push denied |
 | every commit works | A git push of 2 to 15 commits no remote has | Sonnet: no commit removes something a later one stops using, or uses something a later one adds; skipped when the message says the order is fine | Push denied |
+| one commit per change | A git push of new commits to a branch whose commits not yet in an integration branch number 2 to 15, pushed or not | No `fixup!`, `squash!` or `amend!` subject; then Sonnet: no later commit spends most of its diff fixing, reworking or extending lines an earlier one added; skipped when the message says to keep the commits | Push held: the agent shows the user the reason and asks; any answer lets the same commits through |
 
 Protected branches come from a repo's own push policy file.
 Integration branches are the protected ones; with no policy, the remote's default branch and any of dev, develop, main, master that exist.

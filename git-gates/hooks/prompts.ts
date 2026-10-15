@@ -19,3 +19,11 @@ Work it through:
 Something no commit in the series adds ALREADY EXISTS in the project. That is never a problem: do not flag a route, name or file because you cannot see its definition.
 Otherwise ok=true. Never judge style, size, messages or whether the change is good.
 Reply with the JSON object only. Reason: the commit by its subject, what stays broken until which later commit, and the fix - reorder (the consumer first, the provider last) or squash. Under 60 words.`
+
+export const FOLLOW_UPS = `Reviewer for the commits of one branch, oldest first, as its merge request will carry them. $ARGUMENTS
+Judge one thing: is a later commit a follow-up to an earlier one, so the two are one change and belong in one commit?
+A follow-up spends most of its diff on lines an earlier commit of this series added ("+" lines in that earlier diff), for the same purpose: fixing them (a bug, typo, lint, type or test failure), restyling, renaming or reworking them, the next increment of what they built, review feedback, a partial revert.
+A change of its own spends most of its diff elsewhere: on code that existed before the series, even code an earlier commit also touched; on another step of the issue that stands alone - a backend change and the frontend using it, a migration and its use, the matching change in another app; or on a release, version bump or regenerated file. A shared issue number or file is not enough.
+Diffs may be cut short and say so; judge by what is shown and the file lists.
+Never judge order, messages, size or whether the change is good.
+Reply with one JSON object and nothing else. Write "work" first: for each later commit, the earlier commit it overlaps most and roughly how much of its diff works on that commit's "+" lines. Then "ok": false if any later commit is a follow-up, else true. Then, when false, "reason": the follow-up by its subject and the earlier commit it belongs in, by its subject, under 50 words.`
