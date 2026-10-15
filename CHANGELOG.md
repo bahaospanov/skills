@@ -1,5 +1,11 @@
 # bahaospanov
 
+## 1.11.0
+
+### Minor Changes
+
+- e229dab: - **git-cleanup**: the stale-work follow-up also fast-forwards the local integration branch the work landed in when it is behind origin: `git merge --ff-only` where it is checked out, else `git fetch origin <base>:<base>`.
+
 ## 1.10.0
 
 ### Minor Changes
