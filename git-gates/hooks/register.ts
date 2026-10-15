@@ -25,12 +25,13 @@ import {
   protectedPushRefused,
   pushUndetermined,
 } from './consent'
+import { acknowledgesScope, manyIssues, SCOPE_MODEL, scopeRefused } from './feature-scope'
 import { acknowledgesSplit, FOLLOW_UP_MODEL, followUpsRefused, markedFollowUp } from './follow-ups'
 import { GRANT_DEFAULT_TTL_S, grantArgsOf, isLive, openGrant, spend, type Grant } from './grants'
 import { acknowledgesStaleBase, FETCH_TIMEOUT_MS, mrOpeningOf, staleBaseRefused, type MrOpening } from './fresh-base'
 import { acknowledgesLanded, landedRefused } from './landed-branch'
 import { descriptionFrom, descriptionViolations, expandVars, setsDescription } from './mr-description'
-import { COMMIT_MESSAGE, COMMIT_ORDER, FOLLOW_UPS } from './prompts'
+import { COMMIT_MESSAGE, COMMIT_ORDER, FEATURE_SCOPE, FOLLOW_UPS } from './prompts'
 import {
   branchesOf,
   commandDir,
@@ -55,6 +56,7 @@ const CONTINUATION_ORIGINS: readonly string[] = ['task-notification', 'auto-cont
 const COMMIT_REVIEW: Review = { name: 'commit message review', prompt: COMMIT_MESSAGE, status: 'judging message' }
 const ORDER_REVIEW: Review = { name: 'every commit works', prompt: COMMIT_ORDER, status: 'judging commit order' }
 const FOLLOW_UP_REVIEW: Review = { name: 'one commit per change', prompt: FOLLOW_UPS, status: 'judging follow-up commits' }
+const SCOPE_REVIEW: Review = { name: 'one feature per MR', prompt: FEATURE_SCOPE, status: 'judging features per MR' }
 const LOOKBACK = 30
 
 type Prompt = { text: string; human: boolean; turnId?: string | undefined }
@@ -67,6 +69,9 @@ let grantTool = 'mcp__git-gates__grant'
 let typedCount = 0
 // The branch commits last held for the user to choose on, and how many prompts they had typed by then.
 let held: { series: string; reason: string; typed: number } | undefined
+let scopeHeld: { series: string; reason: string; typed: number } | undefined
+// A branch stays as it is once the user chose that; its later pushes are not held again.
+const scopeKept = new Set<string>()
 
 // Transcript rows carry no origin, so the engine's own user-role rows are told apart by their markup.
 const ENGINE_ROW = /<task-notification>|<local-command-(caveat|stdout|stderr)>/
@@ -215,6 +220,21 @@ const branchCommits = async ($: EngineInterface, sources: string[], bases: strin
     for (const sha of listed.split('\n')) if (sha !== '' && !shas.includes(sha)) shas.push(sha)
   }
   return shas
+}
+
+// The whole branch, not just this push: pushing after every commit sends one at a time.
+const pushedBranch = async ($: EngineInterface, command: string) => {
+  if (verbOf(command) !== 'push' || deletedBranches(command) !== undefined) return undefined
+  const cwd = await repoOf($, command)
+  const current = await currentBranch($, cwd)
+  const bases = await integrationBases($, cwd)
+  const targets = pushTargets(command, current)
+  // A push straight to an integration branch lands a series someone laid out, release commit included.
+  if (targets === undefined || targets.some((t) => t === '*' || bases.includes(t))) return undefined
+  const sources = pushSources(command, current)
+  if (!sources?.length || !(await unpushedCommits($, sources, cwd))?.length) return undefined
+  const shas = await branchCommits($, sources, bases, cwd)
+  return shas === undefined ? undefined : { shas, cwd, branch: sources.join(' ') }
 }
 
 const describeCommit = async ($: EngineInterface, sha: string, cwd?: string): Promise<SeriesCommit | undefined> => {
@@ -436,19 +456,10 @@ export const register: Register = (on) => {
     return { deny: commitOrderRefused(e.command, review.reason) }
   })
 
-  // The whole branch, not just this push: pushing after every commit sends one at a time.
   on('tool.call', { tool: 'Bash' }, async ($, e, next) => {
-    if (verbOf(e.command) !== 'push' || deletedBranches(e.command) !== undefined) return next(e)
-    const cwd = await repoOf($, e.command)
-    const current = await currentBranch($, cwd)
-    const bases = await integrationBases($, cwd)
-    const targets = pushTargets(e.command, current)
-    // A push straight to an integration branch lands a series someone laid out, release commit included.
-    if (targets === undefined || targets.some((t) => t === '*' || bases.includes(t))) return next(e)
-    const sources = pushSources(e.command, current)
-    if (!sources?.length || !(await unpushedCommits($, sources, cwd))?.length) return next(e)
-    const shas = await branchCommits($, sources, bases, cwd)
-    if (shas === undefined || shas.length < MIN_SERIES) return next(e)
+    const pushed = await pushedBranch($, e.command)
+    if (pushed === undefined || pushed.shas.length < MIN_SERIES) return next(e)
+    const { shas, cwd } = pushed
     if (shas.length > MAX_SERIES) {
       $.ui.log(`git-gates (${FOLLOW_UP_REVIEW.name}): ${shas.length} commits, over ${MAX_SERIES}, not reviewed`)
       return next(e)
@@ -470,6 +481,35 @@ export const register: Register = (on) => {
     held = { series, reason, typed: typedCount }
     $.ui.log(`git-gates (${FOLLOW_UP_REVIEW.name}): ${reason}`)
     return { deny: followUpsRefused(e.command, reason) }
+  })
+
+  on('tool.call', { tool: 'Bash' }, async ($, e, next) => {
+    const pushed = await pushedBranch($, e.command)
+    if (pushed === undefined || pushed.shas.length === 0 || scopeKept.has(pushed.branch)) return next(e)
+    const { shas, cwd, branch } = pushed
+    if (shas.length > MAX_SERIES) {
+      $.ui.log(`git-gates (${SCOPE_REVIEW.name}): ${shas.length} commits, over ${MAX_SERIES}, not reviewed`)
+      return next(e)
+    }
+    const series = shas.join(' ')
+    const answered = scopeHeld?.series === series && typedCount > scopeHeld.typed
+    if (answered || (await typedThisTurn($))?.some(acknowledgesScope)) {
+      scopeKept.add(branch)
+      return next(e)
+    }
+    if (scopeHeld?.series === series) return { deny: scopeRefused(e.command, scopeHeld.reason) }
+    const messages = await Promise.all(shas.map((sha) => git($, ['show', '-s', '--format=%B', sha], cwd)))
+    let reason = manyIssues(messages.flatMap((m) => (m === undefined ? [] : [m])))
+    if (reason === undefined) {
+      const commits = await Promise.all(shas.map((sha) => describeCommit($, sha, cwd)))
+      if (commits.includes(undefined)) return next(e)
+      const review = await judge($, SCOPE_REVIEW, { commits }, SCOPE_MODEL)
+      if (review?.ok === false) reason = review.reason
+    }
+    if (reason === undefined) return next(e)
+    scopeHeld = { series, reason, typed: typedCount }
+    $.ui.log(`git-gates (${SCOPE_REVIEW.name}): ${reason}`)
+    return { deny: scopeRefused(e.command, reason) }
   })
 
   on('tool.call', { tool: 'Bash' }, async ($, e, next) => {

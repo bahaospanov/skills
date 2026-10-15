@@ -22,14 +22,18 @@ type World = {
   // Whether origin's source branch contains origin's target (`dev`) once fetched.
   base?: 'fresh' | 'stale'
   review?: string
+  // The one-feature-per-MR review's reply, asked apart from the others.
+  scope?: string
   unanswered?: boolean
   // Commits no remote has yet, oldest first, keyed by sha.
-  unpushed?: Record<string, { subject: string; files: string; diff?: string }>
+  unpushed?: Record<string, Commit>
   // The branch's commits origin already has, oldest first; they come before `unpushed`.
-  pushed?: Record<string, { subject: string; files: string; diff?: string }>
+  pushed?: Record<string, Commit>
   // Branches origin has, as remote-tracking refs.
   origin?: string[]
 }
+
+type Commit = { subject: string; files: string; diff?: string; body?: string }
 
 const USAGE = { input_tokens: 0, output_tokens: 0, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 }
 const answered = (text: string) => ({ isAnswered: true as const, text, usage: USAGE })
@@ -39,11 +43,16 @@ const world = (on: On, options: World = {}) => {
   const ran: string[] = []
   const logs: string[] = []
   const asked: ModelCompleteRequest[] = []
+  const scoped: ModelCompleteRequest[] = []
   mock.clock(on)
   mock.env(on, { HOME: '/Users/me' })
   on('session.start', ($, e) => ({ cwd: e.cwd }))
   on('session.cwd', () => ({ value: '/repo' }))
   on('model.complete', ($, e) => {
+    if (e.prompt.includes('more than one feature')) {
+      scoped.push(e)
+      return { value: answered(options.scope ?? '{"ok": true}') }
+    }
     asked.push(e)
     if (options.unanswered) return { value: { isAnswered: false as const, reason: 'empty-reply' as const, usage: USAGE } }
     return { value: answered(options.review ?? '{"ok": true}') }
@@ -77,14 +86,21 @@ const world = (on: On, options: World = {}) => {
     }
     const unpushed = options.unpushed ?? {}
     const branch = { ...options.pushed, ...unpushed }
-    const shown = /^git show (-s --format=%s|--format= --name-status|--format= -U0 --no-color --diff-filter=AM) (\w+)$/.exec(args)
+    const shown = /^git show (-s --format=%s|-s --format=%B|--format= --name-status|--format= -U0 --no-color --diff-filter=AM) (\w+)$/.exec(args)
     if (args.startsWith('git rev-list --reverse ')) {
       const listed = args.endsWith(' --not --remotes') ? unpushed : branch
       return { value: { exitCode: 0, stdout: Object.keys(listed).map((sha) => `${sha}\n`).join(''), stderr: '' } }
     }
     const commit = shown?.[2] === undefined ? undefined : branch[shown[2]]
     if (shown && commit) {
-      const part = shown[1] === '-s --format=%s' ? commit.subject : shown[1] === '--format= --name-status' ? commit.files : (commit.diff ?? '')
+      const part =
+        shown[1] === '-s --format=%s'
+          ? commit.subject
+          : shown[1] === '-s --format=%B'
+            ? [commit.subject, commit.body].filter(Boolean).join('\n\n')
+            : shown[1] === '--format= --name-status'
+              ? commit.files
+              : (commit.diff ?? '')
       return { value: { exitCode: 0, stdout: `${part}\n`, stderr: '' } }
     }
     const cwd = e.init?.cwd
@@ -118,7 +134,7 @@ const world = (on: On, options: World = {}) => {
       ? { result: { stdout: '', stderr: '', interrupted: false } }
       : { deny: options.beneath }
   })
-  return { ran, logs, asked }
+  return { ran, logs, asked, scoped }
 }
 
 const bash = (command: string) => ({ tool: 'Bash' as const, command })
@@ -707,6 +723,78 @@ describe('register', () => {
     await $.tool.call(bash('git push'))
 
     expect(asked).toHaveLength(0)
+    expect(ran).toEqual(['git push'])
+  })
+
+  // scanwow feat/asset-detail: four features in one commit, no issue named.
+  const BUNDLE = {
+    b1: {
+      subject: 'feat(api-py,web): asset page details, specs list and collections, model physical size, similar models ranked by tag rarity',
+      files: 'M\tapps/api-py/app/assets/api.py\nM\tapps/web/pages/asset/[id].vue',
+    },
+  }
+  const MANY = '{"ok": false, "reason": "asset specs list, model physical size, similar models ranking"}'
+
+  test('a branch carrying several features is held for the user with the features named', async ($, on) => {
+    const { ran, scoped } = world(on, { files: POLICY, origin: ['dev', 'main'], unpushed: BUNDLE, scope: MANY })
+
+    await $.prompt.submit(prompt('ship'))
+    const held = await $.tool.call(bash('git push -u origin feat/asset-detail'))
+
+    expect(held.deny).toContain('git-gates (one feature per MR)')
+    expect(held.deny).toContain('similar models ranking')
+    expect(held.deny).toContain('recommend a branch\nand MR per feature')
+    expect(scoped[0]?.prompt).toContain('similar models ranked by tag rarity')
+    expect(scoped[0]?.model).toBe('claude-sonnet-5-5')
+    expect(ran).toEqual([])
+  })
+
+  test('commits naming two issues are held without asking the model', async ($, on) => {
+    const { ran, scoped } = world(on, {
+      ...BRANCH,
+      unpushed: { u1: { subject: 'feat(web): subcategory cards', body: '#109', files: 'A\tweb/components/Cards.vue' } },
+    })
+
+    await $.prompt.submit(prompt('ship'))
+    const held = await $.tool.call(bash('git push'))
+
+    expect(held.deny).toContain("the branch's commits name 2 issues: #107, #109")
+    expect(scoped).toHaveLength(0)
+    expect(ran).toEqual([])
+  })
+
+  test('once the user answers, the branch goes as it is, and its later pushes too', async ($, on) => {
+    const { ran, scoped } = world(on, { files: POLICY, origin: ['dev', 'main'], unpushed: BUNDLE, scope: MANY })
+
+    await $.prompt.submit(prompt('ship'))
+    await $.tool.call(bash('git push'))
+    const retried = await $.tool.call(bash('git push'))
+    await $.prompt.submit(prompt('keep it, push'))
+    await $.tool.call(bash('git push'))
+    await $.tool.call(bash('git push'))
+
+    expect(retried.deny).toContain('git-gates (one feature per MR)')
+    expect(scoped).toHaveLength(1)
+    expect(ran).toEqual(['git push', 'git push'])
+  })
+
+  test('the user saying it is one MR skips the review', async ($, on) => {
+    const { ran, scoped } = world(on, { files: POLICY, origin: ['dev', 'main'], unpushed: BUNDLE, scope: MANY })
+
+    await $.prompt.submit(prompt('push it, keep them together in one MR'))
+    await $.tool.call(bash('git push'))
+
+    expect(scoped).toHaveLength(0)
+    expect(ran).toEqual(['git push'])
+  })
+
+  test('a branch of one feature is pushed after one review', async ($, on) => {
+    const { ran, scoped } = world(on, { files: POLICY, origin: ['dev', 'main'], unpushed: MENU })
+
+    await $.prompt.submit(prompt('push'))
+    await $.tool.call(bash('git push'))
+
+    expect(scoped).toHaveLength(1)
     expect(ran).toEqual(['git push'])
   })
 })
