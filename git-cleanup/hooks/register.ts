@@ -24,7 +24,7 @@ import {
   type Verb,
 } from './shared/git-commands'
 import { refsInText } from './shared/issue-refs'
-import { staleReport, worktreesOf, type Stale } from './stale-work'
+import { staleReport, worktreesOf, type BehindBase, type Stale } from './stale-work'
 
 const HUMAN_ORIGINS: readonly string[] = ['composer', 'bridge', 'sdk']
 const LOOKBACK = 30
@@ -207,7 +207,7 @@ const recordWork = async ($: EngineInterface, command: string, verb: Verb) => {
 }
 
 const staleWork = async ($: EngineInterface) => {
-  const reports: { main: string; items: Stale[] }[] = []
+  const reports: { main: string; items: Stale[]; behind: BehindBase[] }[] = []
   for (const [common, repo] of worked) {
     const trees = worktreesOf((await git($, ['worktree', 'list', '--porcelain'], repo.dir)) ?? '')
     const main = trees[0]?.path
@@ -231,7 +231,17 @@ const staleWork = async ($: EngineInterface) => {
       reportedStale.add(`${common}\0${branch}`)
       items.push({ branch, base, worktree: tree?.path, local: local !== undefined, remote: remote !== undefined })
     }
-    if (items.length > 0) reports.push({ main, items })
+    if (items.length === 0) continue
+    // Only a local base origin can fast-forward is offered; a diverged one is the user's to sort out.
+    const behind: BehindBase[] = []
+    for (const base of new Set(items.map((s) => s.base))) {
+      const local = await git($, ['rev-parse', '--verify', '--quiet', `refs/heads/${base}`], main)
+      const origin = await git($, ['rev-parse', '--verify', '--quiet', `refs/remotes/origin/${base}`], main)
+      if (local === undefined || origin === undefined || local === origin) continue
+      if (!(await isAncestor($, local, `refs/remotes/origin/${base}`, main))) continue
+      behind.push({ base, checkout: trees.find((wt) => wt.branch === base)?.path })
+    }
+    reports.push({ main, items, behind })
   }
   return reports
 }
@@ -279,7 +289,7 @@ export const register: Register = (on, options) => {
     staleFollowUps++
     const branches = reports.flatMap((r) => r.items.map((s) => s.branch))
     $.ui.log(`git-cleanup (stale work): ${branches.join(', ')} merged and clean; a follow-up prompt asks to remove them`)
-    const text = reports.map((r) => staleReport(r.items, r.main)).join('\n\n')
+    const text = reports.map((r) => staleReport(r.items, r.main, r.behind)).join('\n\n')
     $.clock.after(0, () => {
       $.prompt.submit({ text }).catch(() => undefined)
     })

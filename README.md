@@ -81,7 +81,7 @@ the pipeline holding the merge has passed. Closing the issue is left to you.
 | --- | --- | --- | --- |
 | merged first | Removing a worktree or branch, local or on origin | The branch sits in an integration branch, a merged PR/MR has it as source branch, or the current turn's message says it merged (or to abandon it) | Call denied |
 | pipeline first | Removing a worktree or branch, local or on origin; rewriting an issue's body (checklist ticks, How to test) | The work (the branch, or the newest integration commit naming the issue) landed and a pipeline holding it passed; skipped when the message says not to wait | Call denied while it runs or after it failed |
-| stale work | The end of a turn | A branch the session committed to or pushed that sits in an integration branch, its worktree clean, no pipeline holding it still running or failed | Follow-up prompt to remove the worktree and the branch, local and on origin, once checked |
+| stale work | The end of a turn | A branch the session committed to or pushed that sits in an integration branch, its worktree clean, no pipeline holding it still running or failed | Follow-up prompt to remove the worktree and the branch, local and on origin, once checked, and to fast-forward a local integration branch that is behind origin |
 
 Integration branches are found as git-gates finds them.
 A branch sits in an integration branch when its head does, or when every commit of it has a copy there (a rebase merge).

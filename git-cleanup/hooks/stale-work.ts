@@ -5,6 +5,8 @@ export type Worktree = { path: string; branch?: string | undefined }
 
 export type Stale = { branch: string; base: string; worktree?: string | undefined; local: boolean; remote: boolean }
 
+export type BehindBase = { base: string; checkout?: string | undefined }
+
 export const worktreesOf = (porcelain: string): Worktree[] =>
   porcelain
     .split(/\n\s*\n/)
@@ -18,23 +20,33 @@ export const worktreesOf = (porcelain: string): Worktree[] =>
 
 const quote = (path: string) => (/^[\w./~-]+$/.test(path) ? path : `'${path.replace(/'/g, `'\\''`)}'`)
 
-export const staleReport = (items: Stale[], main: string) => {
+// `git fetch origin b:b` refuses a branch checked out in any worktree; that one moves by a merge in its checkout.
+const syncCommand = (behind: BehindBase, main: string) =>
+  behind.checkout === undefined
+    ? `git fetch origin ${behind.base}:${behind.base}`
+    : behind.checkout === main
+      ? `git merge --ff-only origin/${behind.base}`
+      : `git -C ${quote(behind.checkout)} merge --ff-only origin/${behind.base}`
+
+export const staleReport = (items: Stale[], main: string, behind: BehindBase[] = []) => {
   const lines = items.map((s) => {
     const where = [s.worktree ? `worktree ${s.worktree}` : undefined, s.local ? 'local branch' : undefined, s.remote ? 'on origin' : undefined]
     return `  - ${s.branch}: in origin/${s.base}; ${where.filter(Boolean).join(', ')}`
   })
   const commands = [
     `cd ${quote(main)}`,
+    ...behind.map((b) => syncCommand(b, main)),
     ...items.flatMap((s) => [
       ...(s.worktree ? [`git worktree remove ${quote(s.worktree)}`] : []),
       ...(s.local ? [`git branch -d ${s.branch}`] : []),
       ...(s.remote ? [`git push origin --delete ${s.branch}`] : []),
     ]),
   ]
+  const sync = behind.length > 0 ? ` and bring the local ${behind.map((b) => b.base).join(', ')} up to origin` : ''
   return `git-cleanup (stale work): this session's work below is merged and its worktree is clean:
 ${lines.join('\n')}
 
-If it is finished and checked (verified where it deploys), remove it now,
+If it is finished and checked (verified where it deploys), remove it now${sync},
 from the main checkout:
 ${commands.map((c) => `  ${c}`).join('\n')}
 

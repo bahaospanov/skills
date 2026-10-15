@@ -5,11 +5,11 @@ tier('user')
 
 const WT = '/repo/.claude/worktrees/a'
 
-type Repo = { landed: boolean; dirty: boolean; remoteBranch: boolean }
+type Repo = { landed: boolean; dirty: boolean; remoteBranch: boolean; localDevBehind: boolean }
 
 // A repo at /repo with no push policy and no forge remote, origin/HEAD -> main, an origin/dev, and the worktree WT on fix/a.
 const world = (on: On) => {
-  const repo: Repo = { landed: false, dirty: false, remoteBranch: true }
+  const repo: Repo = { landed: false, dirty: false, remoteBranch: true, localDevBehind: false }
   const submitted: string[] = []
   const clock = mock.clock(on)
   mock.env(on, { HOME: '/Users/me' })
@@ -37,6 +37,8 @@ const world = (on: On) => {
     if (args === 'git rev-parse --verify --quiet refs/heads/fix/a') return ok('a1\n')
     if (args === 'git rev-parse --verify --quiet refs/remotes/origin/fix/a') return repo.remoteBranch ? ok('a1\n') : no
     if (args === 'git merge-base --is-ancestor a1 refs/remotes/origin/dev') return repo.landed ? ok('') : no
+    if (args === 'git rev-parse --verify --quiet refs/heads/dev') return ok(repo.localDevBehind ? 'old\n' : 'base\n')
+    if (args === 'git merge-base --is-ancestor old refs/remotes/origin/dev') return ok('')
     if (args === 'git status --porcelain') return ok(repo.dirty ? ' M app.ts\n' : '')
     return no
   })
@@ -79,6 +81,20 @@ describe('stale work', () => {
     expect(submitted.length).toBe(1)
     expect(submitted[0]).toContain(`fix/a: in origin/dev; worktree ${WT}, local branch, on origin`)
     expect(submitted[0]).toContain(`cd /repo\n  git worktree remove ${WT}\n  git branch -d fix/a\n  git push origin --delete fix/a`)
+  })
+
+  test('a local base behind origin is fast-forwarded in the same follow-up, where it is checked out', async ($, on) => {
+    const { repo, submitted, clock } = world(on)
+    await ship($)
+    repo.landed = true
+    repo.localDevBehind = true
+
+    await $.turn.complete(turnEnds())
+    await clock.settle()
+
+    expect(submitted.length).toBe(1)
+    expect(submitted[0]).toContain('remove it now and bring the local dev up to origin,')
+    expect(submitted[0]).toContain(`cd /repo\n  git merge --ff-only origin/dev\n  git worktree remove ${WT}`)
   })
 
   test('a dirty worktree, a subagent turn or untouched work gets no follow-up', async ($, on) => {
