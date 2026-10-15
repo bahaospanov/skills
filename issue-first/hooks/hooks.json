@@ -1,0 +1,4 @@
+{
+  "description": "Refuses a feat commit that names no issue until one is found, drafted with the user's OK, or waived by the user",
+  "modules": ["./register.ts"]
+}

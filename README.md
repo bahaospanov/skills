@@ -42,6 +42,7 @@ One mod per purpose.
 | --- | --- |
 | [git-gates](#git-gates) | Git work is authorized and tidy |
 | [git-cleanup](#git-cleanup) | Merged work is cleaned up once it shipped |
+| [issue-first](#issue-first) | Feature work starts from an issue |
 | [lean-docs](#lean-docs) | Docs worth keeping |
 | [lean-comments](#lean-comments) | Comments worth keeping |
 | [lean-scripts](#lean-scripts) | Scripts worth keeping |
@@ -87,6 +88,14 @@ the pipeline holding the merge has passed. Closing the issue is left to you.
 Integration branches are found as git-gates finds them.
 A branch sits in an integration branch when its head does, or when every commit of it has a copy there (a rebase merge).
 Pipelines are read with `gh` on GitHub and, on GitLab, with the `gitlab_token` option: a `read_api` token, asked when the plugin is enabled, kept in the keychain on macOS and in `~/.claude/.credentials.json` elsewhere. With no token or no pipeline holding the work, the pipeline check holds nothing back and a log line says why; merged first still applies, and on GitLab sees a squash merge only with the token.
+
+### issue-first
+
+| Check | Runs on | Needs | Then |
+| --- | --- | --- | --- |
+| feature issue | A `feat` commit | An issue (#107, #BLK-23) in the message or the branch name (`feat/catalog-menu-107`), or "no issue" typed by the user in the current turn | Commit denied; Claude looks for the issue, else drafts one and asks the user before creating it |
+
+A repo with no remote is skipped. Enabled in a repo's own `.claude/settings.json`, it applies to everyone working there.
 
 ### lean-docs
 
