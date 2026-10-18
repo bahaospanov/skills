@@ -3,7 +3,7 @@ import { addedDocLines, docBudgetOfDiff, docNotesOf, docPathsOf, isChangeset, MA
 import { DOCUMENTATION } from './prompts'
 import { amends, authorsHistory } from './shared/anchor'
 import { baseName, claimedWorktrees, isDoc, nonBlankCount, splitLines, worktreesOf } from './shared/diff'
-import { dirOf, isDotfileOrTemp, isTrim } from './shared/paths'
+import { dirOf, isDotfileOrTemp, isTrim, MEDIA_CHECK } from './shared/paths'
 import { MODEL, promptFor, SYSTEM, verdictOf, type Review, type Verdict } from './shared/verdict'
 
 const DOCS_REVIEW: Review = { name: 'docs-review', prompt: DOCUMENTATION, status: 'judging docs' }
@@ -91,10 +91,13 @@ const inSkillFolder = async ($: EngineInterface, path: string, root: string) => 
   return false
 }
 
+const isMediaWork = async ($: EngineInterface, path: string) =>
+  (await $.process.run(['sh', '-c', MEDIA_CHECK, 'lean', path])).exitCode === 0
+
 const repeatedFact = async ($: EngineInterface, path: string, added: string, old: string) => {
   if (!isDoc(path) || nonBlankCount(added) <= nonBlankCount(old)) return undefined
   const root = await git($, dirOf(path), ['rev-parse', '--show-toplevel'])
-  if (!root || isChangeset(path) || (await inSkillFolder($, path, root))) return undefined
+  if (!root || isChangeset(path) || (await inSkillFolder($, path, root)) || (await isMediaWork($, path))) return undefined
   for (const line of splitLines(added)) {
     if (old.includes(line)) continue
     const tokens = tokensOf(line)
@@ -187,7 +190,7 @@ export const register: Register = (on) => {
     const removed = e.tool === 'Write' ? replaced : e.old_string
     if (isTrim(added, removed)) return result
     const root = await git($, dirOf(path), ['rev-parse', '--show-toplevel'])
-    if (root === undefined || isChangeset(path) || (await inSkillFolder($, path, root))) return result
+    if (root === undefined || isChangeset(path) || (await inSkillFolder($, path, root)) || (await isMediaWork($, path))) return result
 
     const tool_input =
       e.tool === 'Write'

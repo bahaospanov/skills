@@ -19,7 +19,11 @@ const world = (on: On, reply: string, files: Record<string, string> = {}) => {
   mock.env(on, { HOME: '/Users/me' })
   on('session.cwd', () => ({ value: '/repo' }))
   on('process.run', ($, e) => ({
-    value: { exitCode: e.argv[2]?.startsWith('/repo') ? 0 : 128, stdout: '', stderr: '' },
+    value: {
+      exitCode: e.argv[0] === 'sh' ? (e.argv[4]?.startsWith('/repo/reels/') ? 0 : 1) : e.argv[2]?.startsWith('/repo') ? 0 : 128,
+      stdout: '',
+      stderr: '',
+    },
   }))
   on('fs.read', ($, e) => {
     const text = files[e.path]
@@ -61,6 +65,15 @@ describe('register', () => {
     const answered = await $.tool.call({ tool: 'Edit', file_path: '/repo/bin/run', old_string: 'echo hi', new_string: 'echo hi\necho there' })
 
     expect(asked.length).toBe(1)
+    expect(answered.context).toBeUndefined()
+  })
+
+  test('media work: a script the checkout ignores or under a .lean-skip folder is not reviewed', async ($, on) => {
+    const { asked } = world(on, REJECT)
+
+    const answered = await $.tool.call({ tool: 'Write', file_path: '/repo/reels/teaser/probe.mjs', content: 'console.log(1)' })
+
+    expect(asked).toEqual([])
     expect(answered.context).toBeUndefined()
   })
 

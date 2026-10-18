@@ -108,6 +108,8 @@ A repo with no remote is skipped. Enabled in a repo's own `.claude/settings.json
 
 No check reads a skill's folder, the one holding `SKILL.md`, or anything under it: a skill is read again on every use.
 
+Media and marketing work is out of scope too: a file its own checkout ignores (a local `reels/` or `renders/` folder) or one under a folder holding a `.lean-skip` file.
+
 ### lean-comments
 
 No comments by default: keep the ones that record a measured number, a trap or
@@ -120,11 +122,15 @@ an invariant, cut the ones that restate the code or narrate the change.
 
 No check reads a file installed under `~/.agents/skills`, `~/.claude/skills` or `~/.claude/plugins`: it is someone else's code. A link from there into a checkout is followed, and the file is checked.
 
+Media and marketing work is out of scope too: a file its own checkout ignores (a local `reels/` or `renders/` folder) or one under a folder holding a `.lean-skip` file.
+
 ### lean-scripts
 
 | Check | Runs on | Flags | Then |
 | --- | --- | --- | --- |
 | scripts-review | A script written or grown in a git checkout | Haiku: scripts you could just type again when needed | Claude gets the reason |
+
+Media and marketing work is out of scope too: a file its own checkout ignores (a local `reels/` or `renders/` folder) or one under a folder holding a `.lean-skip` file.
 
 ## Install mods
 

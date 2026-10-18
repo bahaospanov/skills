@@ -43,6 +43,7 @@ const world = (on: On, home = '/Users/me') => {
     const answer = (stdout: string | undefined) => ({
       value: { exitCode: stdout === undefined ? 1 : 0, stdout: stdout ?? '', stderr: '' },
     })
+    if (e.argv[0] === 'sh') return answer(e.argv[4]?.startsWith('/repo/reels/') ? '' : undefined)
     if (args.endsWith('rev-parse --show-toplevel')) return answer(args.includes('/elsewhere') ? undefined : '/repo\n')
     if (args === '-C /repo worktree list --porcelain') return answer('worktree /repo\nHEAD abc\n')
     if (args === '-C /repo rev-parse HEAD') return answer(`${repo.head}\n`)
@@ -119,6 +120,17 @@ describe('register', () => {
 
     expect(answered.context?.[0]?.startsWith('lean-comments/limit-edits on app.py:\n- This edit adds 4 comment-only lines (soft limit 3).')).toBe(true)
     expect(logs).toEqual(['lean-comments/limit-edits: 1 signal(s) on app.py'])
+  })
+
+  test('media work: a file the checkout ignores or under a .lean-skip folder skips limit-edits', async ($, on) => {
+    const { repo, logs } = world(on)
+    const added = [...comments(4), 'x = 1'].join('\n')
+    repo.files['/repo/reels/teaser/cut.py'] = added
+
+    const answered = await $.tool.call({ tool: 'Edit', file_path: '/repo/reels/teaser/cut.py', old_string: 'x = 0', new_string: added })
+
+    expect(answered.context).toBeUndefined()
+    expect(logs).toEqual([])
   })
 
   test('installed skills and plugin copies skip limit-edits, reached through a link too', async ($, on) => {
