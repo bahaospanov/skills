@@ -383,17 +383,30 @@ describe('register', () => {
     expect(asked).toEqual([])
   })
 
-  test('a commit must end with the issue the user named', async ($, on) => {
+  test('a commit without the issue the user named goes through with a suggestion', async ($, on) => {
+    const { ran, logs } = world(on, { remote: true })
+
+    await $.prompt.submit(prompt('implement #160, then commit'))
+    const unlinked = await $.tool.call(bash('git commit -m "feat: chat"'))
+    const linked = await $.tool.call(bash('git commit -m "feat: chat" -m "#160"'))
+
+    expect(ran).toEqual(['git commit -m "feat: chat"', 'git commit -m "feat: chat" -m "#160"'])
+    expect(logs).toEqual([
+      'git-gates (commit message): committed without an issue reference; suggestion: end the message with the issue it is about, e.g. a last line "#160" (mentioned: #160)',
+    ])
+    expect(unlinked.deny).toBeUndefined()
+    expect(unlinked.context?.at(-1)).toContain('do not file an issue or rewrite the commit unless they ask')
+    expect(linked.context ?? []).toEqual([])
+  })
+
+  test('a commit message that breaks a rule is still denied when an issue is missing too', async ($, on) => {
     const { ran } = world(on, { remote: true })
 
     await $.prompt.submit(prompt('implement #160, then commit'))
-    const refused = await $.tool.call(bash('git commit -m "feat: chat"'))
-    await $.tool.call(bash('git commit -m "feat: chat" -m "#160"'))
+    const refused = await $.tool.call(bash('git commit -m "Fixed stuff"'))
 
-    expect(refused.deny).toBe(
-      'git-gates (commit message): end the message with the issue it is about, e.g. a last line "#160" (mentioned: #160)',
-    )
-    expect(ran).toEqual(['git commit -m "feat: chat" -m "#160"'])
+    expect(refused.deny).toBe("git-gates (commit message): first line is not Conventional Commits: 'Fixed stuff'")
+    expect(ran).toEqual([])
   })
 
   test("an issue named in passing does not override the branch's issue", async ($, on) => {
@@ -412,11 +425,11 @@ describe('register', () => {
 
     await $.prompt.submit(prompt("what's the #82 script"))
     await $.prompt.submit(prompt('ship'))
-    await $.tool.call(bash('cd /repo/wt && git commit -m "chore(web): upgrade to nuxt 4 #89"'))
-    const refused = await $.tool.call(bash('cd /repo/wt && git commit -m "chore(web): upgrade to nuxt 4 #88"'))
+    const linked = await $.tool.call(bash('cd /repo/wt && git commit -m "chore(web): upgrade to nuxt 4 #89"'))
+    const unlinked = await $.tool.call(bash('cd /repo/wt && git commit -m "chore(web): upgrade to nuxt 4 #88"'))
 
-    expect(ran).toEqual(['cd /repo/wt && git commit -m "chore(web): upgrade to nuxt 4 #89"'])
-    expect(refused.deny).toContain('(mentioned: #82)')
+    expect(linked.context ?? []).toEqual([])
+    expect(unlinked.context?.at(-1)).toContain('(mentioned: #82)')
   })
 
   test('what the user typed does not bind a commit in another repo', async ($, on) => {
@@ -474,10 +487,10 @@ describe('register', () => {
     const { ran } = world(on, { branch: 'feat/BLK-7-login' })
 
     await $.prompt.submit(prompt('commit'))
-    const refused = await $.tool.call(bash('git commit -m "fix: login"'))
+    const unlinked = await $.tool.call(bash('git commit -m "fix: login"'))
 
-    expect(refused.deny).toContain('"#BLK-7"')
-    expect(ran).toEqual([])
+    expect(unlinked.context?.at(-1)).toContain('"#BLK-7"')
+    expect(ran).toEqual(['git commit -m "fix: login"'])
   })
 
   test('without an issue tracker a numbered mention asks for nothing', async ($, on) => {

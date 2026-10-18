@@ -17,8 +17,12 @@ const ticket = (key: string, n: string) => (NOT_TRACKERS.has(key.toUpperCase()) 
 
 const unique = (refs: (string | undefined)[]) => [...new Set(refs.filter((r): r is string => r !== undefined))]
 
+// Claude Code's labels for attachments in a prompt ("[Image #2]", "[Pasted text #1 +12 lines]"), not issues.
+const ATTACHMENT = /\[(?:Image|Pasted text)[^\]\n]*\]/g
+
 // `tracked` is whether the repo has a remote: without one, "#87" cannot point at an issue.
-export const refsInText = (text: string, tracked: boolean): string[] => {
+export const refsInText = (prompt: string, tracked: boolean): string[] => {
+  const text = prompt.replace(ATTACHMENT, ' ')
   const found: { at: number; ref: string | undefined }[] = [...text.matchAll(KEY)].map((m) => ({
     at: m.index,
     ref: ticket(m[1] ?? '', m[2] ?? ''),

@@ -519,13 +519,21 @@ export const register: Register = (on) => {
       source === undefined ? undefined : 'text' in source ? source.text : await $.fs.read(source.file).catch(() => undefined)
     const refs = text ? await mentionedRefs($, await repoOf($, e.command)) : undefined
     const missingRef = text && refs ? missingRefViolation(text, refs.required, refs.accepted) : undefined
-    const found = [
-      ...(text ? commitMessageViolations(text) : []),
-      ...(missingRef ? [missingRef] : []),
-      ...aiAttributionViolations(e.command, text),
-    ]
-    const verdict: Verdict = found.length > 0 ? { reason: `git-gates (commit message): ${found.join('; ')}` } : {}
-    return enforce($, verdict, /commit-message-guard/, () => next(e))
+    const found = [...(text ? commitMessageViolations(text) : []), ...aiAttributionViolations(e.command, text)]
+    // A missing issue reference is advice, not a block: the user sees it, the model is told to relay it and
+    // not to act on it (filing an issue is the user's call).
+    const verdict: Verdict =
+      found.length > 0
+        ? { reason: `git-gates (commit message): ${found.join('; ')}` }
+        : missingRef
+          ? { note: `git-gates (commit message): committed without an issue reference; suggestion: ${missingRef}` }
+          : {}
+    return enforce($, verdict, /commit-message-guard/, async () => {
+      const result = await next(e)
+      if (!missingRef || result.deny !== undefined) return result
+      const relay = `git-gates: this commit has no issue reference (${missingRef}). Tell the user as a recommendation; do not file an issue or rewrite the commit unless they ask.`
+      return { ...result, context: [...(result.context ?? []), relay] }
+    })
   })
 
   on('tool.call', { tool: 'Bash' }, async ($, e, next) => {

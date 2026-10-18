@@ -19,6 +19,11 @@ describe('issue-refs', () => {
     expect(refsInText('text #000000 on #1a1a1a', true)).toEqual([])
   })
 
+  test("Claude Code's attachment labels are not issues", () => {
+    expect(refsInText('[Image #2] the table is upside down', true)).toEqual([])
+    expect(refsInText('see [Pasted text #1 +12 lines] then fix #87', true)).toEqual(['#87'])
+  })
+
   test('without an issue tracker a bare number is not an issue', () => {
     expect(refsInText('fix #87 and BLK-23', false)).toEqual(['#BLK-23'])
   })
