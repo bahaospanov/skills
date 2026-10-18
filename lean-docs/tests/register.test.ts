@@ -45,6 +45,7 @@ const world = (on: On, reply = APPROVE) => {
     const answer = (stdout: string | undefined) => ({
       value: { exitCode: stdout === undefined ? 1 : 0, stdout: stdout ?? '', stderr: '' },
     })
+    if (e.argv[0] === 'sh') return answer(e.argv[4]?.startsWith('/repo/reels/') ? '' : undefined)
     if (args.endsWith('rev-parse --show-toplevel')) return answer(/^(-C \/repo|rev-parse)/.test(args) ? '/repo\n' : undefined)
     if (args === '-C /repo worktree list --porcelain') return answer('worktree /repo\nHEAD abc\n')
     if (args === '-C /repo rev-parse HEAD') return answer(`${repo.head}\n`)
@@ -192,6 +193,18 @@ describe('register', () => {
 
     expect(written.map((call) => [call.deny, call.context])).toEqual([[undefined, undefined], [undefined, undefined], [undefined, undefined]])
     expect(ran.length).toBe(3)
+    expect(asked).toEqual([])
+  })
+
+  test('media work: a doc the checkout ignores or under a .lean-skip folder skips docs-review and docs-no-repeat-code', async ($, on) => {
+    const { repo, asked } = world(on, REJECT)
+    repo.grep['API_URL'] = ['src/config.ts']
+    repo.grep['config.ts'] = ['src/config.ts']
+    const steps = 'Steps.\nSet `API_URL` in `config.ts`.'
+
+    const written = await $.tool.call({ tool: 'Write', file_path: '/repo/reels/HISTORY.md', content: steps })
+
+    expect([written.deny, written.context]).toEqual([undefined, undefined])
     expect(asked).toEqual([])
   })
 

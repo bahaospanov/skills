@@ -3,6 +3,7 @@ import { commentsInDiff, commentsInFile, MAX_BLOCKS, reportKey, turnReport, type
 import { ADD_LIMIT } from './rules'
 import { amends, authorsHistory } from './shared/anchor'
 import { baseName, claimedWorktrees, prefixes, splitLines, worktreesOf } from './shared/diff'
+import { MEDIA_CHECK } from './shared/paths'
 import { addedSignal, densitySignal, editGuidance } from './signals'
 
 type Owned = { head: string; seen: string; baseline: Set<string>; status: string; touched: boolean }
@@ -125,6 +126,9 @@ const overBudget = async ($: EngineInterface) => {
   return turnReport(findings, bases)
 }
 
+const isMediaWork = async ($: EngineInterface, path: string) =>
+  (await $.process.run(['sh', '-c', MEDIA_CHECK, 'lean', path])).exitCode === 0
+
 export const register: Register = (on) => {
   on('tool.call', { tool: ['Bash', 'Write', 'Edit'] }, async ($, e, next) => {
     await claim($, e.tool === 'Bash' ? e.command : e.file_path)
@@ -140,7 +144,7 @@ export const register: Register = (on) => {
     const path = e.file_path
     const text = e.tool === 'Write' ? e.content : e.new_string
     const marks = prefixes(path)
-    if (!path || !text || !marks || (await isInstalled($, path))) return result
+    if (!path || !text || !marks || (await isInstalled($, path)) || (await isMediaWork($, path))) return result
     const body = await $.fs.read(path).catch(() => undefined)
     const findings = [addedSignal(text, marks, path), body === undefined ? undefined : densitySignal(path, body, text, marks)].filter(
       (finding): finding is string => finding !== undefined,

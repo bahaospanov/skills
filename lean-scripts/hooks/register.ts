@@ -1,13 +1,16 @@
 import type { EngineInterface, Register } from 'claude-code'
 import { hasScriptExt, isApplicationSource, isTestFile } from './gates'
 import { SCRIPT_FILE } from './prompts'
-import { dirOf, isDotfileOrTemp, isTrim } from './shared/paths'
+import { dirOf, isDotfileOrTemp, isTrim, MEDIA_CHECK } from './shared/paths'
 import { MODEL, promptFor, SYSTEM, verdictOf, type Review, type Verdict } from './shared/verdict'
 
 const SCRIPTS_REVIEW: Review = { name: 'scripts-review', prompt: SCRIPT_FILE, status: 'judging script' }
 
 const inCheckout = async ($: EngineInterface, path: string) =>
   (await $.process.run(['git', '-C', dirOf(path), 'rev-parse', '--show-toplevel'])).exitCode === 0
+
+const isMediaWork = async ($: EngineInterface, path: string) =>
+  (await $.process.run(['sh', '-c', MEDIA_CHECK, 'lean', path])).exitCode === 0
 
 // The loader follows $ only into functions of this file, so the model call lives here, not in shared/verdict.ts.
 const judge = async ($: EngineInterface, review: Review, input: object): Promise<Verdict | undefined> => {
@@ -35,7 +38,7 @@ export const register: Register = (on) => {
     if (e.tool === 'Edit' && isTrim(e.new_string, e.old_string)) return result
     const isScript =
       hasScriptExt(path) || (e.tool === 'Write' ? e.content : await $.fs.read(path).catch(() => '')).startsWith('#!')
-    if (!isScript || !(await inCheckout($, path))) return result
+    if (!isScript || !(await inCheckout($, path)) || (await isMediaWork($, path))) return result
 
     const tool_input =
       e.tool === 'Write'
