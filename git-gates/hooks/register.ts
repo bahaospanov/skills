@@ -30,7 +30,6 @@ import { acknowledgesSplit, FOLLOW_UP_MODEL, followUpsRefused, markedFollowUp } 
 import { GRANT_DEFAULT_TTL_S, grantArgsOf, isLive, openGrant, spend, type Grant } from './grants'
 import { acknowledgesStaleBase, FETCH_TIMEOUT_MS, mrOpeningOf, staleBaseRefused, type MrOpening } from './fresh-base'
 import { acknowledgesLanded, landedRefused } from './landed-branch'
-import { descriptionFrom, descriptionViolations, expandVars, setsDescription } from './mr-description'
 import { COMMIT_MESSAGE, COMMIT_ORDER, FEATURE_SCOPE, FOLLOW_UPS } from './prompts'
 import {
   branchesOf,
@@ -335,12 +334,6 @@ const enforce = async <R extends Outcome>(
   return result
 }
 
-// The loader only admits literal $.env.get names, so HOME is the one variable a description path may use.
-const readDescriptionFile = async ($: EngineInterface, path: string) => {
-  const expanded = expandVars(path, { HOME: await $.env.get('HOME') })
-  return expanded === undefined ? undefined : $.fs.read(expanded).catch(() => undefined)
-}
-
 // The loader follows $ only into functions of this file, so the model call lives here, not in shared/verdict.ts.
 const judge = async (
   $: EngineInterface,
@@ -547,18 +540,5 @@ export const register: Register = (on) => {
     if (review?.ok !== false) return next(e)
     $.ui.log(`git-gates (${COMMIT_REVIEW.name}): ${review.reason}`)
     return { deny: `git-gates (${COMMIT_REVIEW.name}): ${review.reason}` }
-  })
-
-  on('tool.call', { tool: 'Bash' }, async ($, e, next) => {
-    if (!setsDescription(e.command)) return next(e)
-    const source = descriptionFrom(e.command)
-    if (source !== undefined && 'unreadable' in source) {
-      return enforce($, { reason: `git-gates (MR description): ${source.unreadable}` }, /mr-description-guard/, () => next(e))
-    }
-    const text =
-      source === undefined ? undefined : 'text' in source ? source.text : await readDescriptionFile($, source.file)
-    const found = text?.trim() ? descriptionViolations(text) : []
-    const verdict: Verdict = found.length > 0 ? { reason: `git-gates (MR description):\n  - ${found.join('\n  - ')}` } : {}
-    return enforce($, verdict, /mr-description-guard/, () => next(e))
   })
 }
