@@ -1,6 +1,6 @@
 {
   "name": "issue-first",
-  "version": "1.15.0",
+  "version": "1.16.0",
   "description": "Feature work starts from an issue: a feat commit naming none is refused until Claude finds the issue, drafts one the user agrees to, or the user says it needs none.",
   "author": {
     "name": "Bakhtiyar Ospanov"

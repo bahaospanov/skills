@@ -1,5 +1,12 @@
 # bahaospanov
 
+## 1.16.0
+
+### Minor Changes
+
+- 9dd0e5e: - **bahaospanov-skills**: new model-invoked skill `mr-style`: the fixed `### Label` blocks an MR or PR description is built from, what each label holds, and its shape rules.
+  - **git-gates**: no longer checks MR/PR descriptions; that format now lives in the `mr-style` skill, and setting a description is never denied.
+
 ## 1.15.0
 
 ### Minor Changes
