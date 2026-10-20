@@ -118,7 +118,7 @@ Split from git-gates on 2026-10-20; the origins are from git-gates' history.
 
 | Rule | Kind | Check | Effect | Origin |
 | --- | --- | --- | --- | --- |
-| A `feat` commit names an issue, at the end of its subject or in its branch | proj | code | deny | 8dc0eee |
+| A `feat` commit names an issue, at the end of its subject or in its branch | proj | code | deny | 8dc0eee. A version in the branch (`feat/react-19`) counts as none since 2026-10-20: it waived the check |
 | The subject ends with the issue the user or the branch named | proj | code | note | 53e9700 in git-gates as a deny; a note since 1a7fd74; moved to issue-first 2026-10-20 so one mod holds the issue number |
 
 ### lean-docs

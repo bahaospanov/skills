@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'claude-code/testing'
-import { missingRefViolation, tailRefInBranch } from '../hooks/issue-number'
+import { issueTailInBranch, missingRefViolation, tailRefInBranch } from '../hooks/issue-number'
 
 describe('issue-number', () => {
   test('a slug ending in a number offers it as an issue', () => {
@@ -8,6 +8,13 @@ describe('issue-number', () => {
     expect(tailRefInBranch('perf/mobile-lcp-89', false)).toEqual([])
     expect(tailRefInBranch('feat/session-chat', true)).toEqual([])
     expect(tailRefInBranch('release/2026-09', true)).toEqual([])
+  })
+
+  test("a slug's number names a feature's issue only after two or more words", () => {
+    expect(issueTailInBranch('feat/catalog-menu-107')).toEqual(['#107'])
+    expect(issueTailInBranch('perf/nuxt4-ui4-89')).toEqual(['#89'])
+    expect(issueTailInBranch('feat/react-19')).toEqual([])
+    expect(issueTailInBranch('chore/node-22')).toEqual([])
   })
 
   test('an accepted ref may end the subject but is never demanded', () => {

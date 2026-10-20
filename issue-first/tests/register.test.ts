@@ -103,6 +103,15 @@ describe('register', () => {
     expect(inBody.deny).toContain('end the subject with its number: "feat(web): b #N"')
   })
 
+  test('a version at the end of the branch name is no issue', async ($, on) => {
+    const { ran } = world(on, { branch: 'feat/react-19' })
+
+    const refused = await $.tool.call(bash('git commit -m "feat(web): move to react 19"'))
+
+    expect(refused.deny).toContain('is a feature')
+    expect(ran).toEqual([])
+  })
+
   test('a branch carrying the issue number covers its commits', async ($, on) => {
     const { ran } = world(on, { branch: 'feat/catalog-menu-107' })
 

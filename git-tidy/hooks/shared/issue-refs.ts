@@ -34,7 +34,8 @@ export const refsInBranch = (branch: string, tracked: boolean): string[] =>
   unique(
     branch.split('/').map((segment) => {
       const key = segment.match(BRANCH_KEY)
-      if (key) return ticket(key[1] ?? '', key[2] ?? '')
+      // A key is written in capitals or leads a slug (`blk-23-chat`); a bare lowercase `react-19` is a version.
+      if (key && (segment.length > key[0].length || /[A-Z]/.test(key[1] ?? ''))) return ticket(key[1] ?? '', key[2] ?? '')
       const number = segment.match(BRANCH_NUMBER)?.[1]
       return tracked && number !== undefined ? `#${number}` : undefined
     }),
