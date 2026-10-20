@@ -48,7 +48,6 @@ import {
   verbOf,
   type Verb,
 } from './shared/git-commands'
-import { missingRefViolation, refsInBranch, refsInText, tailRefInBranch } from './shared/issue-refs'
 import { MODEL, promptFor, SYSTEM, verdictOf, type Review, type Verdict as ReviewVerdict } from './shared/verdict'
 
 // A --plugin-dir load serves it as mcp__git-gates__grant; the registered name is kept for messages.
@@ -108,14 +107,6 @@ const git = async ($: EngineInterface, args: string[], cwd?: string) => {
 const repoOf = async ($: EngineInterface, command: string) => {
   const dir = commandDir(command)
   return dir?.startsWith('~') ? `${await $.env.get('HOME')}${dir.slice(1)}` : dir
-}
-
-// Worktrees of one repo share its common dir, so a worktree counts as the session's repo.
-const isSessionRepo = async ($: EngineInterface, cwd: string | undefined) => {
-  if (cwd === undefined) return true
-  const args = ['rev-parse', '--path-format=absolute', '--git-common-dir']
-  const [there, here] = await Promise.all([git($, args, cwd), git($, args)])
-  return there === undefined || here === undefined || there === here
 }
 
 const protectedBranches = async ($: EngineInterface, cwd?: string) => {
@@ -255,22 +246,6 @@ const describeCommit = async ($: EngineInterface, sha: string, cwd?: string): Pr
     files: files.split('\n').filter(Boolean),
     diff: trimDiff(diff ?? ''),
     deleted: trimDiff(deleted ?? '', DELETED_CHARS),
-  }
-}
-
-// Refs the user named or the branch carries, newest first. A git failure only drops the repo's side.
-// What the user typed is about the session's repo, so another repo's commit only answers to its branch.
-const mentionedRefs = async ($: EngineInterface, cwd?: string) => {
-  const tracked = !!(await git($, ['remote'], cwd).catch(() => undefined))
-  const branch = await currentBranch($, cwd).catch(() => undefined)
-  const typed = (await isSessionRepo($, cwd))
-    ? (await recentPrompts($, LOOKBACK)).filter((p) => p.human).reverse()
-    : []
-  return {
-    required: [
-      ...new Set([...(branch ? refsInBranch(branch, tracked) : []), ...typed.flatMap((p) => refsInText(p.text, tracked))]),
-    ],
-    accepted: branch ? tailRefInBranch(branch, tracked) : [],
   }
 }
 
@@ -521,23 +496,9 @@ export const register: Register = (on) => {
     const source = messageFrom(e.command)
     const text =
       source === undefined ? undefined : 'text' in source ? source.text : await $.fs.read(source.file).catch(() => undefined)
-    const refs = text ? await mentionedRefs($, await repoOf($, e.command)) : undefined
-    const missingRef = text && refs ? missingRefViolation(text, refs.required, refs.accepted) : undefined
     const found = [...(text ? commitMessageViolations(text) : []), ...aiAttributionViolations(e.command, text)]
-    // A missing issue reference is advice, not a block: the user sees it, the model is told to relay it and
-    // not to act on it (filing an issue is the user's call).
-    const verdict: Verdict =
-      found.length > 0
-        ? { reason: `git-gates (commit message): ${found.join('; ')}` }
-        : missingRef
-          ? { note: `git-gates (commit message): committed without an issue reference; suggestion: ${missingRef}` }
-          : {}
-    return enforce($, verdict, /commit-message-guard/, async () => {
-      const result = await next(e)
-      if (!missingRef || result.deny !== undefined) return result
-      const relay = `git-gates: this commit has no issue reference (${missingRef}). Tell the user as a recommendation; do not file an issue or rewrite the commit unless they ask.`
-      return { ...result, context: [...(result.context ?? []), relay] }
-    })
+    const verdict: Verdict = found.length > 0 ? { reason: `git-gates (commit message): ${found.join('; ')}` } : {}
+    return enforce($, verdict, /commit-message-guard/, () => next(e))
   })
 
   on('tool.call', { tool: 'Bash' }, async ($, e, next) => {

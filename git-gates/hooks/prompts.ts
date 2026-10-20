@@ -7,7 +7,7 @@ BEFORE ANY OF THAT, the test that usually empties the body: could you simply TEL
 If the cause is plainly stated by the subject line - 'X had no password', 'Y was never called', 'Z was off by one' - the correct body is EMPTY. ok=false on any body that exists only because the author had things to say.
 ok=false if: a block restates the diff or names the files touched; a sentence exists only to set up the next one; the message narrates the process of getting there; a block's content does not match its label.
 A one-line body with no labels is fine for a trivial change - do not demand blocks that do not exist.
-A last line of issue or ticket references such as #87 or #BLK-23 is required by another check: it is not body text, never object to it.
+Issue or ticket numbers such as #87 or #BLK-23 are not body text: never object to them.
 Reason: name the offending block and what is wrong. Under 50 words, no preamble.`
 
 export const COMMIT_ORDER = `Reviewer for the order of commits about to be pushed, oldest first. $ARGUMENTS

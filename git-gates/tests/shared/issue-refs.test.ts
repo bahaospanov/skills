@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'claude-code/testing'
-import { missingRefViolation, refsInBranch, refsInText, tailRefInBranch } from '../../hooks/shared/issue-refs'
+import { refsInBranch, refsInText } from '../../hooks/shared/issue-refs'
 
 describe('issue-refs', () => {
   test('a message mentions issue numbers, issue URLs and tracker keys', () => {
@@ -36,36 +36,5 @@ describe('issue-refs', () => {
     expect(refsInBranch('feat/session-chat', true)).toEqual([])
     expect(refsInBranch('release/2026-09', true)).toEqual([])
     expect(refsInBranch('fix/utf-8-names', true)).toEqual([])
-  })
-
-  test('a slug ending in a number offers it as an issue', () => {
-    expect(tailRefInBranch('chore/nuxt4-ui4-89', true)).toEqual(['#89'])
-    expect(tailRefInBranch('perf/mobile-lcp-89', true)).toEqual(['#89'])
-    expect(tailRefInBranch('perf/mobile-lcp-89', false)).toEqual([])
-    expect(tailRefInBranch('feat/session-chat', true)).toEqual([])
-    expect(tailRefInBranch('release/2026-09', true)).toEqual([])
-  })
-
-  test('an accepted ref may end the message but is never demanded', () => {
-    expect(missingRefViolation('chore(web): upgrade #89', ['#82'], ['#89'])).toBeUndefined()
-    expect(missingRefViolation('chore(web): upgrade', ['#82'], ['#89'])).toBeDefined()
-    expect(missingRefViolation('chore: bump node', [], ['#22'])).toBeUndefined()
-  })
-
-  test('with nothing mentioned any message passes', () => {
-    expect(missingRefViolation('feat: chat', [])).toBeUndefined()
-  })
-
-  test('the message must end with one of the mentioned refs', () => {
-    const refs = ['#160', '#BLK-23']
-    expect(missingRefViolation('feat(chat): session chat\n\n#160', refs)).toBeUndefined()
-    expect(missingRefViolation('feat(chat): session chat (#160)', refs)).toBeUndefined()
-    expect(missingRefViolation('fix: login\n\n#blk-23', refs)).toBeUndefined()
-    expect(missingRefViolation('fix: login\n\n#88 #BLK-23', refs)).toBeUndefined()
-    expect(missingRefViolation('feat(chat): session chat', refs)).toBe(
-      'end the message with the issue it is about, e.g. a last line "#160" (mentioned: #160, #BLK-23)',
-    )
-    expect(missingRefViolation('fix: #160 edge case\n\nwhy it broke', refs)).toBeDefined()
-    expect(missingRefViolation('fix: login\n\n#88', refs)).toBeDefined()
   })
 })

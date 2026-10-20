@@ -8,7 +8,7 @@
   "plugins": [
     {
       "name": "git-gates",
-      "description": "Gates git work: no commit, push or merge without the user's say-so in their latest message; a push to a branch that already landed is refused; commit messages kept tidy (format and the issue it is about, then a Haiku review of the body).",
+      "description": "Gates git work: no commit, push or merge without the user's say-so in their latest message; a push to a branch that already landed is refused; commit messages kept tidy (format, no Claude credit, then a Haiku review of the body).",
       "source": "./git-gates"
     },
     {
@@ -18,7 +18,7 @@
     },
     {
       "name": "issue-first",
-      "description": "Feature work starts from an issue: a feat commit naming none is refused until Claude finds the issue, drafts one the user agrees to, or the user says it needs none.",
+      "description": "Feature work starts from an issue, and each commit names its own: a feat commit naming none is refused until Claude finds the issue, drafts one the user agrees to, or the user says it needs none; a commit whose subject does not end with the issue the user or the branch named gets a suggestion.",
       "source": "./issue-first"
     },
     {
