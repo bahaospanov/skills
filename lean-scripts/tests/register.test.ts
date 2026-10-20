@@ -21,10 +21,11 @@ const world = (on: On, reply: string, files: Record<string, string> = {}) => {
   on('process.run', ($, e) => ({
     value: {
       exitCode: e.argv[0] === 'sh' ? (e.argv[4]?.startsWith('/repo/reels/') ? 0 : 1) : e.argv[2]?.startsWith('/repo') ? 0 : 128,
-      stdout: '',
+      stdout: e.argv[0] === 'git' && e.argv[2]?.startsWith('/repo') ? '/repo\n' : '',
       stderr: '',
     },
   }))
+  on('fs.exists', ($, e) => ({ value: e.path in files }))
   on('fs.read', ($, e) => {
     const text = files[e.path]
     return text === undefined ? { deny: `ENOENT: ${e.path}` } : { value: text }
@@ -65,6 +66,15 @@ describe('register', () => {
     const answered = await $.tool.call({ tool: 'Edit', file_path: '/repo/bin/run', old_string: 'echo hi', new_string: 'echo hi\necho there' })
 
     expect(asked.length).toBe(1)
+    expect(answered.context).toBeUndefined()
+  })
+
+  test("a script in a skill's folder is not reviewed", async ($, on) => {
+    const { asked } = world(on, REJECT, { '/repo/skills/release/SKILL.md': '---\nname: release\n---' })
+
+    const answered = await $.tool.call({ tool: 'Write', file_path: '/repo/skills/release/scripts/tick.sh', content: 'curl -X PUT' })
+
+    expect(asked).toEqual([])
     expect(answered.context).toBeUndefined()
   })
 

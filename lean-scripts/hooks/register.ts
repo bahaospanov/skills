@@ -6,8 +6,19 @@ import { MODEL, promptFor, SYSTEM, verdictOf, type Review, type Verdict } from '
 
 const SCRIPTS_REVIEW: Review = { name: 'scripts-review', prompt: SCRIPT_FILE, status: 'judging script' }
 
-const inCheckout = async ($: EngineInterface, path: string) =>
-  (await $.process.run(['git', '-C', dirOf(path), 'rev-parse', '--show-toplevel'])).exitCode === 0
+const checkoutOf = async ($: EngineInterface, path: string) => {
+  const run = await $.process.run(['git', '-C', dirOf(path), 'rev-parse', '--show-toplevel'])
+  return run.exitCode === 0 ? run.stdout.trim() : undefined
+}
+
+// A skill runs its scripts on every use, so they are never the kind typed again on the spot.
+const inSkillFolder = async ($: EngineInterface, path: string, root: string) => {
+  for (let dir = dirOf(path); dir === root || dir.startsWith(`${root}/`); dir = dirOf(dir)) {
+    if (await $.fs.exists(`${dir}/SKILL.md`)) return true
+    if (dir === root) break
+  }
+  return false
+}
 
 const isMediaWork = async ($: EngineInterface, path: string) =>
   (await $.process.run(['sh', '-c', MEDIA_CHECK, 'lean', path])).exitCode === 0
@@ -38,7 +49,8 @@ export const register: Register = (on) => {
     if (e.tool === 'Edit' && isTrim(e.new_string, e.old_string)) return result
     const isScript =
       isScriptPath(path) || (e.tool === 'Write' ? e.content : await $.fs.read(path).catch(() => '')).startsWith('#!')
-    if (!isScript || !(await inCheckout($, path)) || (await isMediaWork($, path))) return result
+    const root = isScript ? await checkoutOf($, path) : undefined
+    if (root === undefined || (await inSkillFolder($, path, root)) || (await isMediaWork($, path))) return result
 
     const tool_input =
       e.tool === 'Write'
