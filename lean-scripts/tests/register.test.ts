@@ -71,7 +71,7 @@ describe('register', () => {
   test('media work: a script the checkout ignores or under a .lean-skip folder is not reviewed', async ($, on) => {
     const { asked } = world(on, REJECT)
 
-    const answered = await $.tool.call({ tool: 'Write', file_path: '/repo/reels/teaser/probe.mjs', content: 'console.log(1)' })
+    const answered = await $.tool.call({ tool: 'Write', file_path: '/repo/reels/teaser/probe.sh', content: 'echo 1' })
 
     expect(asked).toEqual([])
     expect(answered.context).toBeUndefined()

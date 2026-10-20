@@ -1,9 +1,9 @@
-// Asked for 2026-10-15 (scanwow): a teammate's merge requests carried several features at once,
+// Asked for 2026-10-15 in a team project: a teammate's merge requests carried several features at once,
 // often in one commit ("asset page details, specs list and collections, model physical size, …").
 
 import { refsInText } from './shared/issue-refs'
 
-// On 9 real scanwow commits, 3 runs each: the 4 bundles were held 12 of 12, the 5 single features
+// On 9 real commits from that project, 3 runs each: the 4 bundles were held 12 of 12, the 5 single features
 // passed 14 of 15. Before the prompt said a shared page joins nothing, the bundles passed half the time.
 export const SCOPE_MODEL = 'claude-sonnet-5-5'
 

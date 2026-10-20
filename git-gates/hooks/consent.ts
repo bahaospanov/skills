@@ -4,11 +4,11 @@ const word = (alternatives: string) => new RegExp(String.raw`(^|[^\p{L}])(${alte
 const AUTH = word('commit|push|ship|deploy|merge|pr|mr|tag|release')
 const PUSH_AUTH = word('push|ship|deploy|pr|mr|tag|release')
 // "merge request" names the thing to open, not the act of merging it.
-const MERGE_AUTH = word(String.raw`merge(?!\s+requests?)|merging|смерж[а-яё]*|влей|влить|вмерж[а-яё]*`)
+const MERGE_AUTH = word(String.raw`merge(?!\s+requests?)|merging`)
 const OPEN_AUTH = word(String.raw`pr|mr|ship|pull\s+requests?|merge\s+requests?`)
 const VERB_WORDS: Record<Verb, RegExp> = { commit: word('commit'), push: word('push'), merge: MERGE_AUTH }
 // A keyword at most two words after one of these, in the same clause, is the user saying no.
-const NEGATED = /(^|[^\p{L}'])(don't|dont|do not|doesn't|never|no|not|without|stop|avoid|не|нельзя|без|никогда)(\s+[^\s.,;!?]+){0,2}\s+$/iu
+const NEGATED = /(^|[^\p{L}'])(don't|dont|do not|doesn't|never|no|not|without|stop|avoid)(\s+[^\s.,;!?]+){0,2}\s+$/iu
 const CLAUSE = /[.,;!?\n]/g
 
 const mentions = (text: string, words: RegExp): boolean[] => {
@@ -28,13 +28,11 @@ export const GRANT_SESSION_USES = 10
 
 const COUNTS = [
   /.*[Cc]ommits?\s*[xX*]\s*([0-9]+)/u,
-  /.*[Кк]оммит[а-яА-Я]*\s*[xXхХ*]\s*([0-9]+)/u,
   /.*[^0-9]([0-9]+)\s+(?:separate\s+)?[Cc]ommits/u,
-  /.*[^0-9]([0-9]+)\s+[Кк]оммит[а-яА-Я]*/u,
 ]
-const SESSION_WIDE = /(rest of (the |this )?session|until I (say|tell)|keep committing|до конца сесси)/iu
+const SESSION_WIDE = /(rest of (the |this )?session|until I (say|tell)|keep committing)/iu
 const PER_TASK =
-  /(auto-?commit|commit (after|between|per|each|every|as you go|along the way)|(after|between) each (task|step|part|item|fix)[^.]{0,40}commit|one commit per|separate commits|commit them separately|коммит[а-я]* (после|на) кажд|коммить по ходу|отдельны[емх] коммит)/iu
+  /(auto-?commit|commit (after|between|per|each|every|as you go|along the way)|(after|between) each (task|step|part|item|fix)[^.]{0,40}commit|one commit per|separate commits|commit them separately)/iu
 
 export const authorizes = (text: string) => says(text, AUTH)
 
@@ -66,7 +64,7 @@ export const protectedHit = (targets: string[], policy: string[]) =>
 export const namesBranch = (text: string, branch: string) => {
   const escaped = branch.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&')
   return new RegExp(
-    `(push|ship|deploy|merge|пуш|запуш[а-я]*)[^.!?]{0,40}(^|[^a-z0-9_/-])${escaped}([^a-z0-9_/-]|$)`,
+    `(push|ship|deploy|merge)[^.!?]{0,40}(^|[^a-z0-9_/-])${escaped}([^a-z0-9_/-]|$)`,
     'imu',
   ).test(text)
 }

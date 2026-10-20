@@ -1,7 +1,7 @@
-// Observed 2026-10-01 (scanwow !269): api-py dropped its endpoints one commit before the
+// Observed 2026-10-01 in a team project: the API dropped its endpoints one commit before the
 // admin stopped calling them, so the commit between the two had a broken admin.
 
-// On the real !269 series Haiku raised a false alarm in 2 of 6 runs of the right order; Sonnet in 0 of 6.
+// On that real series Haiku raised a false alarm in 2 of 6 runs of the right order; Sonnet in 0 of 6.
 export const ORDER_MODEL = 'claude-sonnet-5-5'
 export const MIN_SERIES = 2
 export const MAX_SERIES = 15

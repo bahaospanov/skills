@@ -142,6 +142,8 @@ Media and marketing work is out of scope too: a file its own checkout ignores (a
 | --- | --- | --- | --- |
 | scripts-review | A script written or grown in a git checkout | Haiku: scripts you could just type again when needed | Claude gets the reason |
 
+A script is a shell file, a file in a `scripts`, `bin`, `tools` or `ops` folder, or one starting with a shebang.
+
 Media and marketing work is out of scope too: a file its own checkout ignores (a local `reels/` or `renders/` folder) or one under a folder holding a `.lean-skip` file.
 
 ## Install mods
