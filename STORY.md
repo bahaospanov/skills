@@ -67,11 +67,11 @@ Every rule lives where people can read it and see what it is for; memory holds o
 3. Check it in code when code can decide; a model judgment only advises or asks.
 4. Head the check's module with the incident, as `git-gates/hooks/landed-branch.ts` does, and add its row to the ledger.
 
-The rule is done when its module and its ledger row name the same incident. Changing a rule's effect, or removing it, updates its row in the same commit, with the reason.
+The rule is done when its module and its ledger row name the same incident. Adding, moving or removing a rule updates the ledger with the reason; fixes and tweaks stay out of this file.
 
 ## Ledger
 
-Kind: **op** operator, **proj** project. Effect: **deny**; **hold**, the agent asks the user and any answer lets it through; **note**; **follow-up**, an end-of-turn prompt; **allow**; **skip**, the mod's checks stay out. An origin that is only a commit records no reason.
+Kind: **op** operator, **proj** project. Effect: **deny**; **hold**, the agent asks the user and any answer lets it through; **note**; **allow**; **auto**, the mod does it itself. An origin that is only a commit records no reason.
 
 ### git-gates
 
@@ -79,13 +79,11 @@ Kind: **op** operator, **proj** project. Effect: **deny**; **hold**, the agent a
 | --- | --- | --- | --- | --- |
 | Commit and push need the user's word in the current turn | op | code | deny | Before this repo: the agent committed before the user said so, and only a settings hook stopped it. Moved 2026-09-16, c488005 |
 | Merge needs "merge" | op | code | deny | c488005. Its refusal gives the reason: merging is a deploy with no approval gate |
-| Opening an MR needs pr, mr, pull request, merge request or ship | op | code | deny | 2026-10-20: opening one is outward-facing, yet needed no word; found in an audit |
+| Opening an MR needs pr, mr, pull request, merge request or ship | op | code | deny | 2026-10-20: opening one is outward-facing, yet needed no word |
 | A push needs a word other than "commit" | op | code | deny | 2026-10-20, the user's call |
-| A negated word ("don't push") counts as no | op | code | deny | 2026-10-20: "don't commit" counted as consent; found in an audit |
-| git's own options (`git -C dir`) do not hide a commit or push | op | code | deny | 2026-10-20: `git -C` slipped past every check; found in an audit |
 | A failed consent check blocks | op | code | deny | c488005 |
 | Grants: a commit per task, asked once | op | regex | allow | c488005 |
-| Consent outlives follow-ups, task reports and messages typed mid-turn | op | code | allow | 65a287a, ee5d625, 3a9bda1: each a denial after the user had said yes. The follow-up mods sit in one shared list that `check:continuations` keeps current since 2026-10-20 |
+| Consent outlives follow-ups, task reports and messages typed mid-turn | op | code | allow | 65a287a, ee5d625, 3a9bda1: each a denial after the user had said yes |
 | A protected branch is named to be pushed to | op | code | deny | c488005 |
 
 ### git-tidy
@@ -97,58 +95,47 @@ Split from git-gates on 2026-10-20; the origins are from git-gates' history.
 | No push to a branch that already landed | proj | code | deny | 2026-09-21: a follow-up pushed minutes after its MR merged recreated the deleted branch, outside any MR, looking shipped |
 | Fresh base before opening an MR | proj | code | deny | dfd41df |
 | Conventional Commits subject | proj | code | deny | c488005 |
-| No reviewer pre-answers ("no X changed") | proj | regex | note | c488005 as a deny; a note since 2026-10-20: real causes match the pattern and there was no way past it |
+| No reviewer pre-answers ("no X changed") | proj | regex | note | c488005 |
 | No Claude credit: Co-Authored-By trailer, "Generated with" line | proj | code | deny | a0ab38c |
-| A body only for a subtle cause | proj | Haiku | note | The settings prompt hook, moved verbatim 2026-09-16, 4da7656. A note since 2026-10-20: someone new to the rules cannot argue with a model's block |
+| A body only for a subtle cause | proj | Haiku | note | The settings prompt hook, moved verbatim 2026-09-16, 4da7656 |
 | Every commit works | proj | Sonnet | deny | 2026-10-01, a team project: the API dropped endpoints one commit before the admin stopped calling them |
-| One commit per change | proj | code, Sonnet | hold | 2026-10-15, a team project: a teammate's branches grew a commit per fix. A contract change and its match in another app count as one since 2026-10-20: vertical commits, the user's call |
+| One commit per change | proj | code, Sonnet | hold | 2026-10-15, a team project: a teammate's branches grew a commit per fix |
 | One feature per MR | proj | code, Sonnet | hold | 2026-10-15, a team project: a teammate's MRs carried several features, often in one commit |
 
 ### git-cleanup
 
 | Rule | Kind | Check | Effect | Origin |
 | --- | --- | --- | --- | --- |
-| Removing a branch needs it merged | op | code | deny | bb1060d. A worktree's removal is not held since 2026-10-20: it keeps the branch |
-| Cleanup and issue edits wait for the pipeline | op | code | deny | 2026-10-05: right after an MR merged, the agent removed its worktree and branch and ticked the issue while the deploy pipeline still ran. A GitLab pipeline parked at manual or skipped holds nothing back since 2026-10-20: it never finishes, so it held cleanup forever. A squash merge waits for the pipeline holding its new commit since 2026-10-20: it used to skip the check |
-| Closing an issue is left to the user | op | — | skip | 05cb416. Since 2026-10-20 the release skill leaves issues open too: the user's call |
-| Merged, clean work gets removed | op | code | note | 2026-10-05: a merged, checked branch kept its worktree and branches, and nothing came back for them. A one-line notice since 2026-10-20: the follow-up prompt was too much to read, and cleanup waits for the user to ask |
-| A local base behind origin is fast-forwarded | op | code | follow-up | e229dab |
+| Removing a branch needs it merged | op | code | deny | bb1060d |
+| Cleanup and issue edits wait for the pipeline | op | code | deny | 2026-10-05: right after an MR merged, the agent removed its worktree and branch and ticked the issue while the deploy pipeline still ran |
+| Closing an issue is left to the user | op | — | allow | 05cb416 |
+| Merged, clean work gets removed | op | code | auto | 2026-10-05: a merged, checked branch kept its worktree and branches, and nothing came back for them |
+| A local base behind origin is fast-forwarded | op | code | auto | e229dab |
 
 ### issue-first
 
 | Rule | Kind | Check | Effect | Origin |
 | --- | --- | --- | --- | --- |
-| A `feat` commit names an issue, at the end of its subject or in its branch | proj | code | deny | 8dc0eee. A version in the branch (`feat/react-19`) counts as none since 2026-10-20: it waived the check |
-| The subject ends with the issue the user or the branch named | proj | code | note | 53e9700 in git-gates as a deny; a note since 1a7fd74; moved to issue-first 2026-10-20 so one mod holds the issue number |
+| A `feat` commit names an issue, at the end of its subject or in its branch | proj | code | deny | 8dc0eee |
+| The subject ends with the issue the user or the branch named | proj | code | note | 53e9700, in git-gates; moved here 2026-10-20 so one mod holds the issue number |
 
 ### lean-docs
 
 | Rule | Kind | Check | Effect | Origin |
 | --- | --- | --- | --- | --- |
 | Will anyone read it again? | proj | Haiku | note | The settings prompt hook, moved verbatim 2026-09-16, 4da7656 |
-| A doc line does not restate code | proj | code | note | 18129c5 as a deny; a note since 2026-10-20: it blocked legitimate writes, a glossary mapping, an agent-doc line and a table row in this file |
-| A turn adds little prose | proj | code | note | 18129c5 as a follow-up prompt; a one-line notice since 2026-10-20: the prompt was too much to read, and trimming waits for the user to ask |
-| Skill folders | — | — | skip | b63fe7b: a skill is read again on every use |
-| Changesets | — | — | skip | 3966435: docs-review flagged every one, and `changeset version` deletes them |
+| A doc line does not restate code | proj | code | note | 18129c5 |
+| A turn adds little prose | proj | code | note | 18129c5 |
 
 ### lean-comments
 
 | Rule | Kind | Check | Effect | Origin |
 | --- | --- | --- | --- | --- |
-| At most 3 comment lines per edit, no comment-heavy region | proj | code | note | 06830d8. The region counts only when the edit adds comments since 2026-10-20: it fired on every edit near old comments |
-| At most 3 new comment lines per file per turn | proj | code | note | 06830d8 as a follow-up prompt; a one-line notice since 2026-10-20: the prompt was too much to read, and trimming waits for the user to ask |
-| Installed skills and plugins | — | — | skip | 6c17732: someone else's code |
+| At most 3 comment lines per edit, no comment-heavy region | proj | code | note | 06830d8 |
+| At most 3 new comment lines per file per turn | proj | code | note | 06830d8 |
 
 ### lean-scripts
 
 | Rule | Kind | Check | Effect | Origin |
 | --- | --- | --- | --- | --- |
 | Could it be typed again on the spot? | proj | Haiku | note | The settings prompt hook, moved verbatim 2026-09-16, 4da7656 |
-| Skill folders | — | — | skip | 2026-10-20: a skill runs its scripts on every use, yet they were reviewed |
-| Application modules | — | — | skip | 2026-10-20: a script is a shell file, a file in a scripts, bin, tools or ops folder, or a shebang file; the `src/`/`app/` guess fit one layout |
-
-### Every lean mod
-
-| Rule | Kind | Check | Effect | Origin |
-| --- | --- | --- | --- | --- |
-| Ignored files, folders under a `.lean-skip` | — | — | skip | 160d3aa. The end-of-turn checks honour `.lean-skip` too since 2026-10-20 |

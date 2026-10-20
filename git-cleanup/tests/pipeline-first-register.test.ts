@@ -27,6 +27,7 @@ const world = (on: On) => {
     return { text: e.text }
   })
   on('turn.complete', ($, e) => ({ text: e.answer }))
+  on('session.cwd', () => ({ value: '/repo' }))
   on('http.fetch', ($, e) => {
     fetched.push({ url: e.url, token: e.init?.headers?.['PRIVATE-TOKEN'] })
     const pipelines = e.url.includes('ref=dev')
@@ -64,6 +65,7 @@ const world = (on: On) => {
       'git log refs/remotes/origin/dev -n200 --format=%H%x09%s': 'c9\tfix(api): retry torn range #98\nb8\tfeat(web): grid sizes #97\n',
       'git status --porcelain': '',
     }
+    if (/^git (worktree remove|branch -D|push origin --delete|merge --ff-only) /.test(args)) return ok('')
     const answer = answers[args]
     return answer === undefined ? no : ok(answer)
   })
@@ -150,6 +152,6 @@ describe('pipeline first', () => {
     ci.status = 'success'
     await $.turn.complete(turnEnds())
     await clock.settle()
-    expect(notices()).toEqual(['git-cleanup: fix/a is merged; say "clean up" when it\'s checked'])
+    expect(notices()).toEqual(['git-cleanup: removed fix/a'])
   })
 })

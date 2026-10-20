@@ -24,7 +24,7 @@ import {
   type Verb,
 } from './shared/git-commands'
 import { refsInText } from './shared/issue-refs'
-import { staleNotice, staleReport, worktreesOf, type BehindBase, type Stale } from './stale-work'
+import { cleanupSteps, removedNotice, worktreesOf, type BehindBase, type Stale } from './stale-work'
 
 const HUMAN_ORIGINS: readonly string[] = ['composer', 'bridge', 'sdk']
 const LOOKBACK = 30
@@ -44,8 +44,6 @@ let gitlabToken: string | undefined
 const worked = new Map<string, { dir: string | undefined; branches: Set<string> }>()
 const reportedStale = new Set<string>()
 let staleFollowUps = 0
-// The report behind the last one-line notice, carried unseen to the model with the user's next prompt.
-let staleContext: string | undefined
 
 const firstLine = (text: string) => text.split('\n')[0] ?? ''
 
@@ -257,16 +255,31 @@ const staleWork = async ($: EngineInterface) => {
   return reports
 }
 
+// The worktree this session works in stays, and so does its branch: removing it would pull the floor from under it.
+const removeStale = async ($: EngineInterface, reports: { main: string; items: Stale[]; behind: BehindBase[] }[]) => {
+  const cwd = await $.session.cwd()
+  const removed: string[] = []
+  const failed: string[] = []
+  for (const report of reports) {
+    const items = report.items.filter((s) => s.worktree === undefined || !(cwd === s.worktree || cwd.startsWith(`${s.worktree}/`)))
+    const stuck = new Set<string>()
+    for (const step of cleanupSteps(items, report.main, report.behind)) {
+      const run = await $.process.run(step.argv, { cwd: step.cwd, timeoutMs: FETCH_TIMEOUT_MS }).catch(() => undefined)
+      if (run?.exitCode === 0) continue
+      if (step.branch !== undefined) stuck.add(step.branch)
+      failed.push(`${step.argv.slice(1).join(' ')} (${firstLine(run?.stderr || 'did not start')})`)
+    }
+    removed.push(...items.map((s) => s.branch).filter((branch) => !stuck.has(branch)))
+  }
+  return removedNotice(removed, failed)
+}
+
 export const register: Register = (on, options) => {
   gitlabToken = typeof options.gitlab_token === 'string' && options.gitlab_token !== '' ? options.gitlab_token : undefined
 
   on('prompt.submit', ($, e, next) => {
-    if (!HUMAN_ORIGINS.includes(e.origin.kind)) return next(e)
-    typed = [...typed, { text: e.text, turnId: e.turnId }].slice(-LOOKBACK)
-    if (staleContext === undefined) return next(e)
-    const context = [...(e.context ?? []), staleContext]
-    staleContext = undefined
-    return next({ ...e, context })
+    if (HUMAN_ORIGINS.includes(e.origin.kind)) typed = [...typed, { text: e.text, turnId: e.turnId }].slice(-LOOKBACK)
+    return next(e)
   })
 
   on('tool.call', { tool: 'Bash' }, async ($, e, next) => {
@@ -302,9 +315,8 @@ export const register: Register = (on, options) => {
     const reports = await staleWork($).catch(() => [])
     if (reports.length === 0) return result
     staleFollowUps++
-    // A one-line notice for the user instead of a follow-up prompt: the cleanup waits for them to ask.
-    $.ui.log(staleNotice(reports.flatMap((r) => r.items.map((s) => s.branch))))
-    staleContext = reports.map((r) => staleReport(r.items, r.main, r.behind)).join('\n\n')
+    const notice = await removeStale($, reports)
+    if (notice !== '') $.ui.log(notice)
     return result
   })
 }

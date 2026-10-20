@@ -18,40 +18,28 @@ export const worktreesOf = (porcelain: string): Worktree[] =>
     })
     .filter((wt): wt is Worktree => wt !== undefined)
 
-const quote = (path: string) => (/^[\w./~-]+$/.test(path) ? path : `'${path.replace(/'/g, `'\\''`)}'`)
+export type Step = { argv: string[]; cwd: string; branch?: string | undefined }
 
-// `git fetch origin b:b` refuses a branch checked out in any worktree; that one moves by a merge in its checkout.
-const syncCommand = (behind: BehindBase, main: string) =>
-  behind.checkout === undefined
-    ? `git fetch origin ${behind.base}:${behind.base}`
-    : behind.checkout === main
-      ? `git merge --ff-only origin/${behind.base}`
-      : `git -C ${quote(behind.checkout)} merge --ff-only origin/${behind.base}`
+// The git calls that remove merged, clean work and bring a local base that lags behind up to origin.
+// `branch -D`: a rebase merge leaves copies in the base, so `-d` would call the branch unmerged.
+export const cleanupSteps = (items: Stale[], main: string, behind: BehindBase[] = []): Step[] => [
+  // `git fetch origin b:b` refuses a branch checked out in any worktree; that one moves by a merge in its checkout.
+  ...behind.map((b) =>
+    b.checkout === undefined
+      ? { argv: ['git', 'fetch', 'origin', `${b.base}:${b.base}`], cwd: main }
+      : { argv: ['git', 'merge', '--ff-only', `origin/${b.base}`], cwd: b.checkout },
+  ),
+  ...items.flatMap((s) => [
+    ...(s.worktree ? [{ argv: ['git', 'worktree', 'remove', s.worktree], cwd: main, branch: s.branch }] : []),
+    ...(s.local ? [{ argv: ['git', 'branch', '-D', s.branch], cwd: main, branch: s.branch }] : []),
+    ...(s.remote ? [{ argv: ['git', 'push', 'origin', '--delete', s.branch], cwd: main, branch: s.branch }] : []),
+  ]),
+]
 
-export const staleReport = (items: Stale[], main: string, behind: BehindBase[] = []) => {
-  const lines = items.map((s) => {
-    const where = [s.worktree ? `worktree ${s.worktree}` : undefined, s.local ? 'local branch' : undefined, s.remote ? 'on origin' : undefined]
-    return `  - ${s.branch}: in origin/${s.base}; ${where.filter(Boolean).join(', ')}`
-  })
-  const commands = [
-    `cd ${quote(main)}`,
-    ...behind.map((b) => syncCommand(b, main)),
-    ...items.flatMap((s) => [
-      ...(s.worktree ? [`git worktree remove ${quote(s.worktree)}`] : []),
-      ...(s.local ? [`git branch -d ${s.branch}`] : []),
-      ...(s.remote ? [`git push origin --delete ${s.branch}`] : []),
-    ]),
+export const removedNotice = (removed: string[], failed: string[]) =>
+  [
+    removed.length > 0 ? `git-cleanup: removed ${removed.join(', ')}` : undefined,
+    failed.length > 0 ? `git-cleanup: could not remove ${failed.join(', ')}` : undefined,
   ]
-  const sync = behind.length > 0 ? ` and bring the local ${behind.map((b) => b.base).join(', ')} up to origin` : ''
-  return `git-cleanup (stale work): the user saw a one-line note that this session's work below is merged and its worktree is clean:
-${lines.join('\n')}
-
-When the user asks to clean up, remove it${sync}, from the main checkout:
-${commands.map((c) => `  ${c}`).join('\n')}
-
-\`branch -d\` may call a branch unmerged when the local base lags behind
-origin or the merge rebased it; its commits are in origin, so -D is safe then.`
-}
-
-export const staleNotice = (branches: string[]) =>
-  `git-cleanup: ${branches.join(', ')} ${branches.length === 1 ? 'is' : 'are'} merged; say "clean up" when it's checked`
+    .filter(Boolean)
+    .join('\n')

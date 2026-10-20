@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'claude-code/testing'
 import { defaultBranchOf, deletedBranches } from '../hooks/shared/git-commands'
-import { staleReport, worktreesOf } from '../hooks/stale-work'
+import { cleanupSteps, removedNotice, worktreesOf } from '../hooks/stale-work'
 
 describe('stale work', () => {
   test('a push that only deletes names the branches it deletes', () => {
@@ -38,31 +38,34 @@ describe('stale work', () => {
     expect(defaultBranchOf('')).toBeUndefined()
   })
 
-  test('the report lists each place the branch lives and the command that removes it', () => {
-    const text = staleReport(
+  test('cleanup removes each place the branch lives, forcing a rebase-merged branch', () => {
+    const steps = cleanupSteps(
       [
         { branch: 'fix/a-9', base: 'dev', worktree: '/repo/.claude/worktrees/a', local: true, remote: true },
         { branch: 'fix/b', base: 'dev', local: true, remote: false },
       ],
       '/my repo',
     )
-    expect(text).toContain('fix/a-9: in origin/dev; worktree /repo/.claude/worktrees/a, local branch, on origin')
-    expect(text).toContain("cd '/my repo'\n  git worktree remove /repo/.claude/worktrees/a\n  git branch -d fix/a-9")
-    expect(text).toContain('git push origin --delete fix/a-9')
-    expect(text).toContain('git branch -d fix/b')
-    expect(text).not.toContain('push origin --delete fix/b')
-    expect(text).toContain('When the user asks to clean up')
-    expect(text).not.toContain('up to origin')
+    expect(steps.map((s) => [s.argv.join(' '), s.cwd])).toEqual([
+      ['git worktree remove /repo/.claude/worktrees/a', '/my repo'],
+      ['git branch -D fix/a-9', '/my repo'],
+      ['git push origin --delete fix/a-9', '/my repo'],
+      ['git branch -D fix/b', '/my repo'],
+    ])
   })
 
-  test('a local base behind origin is fast-forwarded first, by merge where it is checked out', () => {
-    const item = { branch: 'fix/a', base: 'dev', local: true, remote: true }
-    const here = staleReport([item], '/repo', [{ base: 'dev', checkout: '/repo' }])
-    expect(here).toContain('remove it and bring the local dev up to origin,')
-    expect(here).toContain('cd /repo\n  git merge --ff-only origin/dev\n  git branch -d fix/a')
-    expect(staleReport([item], '/repo', [{ base: 'dev', checkout: '/repo/wt b' }])).toContain(
-      "git -C '/repo/wt b' merge --ff-only origin/dev",
-    )
-    expect(staleReport([item], '/repo', [{ base: 'dev' }])).toContain('cd /repo\n  git fetch origin dev:dev\n')
+  test('a local base behind origin moves first, by merge where it is checked out', () => {
+    const item = { branch: 'fix/a', base: 'dev', local: true, remote: false }
+    expect(cleanupSteps([item], '/repo', [{ base: 'dev', checkout: '/repo' }])[0]).toEqual({
+      argv: ['git', 'merge', '--ff-only', 'origin/dev'],
+      cwd: '/repo',
+    })
+    expect(cleanupSteps([item], '/repo', [{ base: 'dev' }])[0]?.argv).toEqual(['git', 'fetch', 'origin', 'dev:dev'])
+  })
+
+  test('the notice is one line, plus one for what could not go', () => {
+    expect(removedNotice(['fix/a'], [])).toBe('git-cleanup: removed fix/a')
+    expect(removedNotice([], ['push origin --delete fix/b (rejected)'])).toBe('git-cleanup: could not remove push origin --delete fix/b (rejected)')
+    expect(removedNotice([], [])).toBe('')
   })
 })

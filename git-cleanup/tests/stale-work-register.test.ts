@@ -5,14 +5,14 @@ tier('user')
 
 const WT = '/repo/.claude/worktrees/a'
 
-type Repo = { landed: boolean; dirty: boolean; remoteBranch: boolean; localDevBehind: boolean }
+type Repo = { landed: boolean; dirty: boolean; remoteBranch: boolean; localDevBehind: boolean; cwd: string; refusesDelete: boolean }
 
 // A repo at /repo with no push policy and no forge remote, origin/HEAD -> main, an origin/dev, and the worktree WT on fix/a.
 const world = (on: On) => {
-  const repo: Repo = { landed: false, dirty: false, remoteBranch: true, localDevBehind: false }
+  const repo: Repo = { landed: false, dirty: false, remoteBranch: true, localDevBehind: false, cwd: '/repo', refusesDelete: false }
   const submitted: string[] = []
   const notices: string[] = []
-  const carried: (readonly string[])[] = []
+  const removals: string[] = []
   const clock = mock.clock(on)
   mock.env(on, { HOME: '/Users/me' })
   on('ui.log', ($, e) => {
@@ -20,9 +20,9 @@ const world = (on: On) => {
     return { value: undefined }
   })
   on('fs.read', ($, e) => ({ deny: `ENOENT: ${e.path}` }))
+  on('session.cwd', () => ({ value: repo.cwd }))
   on('prompt.submit', ($, e) => {
     if (e.origin.kind === 'plugin') submitted.push(e.text)
-    else carried.push(e.context ?? [])
     return { text: e.text }
   })
   on('turn.complete', ($, e) => ({ text: e.answer }))
@@ -46,10 +46,17 @@ const world = (on: On) => {
     if (args === 'git rev-parse --verify --quiet refs/heads/dev') return ok(repo.localDevBehind ? 'old\n' : 'base\n')
     if (args === 'git merge-base --is-ancestor old refs/remotes/origin/dev') return ok('')
     if (args === 'git status --porcelain') return ok(repo.dirty ? ' M app.ts\n' : '')
+    if (/^git (worktree remove|branch -D|push origin --delete|merge --ff-only) /.test(args)) {
+      removals.push(`${args} @ ${e.init?.cwd}`)
+      if (repo.refusesDelete && args.startsWith('git push origin --delete')) {
+        return { value: { exitCode: 1, stdout: '', stderr: 'remote: permission denied\n' } }
+      }
+      return ok('')
+    }
     return no
   })
   on('tool.call', { tool: 'Bash' }, () => ({ result: { stdout: '', stderr: '', interrupted: false } }))
-  return { repo, submitted, notices, carried, clock }
+  return { repo, submitted, notices, removals, clock }
 }
 
 const bash = (command: string) => ({ tool: 'Bash' as const, command })
@@ -70,8 +77,8 @@ const ship = async ($: Engine) => {
 }
 
 describe('stale work', () => {
-  test('once the branch lands, one line tells the user and the report rides unseen with their next message', async ($, on) => {
-    const { repo, submitted, notices, carried, clock } = world(on)
+  test('once the branch lands, git-cleanup removes it and says so in one line', async ($, on) => {
+    const { repo, submitted, notices, removals, clock } = world(on)
     await ship($)
 
     await $.turn.complete(turnEnds())
@@ -84,34 +91,50 @@ describe('stale work', () => {
     await $.turn.complete(turnEnds())
     await clock.settle()
 
-    expect(notices).toEqual(['git-cleanup: fix/a is merged; say "clean up" when it\'s checked'])
+    expect(notices).toEqual(['git-cleanup: removed fix/a'])
+    expect(removals).toEqual([`git worktree remove ${WT} @ /repo`, 'git branch -D fix/a @ /repo', 'git push origin --delete fix/a @ /repo'])
     expect(submitted).toEqual([])
-
-    await $.prompt.submit(prompt('clean up'))
-    await $.prompt.submit(prompt('thanks'))
-    const report = carried.at(-2)?.at(-1) ?? ''
-    expect(report).toContain(`fix/a: in origin/dev; worktree ${WT}, local branch, on origin`)
-    expect(report).toContain(`cd /repo\n  git worktree remove ${WT}\n  git branch -d fix/a\n  git push origin --delete fix/a`)
-    expect(carried.at(-1)).toEqual([])
   })
 
-  test('a local base behind origin is fast-forwarded in the same report, where it is checked out', async ($, on) => {
-    const { repo, carried, clock } = world(on)
+  test('a local base behind origin is fast-forwarded first, where it is checked out', async ($, on) => {
+    const { repo, removals, clock } = world(on)
     await ship($)
     repo.landed = true
     repo.localDevBehind = true
 
     await $.turn.complete(turnEnds())
     await clock.settle()
-    await $.prompt.submit(prompt('clean up'))
 
-    const report = carried.at(-1)?.at(-1) ?? ''
-    expect(report).toContain('remove it and bring the local dev up to origin,')
-    expect(report).toContain(`cd /repo\n  git merge --ff-only origin/dev\n  git worktree remove ${WT}`)
+    expect(removals[0]).toBe('git merge --ff-only origin/dev @ /repo')
   })
 
-  test('a dirty worktree, a subagent turn or untouched work gets no notice', async ($, on) => {
+  test('the worktree this session works in stays', async ($, on) => {
+    const { repo, notices, removals, clock } = world(on)
+    await ship($)
+    repo.landed = true
+    repo.cwd = `${WT}/apps/web`
+
+    await $.turn.complete(turnEnds())
+    await clock.settle()
+
+    expect(removals).toEqual([])
+    expect(notices).toEqual([])
+  })
+
+  test('a step that fails is named, and its branch is not reported removed', async ($, on) => {
     const { repo, notices, clock } = world(on)
+    await ship($)
+    repo.landed = true
+    repo.refusesDelete = true
+
+    await $.turn.complete(turnEnds())
+    await clock.settle()
+
+    expect(notices).toEqual(['git-cleanup: could not remove push origin --delete fix/a (remote: permission denied)'])
+  })
+
+  test('a dirty worktree, a subagent turn or untouched work is left alone', async ($, on) => {
+    const { repo, notices, removals, clock } = world(on)
     repo.landed = true
     await $.turn.complete(turnEnds())
     await clock.settle()
@@ -123,5 +146,6 @@ describe('stale work', () => {
     await $.turn.complete(turnEnds({ agentId: 'a1' }))
     await clock.settle()
     expect(notices).toEqual([])
+    expect(removals).toEqual([])
   })
 })
