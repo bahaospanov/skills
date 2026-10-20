@@ -144,6 +144,7 @@ Split from git-gates on 2026-10-20; the origins are from git-gates' history.
 | Rule | Kind | Check | Effect | Origin |
 | --- | --- | --- | --- | --- |
 | Could it be typed again on the spot? | proj | Haiku | note | The settings prompt hook, moved verbatim 2026-09-16, 4da7656 |
+| Skill folders | — | — | skip | 2026-10-20: a skill runs its scripts on every use, yet they were reviewed |
 | Application modules | — | — | skip | 2026-10-20: a script is a shell file, a file in a scripts, bin, tools or ops folder, or a shebang file; the `src/`/`app/` guess fit one layout |
 
 ### Every lean mod
