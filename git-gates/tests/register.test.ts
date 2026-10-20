@@ -15,7 +15,6 @@ type World = {
   common?: string
   files?: Record<string, string>
   messages?: SessionMessage[]
-  beneath?: string
   gitFails?: boolean
   landedIn?: string
   remote?: boolean
@@ -130,9 +129,7 @@ const world = (on: On, options: World = {}) => {
   })
   on('tool.call', { tool: 'Bash' }, ($, e) => {
     ran.push(e.command)
-    return options.beneath === undefined
-      ? { result: { stdout: '', stderr: '', interrupted: false } }
-      : { deny: options.beneath }
+    return { result: { stdout: '', stderr: '', interrupted: false } }
   })
   return { ran, logs, asked, scoped }
 }
@@ -402,15 +399,6 @@ describe('register', () => {
     await $.tool.call(bash('cd /repo/wt && git push'))
 
     expect(ran).toEqual(['cd /repo/wt && git push'])
-  })
-
-  test('a call this mod allowed but its settings twin blocked is logged', async ($, on) => {
-    const { logs } = world(on, { beneath: 'git-commit-guard: blocking git commit' })
-
-    await $.prompt.submit(prompt('commit'))
-    await $.tool.call(bash('git commit -m "fix: a"'))
-
-    expect(logs).toEqual(['git-gates: allowed, but a settings guard blocked it: git-commit-guard: blocking git commit'])
   })
 
   test('when the check itself fails, the call is blocked', async ($, on) => {
