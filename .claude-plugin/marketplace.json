@@ -28,12 +28,12 @@
     },
     {
       "name": "lean-docs",
-      "description": "Docs worth keeping: docs-review asks Haiku whether new text will be read again, docs-no-repeat-code flags lines that may restate code, limit-docs sends a follow-up when a turn adds too much prose.",
+      "description": "Docs worth keeping: docs-review asks Haiku whether new text will be read again, docs-no-repeat-code flags lines that may restate code, limit-docs shows a one-line notice when a turn adds too much prose.",
       "source": "./lean-docs"
     },
     {
       "name": "lean-comments",
-      "description": "Comments worth keeping: limit-edits flags comment-heavy edits, limit-turns sends a follow-up when a turn's diff adds too many comments.",
+      "description": "Comments worth keeping: limit-edits flags comment-heavy edits, limit-turns shows a one-line notice when a turn's diff adds too many comments.",
       "source": "./lean-comments"
     },
     {

@@ -283,17 +283,6 @@ describe('register', () => {
     expect(ran).toEqual([])
   })
 
-  test('lean-comments and lean-docs follow-ups do not take the authorization away', async ($, on) => {
-    const { ran } = world(on)
-
-    await $.prompt.submit(prompt('fix it and ship'))
-    await $.prompt.submit(prompt('lean-comments/limit-turns: prune these comments', { kind: 'plugin', name: 'lean-comments' }))
-    await $.prompt.submit(prompt('lean-docs/limit-docs: cut this page', { kind: 'plugin', name: 'lean-docs' }))
-    await $.tool.call(bash('git commit -m "fix: a"'))
-
-    expect(ran).toEqual(['git commit -m "fix: a"'])
-  })
-
   test('with no tracked prompt, the transcript stands in', async ($, on) => {
     const { ran } = world(on, { messages: [{ role: 'user', text: 'ship it', toolUses: [] }] })
 

@@ -47,6 +47,6 @@ export const turnReport = (findings: CommentFinding[], bases: readonly string[] 
     `${parts.join('\n')}\n${note === undefined ? '' : `${note}\n`}${KEEP}\n\n` +
     'This check reads git diff, so it sees edits made through Bash, sed and ' +
     `heredocs that the per-edit check never sees.\n${OUTRANKS}\n` +
-    'Cut what does not earn its place, then say what you kept and why.'
+    'The user saw a one-line note about this. When they ask to trim, cut what does not earn its place, then say what you kept and why.'
   )
 }

@@ -78,8 +78,10 @@ const world = (on: On, reply = APPROVE) => {
     logs.push(e.text)
     return { value: undefined }
   })
+  // A report reaches the model unseen with the user's next prompt; NEXT stands in for that prompt.
   on('prompt.submit', ($, e) => {
-    submitted.push(e.text)
+    const carried = e.context?.at(-1)
+    if (carried !== undefined) submitted.push(carried)
     return { text: e.text }
   })
   on('turn.complete', ($, e) => ({ text: e.answer }))
@@ -123,6 +125,8 @@ const moveHead = async ($: Engine, repo: Repo, command: string, to: string) => {
   repo.diff = docDiff('README.md', 19)
   await $.turn.complete(turnEnds())
 }
+
+const NEXT = { text: 'next', origin: { kind: 'composer' as const }, wait: false }
 
 describe('register', () => {
   test('docs-review: a grown doc in a checkout is reviewed and a rejection reaches the model as context', async ($, on) => {
@@ -238,6 +242,7 @@ describe('register', () => {
     repo.diff = docDiff('README.md', 3)
     await $.turn.complete(turnEnds())
     await clock.settle()
+    await $.prompt.submit(NEXT)
 
     expect(written.map((call) => [call.deny, call.context])).toEqual([[undefined, undefined], [undefined, undefined]])
     expect(ran.length).toBe(3)
@@ -260,6 +265,7 @@ describe('register', () => {
     repo.diff = [docDiff('skills/deploy/SKILL.md', 19), '+Run `make` with `FLAG=1`.', docDiff('README.md', 3)].join('\n')
     await $.turn.complete(turnEnds())
     await clock.settle()
+    await $.prompt.submit(NEXT)
 
     expect(submitted.length).toBe(1)
     expect(submitted[0]).toContain('lean-docs/limit-docs: prose outweighs the change.\n  README.md grew by 3 lines\n')
@@ -273,6 +279,7 @@ describe('register', () => {
     repo.untracked['reels/teaser/SCRIPT.md'] = prose(45)
     await $.turn.complete(turnEnds())
     await clock.settle()
+    await $.prompt.submit(NEXT)
 
     expect(submitted).toEqual([])
   })
@@ -284,12 +291,14 @@ describe('register', () => {
     repo.untracked['docs/plan.md'] = prose(45)
     await $.turn.complete(turnEnds())
     await clock.settle()
+    await $.prompt.submit(NEXT)
     await $.turn.complete(turnEnds())
     await clock.settle()
+    await $.prompt.submit(NEXT)
 
     expect(submitted.length).toBe(1)
     expect(submitted[0]).toContain('lean-docs/limit-docs: prose outweighs the change.\n  NEW document docs/plan.md (45 lines)')
-    expect(logs).toContain("lean-docs/limit-docs: this turn's docs are over budget; a follow-up prompt asks to cut")
+    expect(logs).toContain('lean-docs: this turn added a lot of prose; say "trim docs" to review it')
   })
 
   test('limit-docs: a fast-forward by another agent re-anchors the base instead of landing in this turn', async ($, on) => {
@@ -301,6 +310,7 @@ describe('register', () => {
     repo.diffs['def'] = ''
     await $.turn.complete(turnEnds())
     await clock.settle()
+    await $.prompt.submit(NEXT)
 
     expect(submitted).toEqual([])
   })
@@ -316,6 +326,7 @@ describe('register', () => {
     await $.tool.call({ tool: 'Bash', command: 'git -C /repo commit -m "docs: x"' })
     await $.turn.complete(turnEnds())
     await clock.settle()
+    await $.prompt.submit(NEXT)
 
     expect(submitted[0]).toContain('README.md')
     expect(submitted[0]).toContain('Diff base: abc')
@@ -334,6 +345,7 @@ describe('register', () => {
     await $.tool.call({ tool: 'Bash', command: 'git -C /repo commit --amend --no-edit' })
     await $.turn.complete(turnEnds())
     await clock.settle()
+    await $.prompt.submit(NEXT)
 
     expect(submitted[0]).toContain('README.md')
     expect(submitted[0]).toContain('Diff base: abc')
@@ -345,6 +357,7 @@ describe('register', () => {
 
     await moveHead($, repo, 'git reset --hard origin/dev && git cherry-pick -n abc && git status --short', 'dev')
     await clock.settle()
+    await $.prompt.submit(NEXT)
 
     expect(submitted[0]).toContain('README.md')
     expect(submitted[0]).toContain('Diff base: dev')
@@ -357,6 +370,7 @@ describe('register', () => {
 
     await moveHead($, repo, 'git rebase origin/dev && git commit -am fix', 'fix')
     await clock.settle()
+    await $.prompt.submit(NEXT)
 
     expect(submitted[0]).toContain('Diff base: fix')
     expect(submitted[0]).not.toContain('THEIRS.md')
@@ -368,6 +382,7 @@ describe('register', () => {
 
     await moveHead($, repo, 'cd /repo && make test', 'def')
     await clock.settle()
+    await $.prompt.submit(NEXT)
 
     expect(submitted[0]).toContain('Diff base: def')
     expect(submitted[0]).not.toContain('THEIRS.md')
@@ -381,6 +396,7 @@ describe('register', () => {
     repo.diff = docDiff('README.md', 19)
     await $.turn.complete(turnEnds())
     await clock.settle()
+    await $.prompt.submit(NEXT)
 
     expect(submitted).toEqual([])
   })
@@ -394,6 +410,7 @@ describe('register', () => {
     repo.diff = ['--- a/README.md', '+++ b/README.md', '@@ -1,0 +2,1 @@', '+Run `make` with `FLAG=1`.'].join('\n')
     await $.turn.complete(turnEnds())
     await clock.settle()
+    await $.prompt.submit(NEXT)
 
     expect(submitted[0]).toContain('README.md repeats make/FLAG=1 - already stated in Makefile; point at it instead of copying it')
   })
@@ -407,12 +424,14 @@ describe('register', () => {
     await $.turn.complete(turnEnds({ agentId: 'a1' }))
     await $.turn.complete(turnEnds({ isAborted: true }))
     await clock.settle()
+    await $.prompt.submit(NEXT)
     expect(submitted).toEqual([])
 
     for (const tag of ['B', 'C', 'D']) {
       repo.untracked = { [`docs/${tag}.md`]: prose(45, tag) }
       await $.turn.complete(turnEnds())
       await clock.settle()
+      await $.prompt.submit(NEXT)
     }
     expect(submitted.length).toBe(2)
   })

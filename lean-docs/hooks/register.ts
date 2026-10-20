@@ -14,6 +14,9 @@ let worktrees: string[] | undefined
 const owned = new Map<string, Owned>()
 const reported = new Set<string>()
 let blocks = 0
+// The report behind the last one-line notice, carried unseen to the model with the user's next prompt.
+let pendingReport: string | undefined
+const HUMAN_ORIGINS: readonly string[] = ['composer', 'bridge', 'sdk']
 
 const git = async ($: EngineInterface, cwd: string | undefined, args: string[]) => {
   const run = await $.process.run(cwd === undefined ? ['git', ...args] : ['git', '-C', cwd, ...args])
@@ -165,6 +168,13 @@ const overBudget = async ($: EngineInterface) => {
 }
 
 export const register: Register = (on) => {
+  on('prompt.submit', ($, e, next) => {
+    if (pendingReport === undefined || !HUMAN_ORIGINS.includes(e.origin.kind)) return next(e)
+    const context = [...(e.context ?? []), pendingReport]
+    pendingReport = undefined
+    return next({ ...e, context })
+  })
+
   on('tool.call', { tool: ['Bash', 'Write', 'Edit'] }, async ($, e, next) => {
     await claim($, e.tool === 'Bash' ? e.command : e.file_path)
     const result = await next(e)
@@ -216,10 +226,8 @@ export const register: Register = (on) => {
     await settle($)
     const report = await overBudget($)
     if (report !== undefined) {
-      $.ui.log("lean-docs/limit-docs: this turn's docs are over budget; a follow-up prompt asks to cut")
-      $.clock.after(0, () => {
-        $.prompt.submit({ text: report }).catch(() => undefined)
-      })
+      $.ui.log('lean-docs: this turn added a lot of prose; say "trim docs" to review it')
+      pendingReport = report
     }
     return result
   })

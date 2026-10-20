@@ -71,8 +71,10 @@ const world = (on: On, home = '/Users/me') => {
     logs.push(e.text)
     return { value: undefined }
   })
+  // A report reaches the model unseen with the user's next prompt; NEXT stands in for that prompt.
   on('prompt.submit', ($, e) => {
-    submitted.push(e.text)
+    const carried = e.context?.at(-1)
+    if (carried !== undefined) submitted.push(carried)
     return { text: e.text }
   })
   on('turn.complete', ($, e) => ({ text: e.answer }))
@@ -109,6 +111,8 @@ const moveHead = async ($: Engine, repo: Repo, command: string, to: string) => {
   repo.diff = diffAdding('app.py', comments(5))
   await $.turn.complete(turnEnds())
 }
+
+const NEXT = { text: 'next', origin: { kind: 'composer' as const }, wait: false }
 
 describe('register', () => {
   test('an edit adding four comment lines gets the guidance as context', async ($, on) => {
@@ -165,6 +169,7 @@ describe('register', () => {
     repo.diff = diffAdding('reels/teaser/cut.py', [...comments(5), 'x = 1'])
     await $.turn.complete(turnEnds())
     await clock.settle()
+    await $.prompt.submit(NEXT)
 
     expect(submitted).toEqual([])
   })
@@ -176,13 +181,15 @@ describe('register', () => {
     repo.diff = diffAdding('app.py', [...comments(5), 'x = 1'])
     await $.turn.complete(turnEnds())
     await clock.settle()
+    await $.prompt.submit(NEXT)
     await $.turn.complete(turnEnds())
     await clock.settle()
+    await $.prompt.submit(NEXT)
 
     expect(submitted.length).toBe(1)
     expect(submitted[0]).toContain("lean-comments/limit-turns: this turn's diff adds more comment lines than the budget of 3 per file.")
     expect(submitted[0]).toContain('app.py - 5 added comment lines:')
-    expect(logs).toEqual(["lean-comments/limit-turns: this turn's diff is over budget; a follow-up prompt asks to prune"])
+    expect(logs).toEqual(['lean-comments: this turn added more comments than the budget; say "trim comments" to review them'])
   })
 
   test('installed files in a checkout at home are left out of the turn report', async ($, on) => {
@@ -192,6 +199,7 @@ describe('register', () => {
     repo.diff = [diffAdding('.agents/skills/wizard/template.sh', comments(5)), diffAdding('app.py', comments(5))].join('\n')
     await $.turn.complete(turnEnds())
     await clock.settle()
+    await $.prompt.submit(NEXT)
 
     expect(submitted.length).toBe(1)
     expect(submitted[0]).toContain('app.py - 5 added comment lines:')
@@ -206,6 +214,7 @@ describe('register', () => {
       repo.diff = diffAdding('app.py', comments(5, tag))
       await $.turn.complete(turnEnds())
       await clock.settle()
+      await $.prompt.submit(NEXT)
     }
 
     expect(submitted.length).toBe(2)
@@ -218,6 +227,7 @@ describe('register', () => {
     await $.tool.call({ tool: 'Bash', command: 'cd /repo && make' })
     await $.turn.complete(turnEnds())
     await clock.settle()
+    await $.prompt.submit(NEXT)
 
     expect(submitted).toEqual([])
   })
@@ -232,6 +242,7 @@ describe('register', () => {
     await $.turn.complete(turnEnds({ agentId: 'a1' }))
     await $.turn.complete(turnEnds({ isAborted: true }))
     await clock.settle()
+    await $.prompt.submit(NEXT)
 
     expect(submitted).toEqual([])
   })
@@ -245,6 +256,7 @@ describe('register', () => {
     repo.diffs['def'] = ''
     await $.turn.complete(turnEnds())
     await clock.settle()
+    await $.prompt.submit(NEXT)
 
     expect(submitted).toEqual([])
   })
@@ -260,6 +272,7 @@ describe('register', () => {
     await $.tool.call({ tool: 'Bash', command: 'git -C /repo commit -m "feat: x"' })
     await $.turn.complete(turnEnds())
     await clock.settle()
+    await $.prompt.submit(NEXT)
 
     expect(submitted.length).toBe(1)
     expect(submitted[0]).toContain('app.py - 5 added comment lines:')
@@ -279,6 +292,7 @@ describe('register', () => {
     await $.tool.call({ tool: 'Bash', command: 'git -C /repo commit --amend --no-edit' })
     await $.turn.complete(turnEnds())
     await clock.settle()
+    await $.prompt.submit(NEXT)
 
     expect(submitted[0]).toContain('app.py - 5 added comment lines:')
     expect(submitted[0]).toContain('Diff base: abc')
@@ -290,6 +304,7 @@ describe('register', () => {
 
     await moveHead($, repo, 'git reset --hard origin/dev && git cherry-pick -n abc && git status --short', 'dev')
     await clock.settle()
+    await $.prompt.submit(NEXT)
 
     expect(submitted[0]).toContain('app.py - 5 added comment lines:')
     expect(submitted[0]).toContain('Diff base: dev')
@@ -302,6 +317,7 @@ describe('register', () => {
 
     await moveHead($, repo, 'git rebase origin/dev && git commit -am fix', 'fix')
     await clock.settle()
+    await $.prompt.submit(NEXT)
 
     expect(submitted[0]).toContain('Diff base: fix')
     expect(submitted[0]).not.toContain('theirs.py')
@@ -313,6 +329,7 @@ describe('register', () => {
 
     await moveHead($, repo, 'cd /repo && make test', 'def')
     await clock.settle()
+    await $.prompt.submit(NEXT)
 
     expect(submitted[0]).toContain('Diff base: def')
     expect(submitted[0]).not.toContain('theirs.py')
@@ -326,6 +343,7 @@ describe('register', () => {
     repo.diff = diffAdding('app.py', comments(5))
     await $.turn.complete(turnEnds())
     await clock.settle()
+    await $.prompt.submit(NEXT)
 
     expect(submitted).toEqual([])
   })
@@ -337,6 +355,7 @@ describe('register', () => {
     repo.untracked['docs/plan.md'] = Array.from({ length: 45 }, (_, i) => `Step ${i}.`).join('\n')
     await $.turn.complete(turnEnds())
     await clock.settle()
+    await $.prompt.submit(NEXT)
 
     expect(submitted).toEqual([])
   })

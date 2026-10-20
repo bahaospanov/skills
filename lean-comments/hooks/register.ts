@@ -15,6 +15,9 @@ let worktrees: string[] | undefined
 const owned = new Map<string, Owned>()
 const reported = new Set<string>()
 let blocks = 0
+// The report behind the last one-line notice, carried unseen to the model with the user's next prompt.
+let pendingReport: string | undefined
+const HUMAN_ORIGINS: readonly string[] = ['composer', 'bridge', 'sdk']
 
 // Built rather than typed: a literal NUL in this file makes git call it binary and stop diffing it.
 const SEP = String.fromCharCode(0)
@@ -131,6 +134,13 @@ const isMediaWork = async ($: EngineInterface, path: string) =>
   (await $.process.run(['sh', '-c', MEDIA_CHECK, 'lean', path])).exitCode === 0
 
 export const register: Register = (on) => {
+  on('prompt.submit', ($, e, next) => {
+    if (pendingReport === undefined || !HUMAN_ORIGINS.includes(e.origin.kind)) return next(e)
+    const context = [...(e.context ?? []), pendingReport]
+    pendingReport = undefined
+    return next({ ...e, context })
+  })
+
   on('tool.call', { tool: ['Bash', 'Write', 'Edit'] }, async ($, e, next) => {
     await claim($, e.tool === 'Bash' ? e.command : e.file_path)
     const result = await next(e)
@@ -156,17 +166,15 @@ export const register: Register = (on) => {
     return { ...result, context: [...(result.context ?? []), editGuidance(name, findings)] }
   })
 
-  // A mod cannot hold a turn open as a Stop hook's block did, so the findings arrive as the next prompt.
+  // A one-line notice for the user; the report waits, unseen, for their next prompt.
   on('turn.complete', async ($, e, next) => {
     const result = await next(e)
     if (e.agentId !== undefined || e.reason !== 'answer' || owned.size === 0) return result
     await settle($)
     const report = await overBudget($)
     if (report !== undefined) {
-      $.ui.log("lean-comments/limit-turns: this turn's diff is over budget; a follow-up prompt asks to prune")
-      $.clock.after(0, () => {
-        $.prompt.submit({ text: report }).catch(() => undefined)
-      })
+      $.ui.log('lean-comments: this turn added more comments than the budget; say "trim comments" to review them')
+      pendingReport = report
     }
     return result
   })

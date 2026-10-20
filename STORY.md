@@ -127,7 +127,7 @@ Split from git-gates on 2026-10-20; the origins are from git-gates' history.
 | --- | --- | --- | --- | --- |
 | Will anyone read it again? | proj | Haiku | note | The settings prompt hook, moved verbatim 2026-09-16, 4da7656 |
 | A doc line does not restate code | proj | code | note | 18129c5 as a deny; a note since 2026-10-20: it blocked legitimate writes, a glossary mapping, an agent-doc line and a table row in this file |
-| A turn adds little prose | proj | code | follow-up | 18129c5 |
+| A turn adds little prose | proj | code | note | 18129c5 as a follow-up prompt; a one-line notice since 2026-10-20: the prompt was too much to read, and trimming waits for the user to ask |
 | Skill folders | — | — | skip | b63fe7b: a skill is read again on every use |
 | Changesets | — | — | skip | 3966435: docs-review flagged every one, and `changeset version` deletes them |
 
@@ -136,7 +136,7 @@ Split from git-gates on 2026-10-20; the origins are from git-gates' history.
 | Rule | Kind | Check | Effect | Origin |
 | --- | --- | --- | --- | --- |
 | At most 3 comment lines per edit, no comment-heavy region | proj | code | note | 06830d8. The region counts only when the edit adds comments since 2026-10-20: it fired on every edit near old comments |
-| At most 3 new comment lines per file per turn | proj | code | follow-up | 06830d8 |
+| At most 3 new comment lines per file per turn | proj | code | note | 06830d8 as a follow-up prompt; a one-line notice since 2026-10-20: the prompt was too much to read, and trimming waits for the user to ask |
 | Installed skills and plugins | — | — | skip | 6c17732: someone else's code |
 
 ### lean-scripts

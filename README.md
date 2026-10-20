@@ -52,7 +52,8 @@ One mod per purpose. Why each one and each of its rules exists: [STORY.md](STORY
 
 Haiku reviews are gated in code first, so a call that cannot fail the review
 costs no model call. End-of-turn checks read the git diff of repos the turn
-touched, Bash edits included, and send at most two follow-up prompts a session.
+touched, Bash edits included, and show at most two one-line notices a session;
+the report reaches Claude with your next message and is acted on when you ask.
 
 ### git-gates
 
@@ -116,7 +117,7 @@ Enabled in a repo's own `.claude/settings.json`, it applies to everyone working 
 | --- | --- | --- | --- |
 | docs-review | A doc grown in a git checkout | Haiku: text nobody reads after the task (runbooks, setup pages, narration) | Claude gets the reason |
 | docs-no-repeat-code | A doc line being written | Identifiers that already appear together in one code file | Claude gets the hint; the write goes ahead |
-| limit-docs | The end of a turn | New or grown docs, prose outweighing code, doc lines repeating code | Follow-up prompt |
+| limit-docs | The end of a turn | New or grown docs, prose outweighing code, doc lines repeating code | A one-line notice; say "trim docs" to act on it |
 
 No check reads a skill's folder, the one holding `SKILL.md`, or anything under it: a skill is read again on every use.
 
@@ -130,7 +131,7 @@ an invariant, cut the ones that restate the code or narrate the change.
 | Check | Runs on | Flags | Then |
 | --- | --- | --- | --- |
 | limit-edits | A Write or Edit | More than 3 added comment lines, or a comment-heavy region around an edit that adds comments | Claude gets the guidance |
-| limit-turns | The end of a turn | More than 3 new comment lines per file in the turn's diff | Follow-up prompt |
+| limit-turns | The end of a turn | More than 3 new comment lines per file in the turn's diff | A one-line notice; say "trim comments" to act on it |
 
 No check reads a file installed under `~/.agents/skills`, `~/.claude/skills` or `~/.claude/plugins`: it is someone else's code. A link from there into a checkout is followed, and the file is checked.
 

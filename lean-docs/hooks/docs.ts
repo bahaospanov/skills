@@ -89,6 +89,6 @@ export const turnReport = (notes: string[], bases: readonly string[] = []) => {
     `${note === undefined ? '' : `${note}\n`}${DOC_ASK}\n\n` +
     'This check reads git diff, so it sees edits made through Bash, sed and ' +
     `heredocs that the per-write checks never see.\n${OUTRANKS}\n` +
-    'Cut what does not earn its place, then say what you kept and why.'
+    'The user saw a one-line note about this. When they ask to trim, cut what does not earn its place, then say what you kept and why.'
   )
 }
