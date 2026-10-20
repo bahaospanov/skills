@@ -38,7 +38,7 @@ Model- or user-reachable.
 
 Early access; the API changes between releases.
 
-One mod per purpose.
+One mod per purpose. Why each one and each of its rules exists: [STORY.md](STORY.md).
 
 | Mod | Purpose |
 | --- | --- |
