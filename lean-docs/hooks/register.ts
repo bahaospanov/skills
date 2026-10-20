@@ -127,7 +127,7 @@ const docNotes = async ($: EngineInterface, wt: string, base: string) => {
   const untracked = splitLines((await git($, wt, ['ls-files', '--others', '--exclude-standard'])) ?? '').filter(isDoc)
   const exempt = new Set<string>()
   for (const rel of new Set([...docPathsOf(diff), ...untracked])) {
-    if (isChangeset(rel) || (await inSkillFolder($, `${wt}/${rel}`, wt))) exempt.add(rel)
+    if (isChangeset(rel) || (await inSkillFolder($, `${wt}/${rel}`, wt)) || (await isMediaWork($, `${wt}/${rel}`))) exempt.add(rel)
   }
   const { perDoc, code, newDocs } = docBudgetOfDiff(diff, exempt)
   for (const rel of untracked) {

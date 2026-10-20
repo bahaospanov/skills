@@ -158,6 +158,17 @@ describe('register', () => {
     expect(answered.context?.[0]?.startsWith('lean-comments/limit-edits on run.sh:\n- This edit adds 4 comment-only lines (soft limit 3).')).toBe(true)
   })
 
+  test('a file under a .lean-skip folder is not counted at the end of the turn', async ($, on) => {
+    const { repo, submitted, clock } = world(on)
+
+    await $.tool.call({ tool: 'Bash', command: 'cd /repo && make' })
+    repo.diff = diffAdding('reels/teaser/cut.py', [...comments(5), 'x = 1'])
+    await $.turn.complete(turnEnds())
+    await clock.settle()
+
+    expect(submitted).toEqual([])
+  })
+
   test('a turn whose diff breaks the comment budget gets one follow-up prompt', async ($, on) => {
     const { repo, submitted, clock, logs } = world(on)
 
