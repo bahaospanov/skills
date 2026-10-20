@@ -52,7 +52,7 @@ const ACKNOWLEDGES = /\border\b[^.!?\n]*\b(fine|ok|okay|right|correct|intended)\
 export const acknowledgesOrder = (text: string) => ACKNOWLEDGES.test(text)
 
 export const commitOrderRefused = (command: string, reason: string) =>
-  `git-gates (every commit works): blocking '${command}' — ${reason}
+  `git-tidy (every commit works): blocking '${command}' — ${reason}
 
 Every commit must leave the whole project working, so a checkout, a bisect or a
 revert never lands on a broken state. An API contract change and the matching

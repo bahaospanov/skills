@@ -10,6 +10,7 @@ Why the mods in this repo exist, the tests a rule passes before it becomes one, 
 4. **Rules reached a team.** Rules made on personal projects now bind everyone in a project that enables the mods, and not all of them are seasoned programmers. git-gates' purpose, "Git work is authorized and tidy", holds two kinds of rule: authorized protects the person running the agent, tidy is project policy.
 5. **Rules began moving back to text.** 1.15.0 turned a missing issue reference from a block into a note. 1.16.0 moved the MR description format out of git-gates into the mr-style skill.
 6. **The playbook took the text.** On 2026-10-20 the workflow's rules, from issue to cleanup, went into one skill, the playbook, which a project adopts and feeds its own facts. mr-style folded into it, the mods began pointing to its parts, and each rule kept one home: the issue number, checked by both git-gates and issue-first, moved into issue-first alone.
+7. **git-gates split in two.** The same day consent stayed in git-gates, for each person to install, and the team's checks moved to git-tidy, for a project to enable.
 
 ## The tests
 
@@ -85,7 +86,14 @@ Kind: **op** operator, **proj** project. Effect: **deny**; **hold**, the agent a
 | A failed consent check blocks | op | code | deny | c488005 |
 | Grants: a commit per task, asked once | op | regex | allow | c488005 |
 | Consent outlives follow-ups, task reports and messages typed mid-turn | op | code | allow | 65a287a, ee5d625, 3a9bda1: each a denial after the user had said yes |
-| A protected branch is named to be pushed to | proj | code | deny | c488005 |
+| A protected branch is named to be pushed to | op | code | deny | c488005 |
+
+### git-tidy
+
+Split from git-gates on 2026-10-20; the origins are from git-gates' history.
+
+| Rule | Kind | Check | Effect | Origin |
+| --- | --- | --- | --- | --- |
 | No push to a branch that already landed | proj | code | deny | 2026-09-21: a follow-up pushed minutes after its MR merged recreated the deleted branch, outside any MR, looking shipped |
 | Fresh base before opening an MR | proj | code | deny | dfd41df |
 | Conventional Commits subject | proj | code | deny | c488005 |
