@@ -28,13 +28,10 @@ import {
   verbOf,
   type MrOpening,
 } from './shared/git-commands'
+import { CONTINUATION_ORIGINS, CONTINUATION_PLUGINS } from './shared/continuations'
 import { MODEL, promptFor, SYSTEM, verdictOf, type Review, type Verdict as ReviewVerdict } from './shared/verdict'
 
 const HUMAN_ORIGINS: readonly string[] = ['composer', 'bridge', 'sdk']
-// These follow-ups continue the user's turn, so a phrase the user typed in it still answers a check.
-const CONTINUATION_PLUGINS: readonly string[] = ['git-cleanup', 'lean-comments', 'lean-docs']
-// So does a background task the agent started reporting back, or the engine following up a UI action.
-const CONTINUATION_ORIGINS: readonly string[] = ['task-notification', 'auto-continuation']
 const COMMIT_REVIEW: Review = { name: 'commit message review', prompt: COMMIT_MESSAGE, status: 'judging message' }
 const ORDER_REVIEW: Review = { name: 'every commit works', prompt: COMMIT_ORDER, status: 'judging commit order' }
 const FOLLOW_UP_REVIEW: Review = { name: 'one commit per change', prompt: FOLLOW_UPS, status: 'judging follow-up commits' }

@@ -85,7 +85,7 @@ Kind: **op** operator, **proj** project. Effect: **deny**; **hold**, the agent a
 | git's own options (`git -C dir`) do not hide a commit or push | op | code | deny | 2026-10-20: `git -C` slipped past every check; found in an audit |
 | A failed consent check blocks | op | code | deny | c488005 |
 | Grants: a commit per task, asked once | op | regex | allow | c488005 |
-| Consent outlives follow-ups, task reports and messages typed mid-turn | op | code | allow | 65a287a, ee5d625, 3a9bda1: each a denial after the user had said yes |
+| Consent outlives follow-ups, task reports and messages typed mid-turn | op | code | allow | 65a287a, ee5d625, 3a9bda1: each a denial after the user had said yes. The follow-up mods sit in one shared list that `check:continuations` keeps current since 2026-10-20 |
 | A protected branch is named to be pushed to | op | code | deny | c488005 |
 
 ### git-tidy

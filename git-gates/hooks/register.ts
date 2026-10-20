@@ -32,14 +32,11 @@ import {
   verbOf,
   type Verb,
 } from './shared/git-commands'
+import { CONTINUATION_ORIGINS, CONTINUATION_PLUGINS } from './shared/continuations'
 
 // A --plugin-dir load serves it as mcp__git-gates__grant; the registered name is kept for messages.
 const GRANT_TOOL = /^mcp__(plugin_)?git-gates__grant$/
 const HUMAN_ORIGINS: readonly string[] = ['composer', 'bridge', 'sdk']
-// These follow-ups continue the user's turn, as the Stop hook they replaced did, so they keep their authorization.
-const CONTINUATION_PLUGINS: readonly string[] = ['git-cleanup', 'lean-comments', 'lean-docs']
-// So does a background task the agent started reporting back, or the engine following up a UI action.
-const CONTINUATION_ORIGINS: readonly string[] = ['task-notification', 'auto-continuation']
 const LOOKBACK = 30
 
 type Prompt = { text: string; human: boolean; turnId?: string | undefined }
