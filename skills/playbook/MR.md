@@ -1,10 +1,5 @@
 # Merge requests
 
-Temporarily off: the user's own PR-body skill writes MR and PR descriptions for now. This part stays below, commented out, until it returns; apply none of it.
-
-<!--
-# Merge requests
-
 An MR or PR targets the base and carries one branch's feature ([BRANCHES.md](BRANCHES.md)).
 
 ## Before pushing
@@ -17,6 +12,9 @@ git fetch origin <base> && git rebase origin/<base>
 
 ## Description
 
+Temporarily off: the user's own PR-body skill writes MR and PR descriptions for now. The format below stays commented out until it returns; apply none of it.
+
+<!--
 A run of `### Label` blocks, using the labels that apply, from these eight:
 
 | Label | Holds |
@@ -35,12 +33,12 @@ A run of `### Label` blocks, using the labels that apply, from these eight:
 - Every line starts at column 0: Markdown runs indented lines into one paragraph. Command output and transcripts go in ``` fences.
 - Every line says what the change does or what was found. What it leaves alone, the diff already shows.
 - The description reads as the author's own and names no tool or model that wrote it.
+-->
 
 ## Screenshots
 
-Work touching a frontend carries screenshots under Verified: the real app running locally with seeded data, not component mocks, each with its viewport named. The reviewer sees the change before merging; a diff is not a look at the thing. The same shots later go in the issue's How to test ([ISSUES.md](ISSUES.md)). Backend-only work skips them.
+Work touching a frontend carries screenshots in its description: the real app running locally with seeded data, not component mocks, each with its viewport named. The reviewer sees the change before merging; a diff is not a look at the thing. The same shots later go in the issue's How to test ([ISSUES.md](ISSUES.md)). Backend-only work skips them.
 
 ## After the merge
 
 [CLEANUP.md](CLEANUP.md).
--->
