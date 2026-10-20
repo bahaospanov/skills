@@ -38,7 +38,7 @@ A deviation outranks the part it changes.
 | Starting a change: its issue, found or created | [ISSUES.md](ISSUES.md) |
 | Its branch and worktree | [BRANCHES.md](BRANCHES.md) |
 | Commit messages, and how commits divide the work | [COMMITS.md](COMMITS.md) |
-| Opening an MR or PR, and its description | [MR.md](MR.md), temporarily off |
+| Opening an MR or PR, and its description | [MR.md](MR.md); its description format is temporarily off |
 | After the merge | [CLEANUP.md](CLEANUP.md) |
 
 A task that spans parts reads each one.
