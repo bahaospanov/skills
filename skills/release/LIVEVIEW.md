@@ -15,7 +15,7 @@ One write per state change: the changed state fields and one event line, in one 
 - rewrite verified, backup tag and force push (steps 7–8), or both `skipped` with history untouched
 - runbook created (step 9): its link
 - per wave (step 10): before-promote steps handed over, promoted (tip SHA), pipeline started (its link), each migrate and deploy job finishing, pipeline green, probes with their results, manual steps handed over, the user reporting them done
-- close-out (step 11): the version and its release link, issues closed, the album folder, runbook closed
+- close-out (step 11): the version and its release link, issues noted, the album folder, runbook noted
 - stop: the failing job and its decisive line, the later waves `stopped`
 - run done: every wave done or held, waiting on no one
 
