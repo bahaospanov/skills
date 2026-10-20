@@ -4,12 +4,22 @@ const LETS_GO = /\b(abandon(ed)?|discard(ed)?|throw (it )?away|delete (it )?(any
 
 export const saysMerged = (text: string) => (SAYS_MERGED.test(text) && !DENIES_MERGED.test(text)) || LETS_GO.test(text)
 
-export const listsAny = (json: string) => {
+const shaIn = (value: unknown) => (typeof value === 'string' && value !== '' ? value : undefined)
+
+// A forge's list of merged PRs or MRs for one branch: undefined when it lists none, else the commit the merge
+// landed as, a squash merge's new commit included, when the forge says.
+export const forgeMergeOf = (json: string): { sha: string | undefined } | undefined => {
   try {
     const parsed: unknown = JSON.parse(json)
-    return Array.isArray(parsed) && parsed.length > 0
+    if (!Array.isArray(parsed) || parsed.length === 0) return undefined
+    const first: unknown = parsed[0]
+    if (typeof first !== 'object' || first === null) return { sha: undefined }
+    const fields = first as Record<string, unknown>
+    const commit = fields.mergeCommit
+    const oid = typeof commit === 'object' && commit !== null ? (commit as Record<string, unknown>).oid : undefined
+    return { sha: shaIn(fields.squash_commit_sha) ?? shaIn(fields.merge_commit_sha) ?? shaIn(oid) }
   } catch {
-    return false
+    return undefined
   }
 }
 

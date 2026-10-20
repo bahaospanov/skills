@@ -5,7 +5,7 @@ tier('user')
 
 // A GitHub repo at /repo with no CI: fix/a landed in main, fix/b did not.
 const world = (on: On) => {
-  const forge = { mergedPr: false }
+  const forge = { mergedPr: false, runs: '[]' }
   const ran: string[] = []
   const logs: string[] = []
   mock.clock(on)
@@ -31,8 +31,10 @@ const world = (on: On) => {
       'git merge-base --is-ancestor a1 refs/remotes/origin/main': '',
       'git cherry refs/remotes/origin/main b1': '+ b1\n',
       'git worktree list --porcelain': 'worktree /repo\nHEAD m1\nbranch refs/heads/main\n\nworktree /repo/.worktrees/b\nHEAD b1\nbranch refs/heads/fix/b\n',
-      'gh run list --branch main --limit 20 --json databaseId,headSha,status,conclusion,url': '[]',
-      'gh pr list --head fix/b --state merged --limit 1 --json number': forge.mergedPr ? '[{"number":3}]' : '[]',
+      'gh run list --branch main --limit 20 --json databaseId,headSha,status,conclusion,url': forge.runs,
+      'gh pr list --head fix/b --state merged --limit 1 --json number,mergeCommit': forge.mergedPr ? '[{"number":3,"mergeCommit":{"oid":"s1"}}]' : '[]',
+      'git merge-base --is-ancestor s1 refs/remotes/origin/main': '',
+      'git merge-base --is-ancestor s1 s1': '',
     }
     const answer = answers[args]
     return answer === undefined ? no : ok(answer)
@@ -86,6 +88,17 @@ describe('merged first', () => {
 
     await $.tool.call(bash('cd /repo && git push origin --delete fix/b'))
     expect(ran).toEqual(['cd /repo && git push origin --delete fix/b'])
+  })
+
+  test('a squash merge waits for the pipeline holding its new commit', async ($, on) => {
+    const { forge, ran } = world(on)
+    forge.mergedPr = true
+    forge.runs = '[{"databaseId":7,"headSha":"s1","status":"in_progress","conclusion":"","url":"https://gh/r/7"}]'
+    await $.prompt.submit(prompt('merged, clean up'))
+
+    const held = await $.tool.call(bash('cd /repo && git branch -D fix/b'))
+    expect(ran).toEqual([])
+    expect(held.deny).toContain('pipeline first')
   })
 
   test('saying it is not merged keeps it held', async ($, on) => {

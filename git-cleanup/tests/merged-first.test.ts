@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'claude-code/testing'
-import { listsAny, saysMerged, unmergedRefused } from '../hooks/merged-first'
+import { forgeMergeOf, saysMerged, unmergedRefused } from '../hooks/merged-first'
 
 describe('merged first', () => {
   test('the user saying it merged, or letting it go, counts', () => {
@@ -19,10 +19,12 @@ describe('merged first', () => {
   })
 
   test('a forge list with one merged request is enough', () => {
-    expect(listsAny('[{"number":2}]')).toBe(true)
-    expect(listsAny('[]')).toBe(false)
-    expect(listsAny('{"message":"401 Unauthorized"}')).toBe(false)
-    expect(listsAny('not json')).toBe(false)
+    expect(forgeMergeOf('[{"number":2}]')).toEqual({ sha: undefined })
+    expect(forgeMergeOf('[{"number":2,"mergeCommit":{"oid":"abc"}}]')).toEqual({ sha: 'abc' })
+    expect(forgeMergeOf('[{"iid":5,"merge_commit_sha":null,"squash_commit_sha":"def"}]')).toEqual({ sha: 'def' })
+    expect(forgeMergeOf('[]')).toBeUndefined()
+    expect(forgeMergeOf('{"message":"401 Unauthorized"}')).toBeUndefined()
+    expect(forgeMergeOf('not json')).toBeUndefined()
   })
 
   test('the refusal names the branch, where it looked and the way out', () => {

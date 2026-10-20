@@ -1,5 +1,5 @@
 import type { EngineInterface, Register } from 'claude-code'
-import { listsAny, saysMerged, unmergedRefused } from './merged-first'
+import { forgeMergeOf, saysMerged, unmergedRefused } from './merged-first'
 import {
   acknowledgesPipeline,
   cleanupOf,
@@ -138,21 +138,21 @@ const issueLanding = async ($: EngineInterface, ref: string, bases: string[], cw
 }
 
 // Covers squash merges, whose commits `git cherry` cannot match.
-const mergedOnForge = async ($: EngineInterface, branch: string, cwd?: string) => {
+const forgeMerge = async ($: EngineInterface, branch: string, cwd?: string) => {
   const url = await git($, ['remote', 'get-url', 'origin'], cwd)
   const remote = url === undefined ? undefined : remoteOf(url)
-  if (remote === undefined) return false
+  if (remote === undefined) return undefined
   if (remote.host === 'github.com') {
-    const argv = ['gh', 'pr', 'list', '--head', branch, '--state', 'merged', '--limit', '1', '--json', 'number']
+    const argv = ['gh', 'pr', 'list', '--head', branch, '--state', 'merged', '--limit', '1', '--json', 'number,mergeCommit']
     const run = await $.process.run(argv, cwd === undefined ? undefined : { cwd }).catch(() => undefined)
-    return run?.exitCode === 0 && listsAny(run.stdout)
+    return run?.exitCode === 0 ? forgeMergeOf(run.stdout) : undefined
   }
-  if (gitlabToken === undefined) return false
+  if (gitlabToken === undefined) return undefined
   const api = `https://${remote.host}/api/v4/projects/${encodeURIComponent(remote.path)}/merge_requests`
   const response = await $.http.fetch(`${api}?source_branch=${encodeURIComponent(branch)}&state=merged&per_page=1`, {
     headers: { 'PRIVATE-TOKEN': gitlabToken },
   })
-  return response.ok && listsAny(response.text)
+  return response.ok ? forgeMergeOf(response.text) : undefined
 }
 
 const heldWork = async ($: EngineInterface, command: string, saidMerged: boolean): Promise<Held | undefined> => {
@@ -180,9 +180,16 @@ const heldWork = async ($: EngineInterface, command: string, saidMerged: boolean
       (await git($, ['rev-parse', '--verify', '--quiet', `refs/remotes/origin/${branch}`], cwd))
     if (head === undefined) continue
     const base = await landedBase($, head, bases, cwd)
-    if (base !== undefined) work.push({ what: `'${branch}'`, head, base })
+    if (base !== undefined) {
+      work.push({ what: `'${branch}'`, head, base })
+      continue
+    }
+    const merge = await forgeMerge($, branch, cwd)
+    // A squash merge lands as a new commit, and the pipeline holding that commit is the one to wait for.
+    const squashed = merge?.sha === undefined ? undefined : await landedBase($, merge.sha, bases, cwd)
+    if (merge?.sha !== undefined && squashed !== undefined) work.push({ what: `'${branch}'`, head: merge.sha, base: squashed })
     // Removing a worktree keeps its branch, so only removing the branch itself can lose its commits.
-    else if (branches.includes(branch) && !saidMerged && !(await mergedOnForge($, branch, cwd))) return { kind: 'unmerged', branch, bases }
+    else if (merge === undefined && branches.includes(branch) && !saidMerged) return { kind: 'unmerged', branch, bases }
   }
   for (const ref of issues) {
     const landing = await issueLanding($, ref, bases, cwd)
