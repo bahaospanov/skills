@@ -26,7 +26,7 @@ Load a token into the environment and pass it in a header; never print it.
 | edit body | `PUT issues/<iid>` with `description` | `gh issue edit <n> --body-file …` |
 | watch a pipeline | `scripts/gitlab-pipeline-watch.sh <id> [seconds]` | `gh run watch <id> --exit-status` |
 | tick runbook items | `scripts/issue-tick.sh <iid> <text>…` | same script, through `gh` |
-| close with a note and labels | `scripts/issue-close.sh [--keep-open] [--dates <start> <due>] <iid> <note> [label]…`; a missing label is created on first use | same script, through `gh`; no dates |
+| note and labels, left open | `scripts/issue-note.sh [--dates <start> <due>] <iid> <note> [label]…`; a missing label is created on first use | same script, through `gh`; no dates |
 | images in the description | `scripts/gitlab-issue-images.sh <iid> <section file> <image>…` | `gh release upload <v> <image>…`, then `gh issue edit <n> --body-file …`, the body plus the section and `![](https://github.com/<owner>/<repo>/releases/download/<v>/<image>)` per image: the API has no issue uploads |
 | release entry | `POST releases` with `tag_name`, `name`, `description` | `gh release create <v> --title <v> --notes-file …` |
 | set a flag in an env File variable | `scripts/gitlab-file-var-line.sh [--add] <variable> <NAME> <value>` | no File variables: `gh variable set <NAME> --body <value>`; a secret is write-only, so the user sets it |

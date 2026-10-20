@@ -1,6 +1,6 @@
 ---
 name: release
-description: Promote what the integration branch holds to production — fold fixup commits into their parent, cut the work into waves, ship wave by wave with a runbook issue, then tag a SemVer release, close the shipped issues and build a phone-sized release album.
+description: Promote what the integration branch holds to production — fold fixup commits into their parent, cut the work into waves, ship wave by wave with a runbook issue, then tag a SemVer release, note the shipped issues for the user to close, and build a phone-sized release album.
 disable-model-invocation: true
 ---
 
@@ -162,13 +162,13 @@ Deploy <source> → <target>, <date>. Backup: `backup/<source>-<date>-<sha>`.
 
 ## Close out
 - [ ] version tag and release entry
-- [ ] shipped issues labelled and closed
+- [ ] shipped issues noted and labelled
 - [ ] release album, posted here
 ```
 
 One flag line per flag the user enables, among its timing's steps. A how-to-test item for flag-gated code names the flag, `(once <FLAG> is on)`; while that flag is off, the item stays open and the wave does not wait on it.
 
-The backup sentence appears only after a rewrite. Referencing each `#N` cross-links the source issues. The run closes the runbook issue only at close-out (step 11).
+The backup sentence appears only after a rewrite. Referencing each `#N` cross-links the source issues. The runbook issue stays open: the run notes it at close-out (step 11), and the user closes it.
 
 ### 10. Ship waves
 
@@ -189,10 +189,10 @@ A red pipeline or a failed probe stops the run: report the failing job and the d
 Once the user confirms production works after the last shipped wave (or after the waves that shipped, when the run stopped), ask for their "release". Then, in order, ticking the runbook's close-out items:
 
 1. **Version.** `scripts/next-version.sh <shipped tip>` prints the previous tag and the next SemVer from the commits since it: a breaking `!` or `BREAKING CHANGE:` → major, any `feat` → minor, else patch; no previous tag → `v1.0.0`, unless the user names another. `git tag -a <v> -m <v> <full sha>`, `git push origin <v>`, then a release entry named `<v>` whose notes list the shipped issues (`- #N title`) and the runbook ([`TRACKERS.md`](TRACKERS.md)).
-2. **Issues.** `scripts/issue-close.sh` per issue a shipped commit references: note `Shipped to production in <v> (runbook #R)`, the production label, closed. An issue with work left — a held commit, an open MR — gets `--keep-open` and `Partly shipped in <v>: <shas>`, no label.
+2. **Issues.** `scripts/issue-note.sh` per issue a shipped commit references: note `Shipped to production in <v> (runbook #R)` and the production label. An issue with work left — a held commit, an open MR — gets `Partly shipped in <v>: <shas>`, no label. Every issue stays open for the user to close.
 3. **Report.** Call the Skill tool with "presentation", handing it the changes — the shipped tickets' how-to-test items (step 4), a flag-gated one only when its flag is on in production — `<v>` as the label, production as the site, and step 10's `shots.json` and before shots. Append a `## Release album` section to the runbook's description, the caption then the images, with the image script ([`TRACKERS.md`](TRACKERS.md)), so the album stays with the release record. A run with no user-visible change says so and has no album.
-4. **Runbook.** `scripts/issue-close.sh --dates <first day of the run> <today> <runbook> "Released as <v>: <release link>" type::release`.
+4. **Runbook.** `scripts/issue-note.sh --dates <first day of the run> <today> <runbook> "Released as <v>: <release link>" type::release`.
 
-Done when the tag and its release entry exist, every shipped issue is closed or noted, the presentation skill's build is done and the album is in the runbook's description, and the runbook is closed.
+Done when the tag and its release entry exist, every shipped issue is noted, the presentation skill's build is done and the album is in the runbook's description, and the runbook is noted and dated.
 
 A later run starts over at step 1: the target already holds what shipped, so it plans only the remaining waves.
