@@ -1,7 +1,7 @@
 {
   "name": "git-gates",
   "version": "1.18.0",
-  "description": "Gates git work: no commit, push or merge without the user's say-so in the current turn; a push to a branch that already landed is refused; an MR whose branch lacks the target's latest commit is refused; a pushed series must leave the project working at every commit; commit messages kept tidy (format, no Claude credit, then a Haiku review of the body).",
+  "description": "Gates git work on the user's word: no commit, push, MR opening or merge without their say-so in the current turn, a protected branch named, a grant for a commit per task; a negated keyword does not count.",
   "author": {
     "name": "Bakhtiyar Ospanov"
   }

@@ -17,7 +17,7 @@ export const manyIssues = (messages: string[]) => {
 }
 
 export const scopeRefused = (command: string, reason: string) =>
-  `git-gates (one feature per MR): holding '${command}' for the user — ${reason}
+  `git-tidy (one feature per MR): holding '${command}' for the user — ${reason}
 
 A merge request that carries one feature is reviewed, tested and reverted on its
 own, and closes its one issue. The choice is the user's: leave the branch as it

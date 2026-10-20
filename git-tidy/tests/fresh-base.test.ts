@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'claude-code/testing'
-import { acknowledgesStaleBase, mrOpeningOf, staleBaseRefused } from '../hooks/fresh-base'
+import { acknowledgesStaleBase, staleBaseRefused } from '../hooks/fresh-base'
+import { mrOpeningOf } from '../hooks/shared/git-commands'
 
 describe('fresh base', () => {
   test('gh and glab name the target and source with their own flags', () => {

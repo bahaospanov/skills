@@ -8,8 +8,13 @@
   "plugins": [
     {
       "name": "git-gates",
-      "description": "Gates git work: no commit, push or merge without the user's say-so in their latest message; a push to a branch that already landed is refused; commit messages kept tidy (format, no Claude credit, then a Haiku review of the body).",
+      "description": "Gates git work on the user's word: no commit, push, MR opening or merge without their say-so in the current turn, a protected branch named, a grant for a commit per task; a negated keyword does not count.",
       "source": "./git-gates"
+    },
+    {
+      "name": "git-tidy",
+      "description": "Keeps git history tidy: commit messages in Conventional Commits with no Claude credit, then a Haiku review of the body; a push to a branch that already landed is refused; an MR whose branch lacks the target's latest commit is refused; a pushed series must leave the project working at every commit; follow-up commits and MRs carrying several features are held for the user.",
+      "source": "./git-tidy"
     },
     {
       "name": "git-cleanup",

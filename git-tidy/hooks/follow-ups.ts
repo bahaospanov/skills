@@ -19,7 +19,7 @@ const ACKNOWLEDGES = /\b(keep|leave) (the |these |both |all |separate )?commits\
 export const acknowledgesSplit = (text: string) => ACKNOWLEDGES.test(text)
 
 export const followUpsRefused = (command: string, reason: string) =>
-  `git-gates (one commit per change): holding '${command}' for the user — ${reason}
+  `git-tidy (one commit per change): holding '${command}' for the user — ${reason}
 
 A commit that fixes, reworks or extends an earlier commit of this branch usually
 belongs in that commit, so the merge request reads as one commit per change. The

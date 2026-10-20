@@ -1,0 +1,4 @@
+{
+  "description": "Checks commit messages and the commits a push or an MR carries",
+  "modules": ["./register.ts"]
+}

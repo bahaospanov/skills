@@ -42,7 +42,8 @@ One mod per purpose. Why each one and each of its rules exists: [STORY.md](STORY
 
 | Mod | Purpose |
 | --- | --- |
-| [git-gates](#git-gates) | Git work is authorized and tidy |
+| [git-gates](#git-gates) | Git work happens on the user's word |
+| [git-tidy](#git-tidy) | Git history stays tidy |
 | [git-cleanup](#git-cleanup) | Merged work is cleaned up once it shipped |
 | [issue-first](#issue-first) | Feature work starts from an issue, and each commit names its own |
 | [lean-docs](#lean-docs) | Docs worth keeping |
@@ -63,6 +64,16 @@ the call is blocked.
 | --- | --- | --- | --- |
 | consent | git commit, push, with or without git's own options (`git -C dir push`); opening a PR/MR; PR/MR merge | commit, push, ship, deploy, pr, mr, tag or release typed in the current turn (a message typed while it runs or a background task's report does not withdraw it); a push needs one of them other than commit; opening needs pr, mr, pull request, merge request or ship; merge needs "merge", and "merge request" is not it; a protected branch must be named. A negated keyword ("don't push") does not count, and a no to the act itself refuses it, standing grant included, unless the turn also asks for it | Call denied |
 | grants | Later commits in the session | A message asking for a commit per task, or the grant tool after an authorizing message | Commits spend the grant; pushes never |
+Protected branches come from a repo's own push policy file.
+Integration branches are the protected ones; with no policy, the remote's default branch and any of dev, develop, main, master that exist.
+Deleting a branch on origin needs no keyword when origin's head of it already sits in an integration branch.
+
+### git-tidy
+
+The rules' text lives in the [playbook](skills/playbook/SKILL.md); the commit-order, follow-up and feature refusals name the part.
+
+| Check | Runs on | Needs | Then |
+| --- | --- | --- | --- |
 | messages | A git commit | Conventional Commits subject, no reviewer pre-answers, no Co-Authored-By trailer naming Claude or Anthropic (in the message or a `--trailer` flag) and no "Generated with Claude Code" line; then Haiku: a body only when the cause is subtle | Commit denied |
 | fresh base | Opening an MR/PR: `gh pr create`, `glab mr create`, a GitLab API POST to `merge_requests` | The source branch, as origin has it, contains the target's latest commit, fetched first; skipped when the message says not to rebase | Call denied |
 | landed branch | A git push | The branch's pushed head already sits in a protected branch, and the message names no new MR | Push denied |
@@ -70,9 +81,7 @@ the call is blocked.
 | one commit per change | A git push of new commits to a branch whose commits not yet in an integration branch number 2 to 15, pushed or not | No `fixup!`, `squash!` or `amend!` subject; then Sonnet: no later commit spends most of its diff fixing, reworking or extending lines an earlier one added, or matches an earlier one's API contract change in another app; skipped when the message says to keep the commits | Push held: the agent shows the user the reason and asks; any answer lets the same commits through |
 | one feature per MR | A git push of new commits to a branch whose commits not yet in an integration branch number 1 to 15, pushed or not | Its commit messages name at most one issue; then Sonnet: no piece of it could ship alone apart from the rest; skipped when the message says one MR or to keep them together | Push held: the agent shows the user the features, recommends a branch and MR each, and asks; any answer lets the branch through for the session |
 
-Protected branches come from a repo's own push policy file.
-Integration branches are the protected ones; with no policy, the remote's default branch and any of dev, develop, main, master that exist.
-Deleting a branch on origin needs no keyword when origin's head of it already sits in an integration branch.
+Integration branches are found as git-gates finds them.
 
 ### git-cleanup
 

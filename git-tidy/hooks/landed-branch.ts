@@ -6,7 +6,7 @@ const ACKNOWLEDGES = /(new|follow-?up|second|another)\s+(mr|merge request|pr|pul
 export const acknowledgesLanded = (text: string) => ACKNOWLEDGES.test(text)
 
 export const landedRefused = (command: string, branch: string, base: string) =>
-  `git-gates: blocking '${command}' — '${branch}' has already landed in '${base}'.
+  `git-tidy (landed branch): blocking '${command}' — '${branch}' has already landed in '${base}'.
 
 Its merge request is closed, so this push does not extend it: it recreates
 the branch, and the commit sits outside any MR until someone opens a new one.
