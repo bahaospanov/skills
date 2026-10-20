@@ -1,5 +1,14 @@
 import { describe, expect, test } from 'claude-code/testing'
-import { authorizes, authorizesMerge, grantRequest, namesBranch, protectedHit } from '../hooks/consent'
+import {
+  authorizes,
+  authorizesMerge,
+  authorizesOpening,
+  authorizesPush,
+  forbids,
+  grantRequest,
+  namesBranch,
+  protectedHit,
+} from '../hooks/consent'
 import { branchesOf, currentTurn, pushTargets, verbOf } from '../hooks/shared/git-commands'
 
 describe('consent', () => {
@@ -24,6 +33,61 @@ describe('consent', () => {
     expect(verbOf('curl -X PUT "$API/merge_requests/7/merge"')).toBe('merge')
     expect(verbOf('echo "run git push later"')).toBeUndefined()
     expect(verbOf('git status && git log')).toBeUndefined()
+  })
+
+  test("git's own options before the verb do not hide it", () => {
+    expect(verbOf('git -C /repo commit -m "fix: x"')).toBe('commit')
+    expect(verbOf('git -C "/a b" push origin feat/a')).toBe('push')
+    expect(verbOf('git -c core.hooksPath=/dev/null commit -m x')).toBe('commit')
+    expect(verbOf('git --git-dir=/r/.git --work-tree=/r push')).toBe('push')
+    expect(verbOf('git --no-pager -C /r push')).toBe('push')
+    expect(verbOf("echo 'git -C /r push'")).toBeUndefined()
+    expect(verbOf('git -C /r log --oneline')).toBeUndefined()
+    expect(pushTargets('git -C /r push origin feat/b', 'feat/a')).toEqual(['feat/b'])
+    expect(pushTargets('git -C "/a b" push origin HEAD:dev', 'feat/a')).toEqual(['dev'])
+  })
+
+  test('a negated keyword is the user saying no', () => {
+    expect(authorizes("don't commit")).toBe(false)
+    expect(authorizes('do not push yet')).toBe(false)
+    expect(authorizes('no need to commit')).toBe(false)
+    expect(authorizes('never push this')).toBe(false)
+    expect(authorizes('don’t ship')).toBe(false)
+    expect(authorizes("commit, don't push")).toBe(true)
+    expect(authorizes("you said don't commit, now commit it")).toBe(true)
+    expect(authorizes('no tests needed so commit')).toBe(true)
+    expect(authorizesMerge('не смерживай пока')).toBe(false)
+    expect(authorizesMerge("don't merge it")).toBe(false)
+    expect(authorizesMerge('open a merge request')).toBe(false)
+    expect(authorizesMerge('merge the merge request')).toBe(true)
+  })
+
+  test('an explicit "don\'t <verb>" forbids that verb unless the turn also asks for it', () => {
+    expect(forbids(["commit, don't push"], 'push')).toBe(true)
+    expect(forbids(["commit, don't push"], 'commit')).toBe(false)
+    expect(forbids(['never commit this'], 'commit')).toBe(true)
+    expect(forbids(["don't push to main, push to the feature branch"], 'push')).toBe(false)
+    expect(forbids(['ship it', "wait, don't push"], 'push')).toBe(true)
+    expect(forbids(["don't merge yet"], 'merge')).toBe(true)
+  })
+
+  test('opening an MR or PR needs it asked for', () => {
+    expect(authorizesOpening('open an MR')).toBe(true)
+    expect(authorizesOpening('ship it')).toBe(true)
+    expect(authorizesOpening('create a pull request')).toBe(true)
+    expect(authorizesOpening('push it')).toBe(false)
+    expect(authorizesOpening('commit')).toBe(false)
+    expect(authorizesOpening('no rebase, open it')).toBe(false)
+    expect(authorizesOpening("don't open a PR")).toBe(false)
+  })
+
+  test('a push needs a word for shipping the branch; "commit" authorizes the commit only', () => {
+    expect(authorizesPush('push it')).toBe(true)
+    expect(authorizesPush('ship')).toBe(true)
+    expect(authorizesPush('open an MR')).toBe(true)
+    expect(authorizesPush('tag and release')).toBe(true)
+    expect(authorizesPush('looks good, commit it')).toBe(false)
+    expect(authorizesPush("commit, don't push")).toBe(false)
   })
 
   test('keywords authorize as whole words; merge needs its own', () => {

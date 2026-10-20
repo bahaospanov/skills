@@ -14,15 +14,21 @@ import {
 import {
   authorizes,
   authorizesMerge,
+  authorizesOpening,
+  authorizesPush,
   deletionNote,
+  forbiddenRefused,
+  forbids,
   grantRefused,
   grantRequest,
   mergeRefused,
   namesBranch,
   noKeyword,
   noUserMessage,
+  openRefused,
   protectedHit,
   protectedPushRefused,
+  pushRefused,
   pushUndetermined,
 } from './consent'
 import { acknowledgesScope, manyIssues, SCOPE_MODEL, scopeRefused } from './feature-scope'
@@ -268,8 +274,11 @@ const mentionedRefs = async ($: EngineInterface, cwd?: string) => {
   }
 }
 
-const consent = async ($: EngineInterface, command: string, verb: Verb): Promise<Verdict> => {
+const consent = async ($: EngineInterface, command: string, verb: Verb | 'open'): Promise<Verdict> => {
   const now = await $.clock.now()
+  const typed = await typedThisTurn($)
+  if (verb !== 'open' && typed !== undefined && forbids(typed, verb)) return { reason: forbiddenRefused(command, verb) }
+
   if (verb === 'commit' && isLive(grant, now)) {
     grant = spend(grant)
     return {
@@ -277,8 +286,9 @@ const consent = async ($: EngineInterface, command: string, verb: Verb): Promise
     }
   }
 
-  const typed = await typedThisTurn($)
   if (typed === undefined) return { reason: noUserMessage() }
+
+  if (verb === 'open') return typed.some(authorizesOpening) ? {} : { reason: openRefused(command) }
 
   if (verb === 'merge') return typed.some(authorizesMerge) ? {} : { reason: mergeRefused(command) }
 
@@ -301,6 +311,7 @@ const consent = async ($: EngineInterface, command: string, verb: Verb): Promise
   }
 
   if (!typed.some(authorizes)) return { reason: noKeyword(command, grantTool) }
+  if (verb === 'push' && !typed.some(authorizesPush)) return { reason: pushRefused(command) }
 
   const asking = verb === 'commit' ? typed.find((text) => grantRequest(text) !== undefined) : undefined
   const uses = asking === undefined ? undefined : grantRequest(asking)
@@ -406,7 +417,7 @@ export const register: Register = (on) => {
   })
 
   on('tool.call', { tool: 'Bash' }, async ($, e, next) => {
-    const verb = verbOf(e.command)
+    const verb = verbOf(e.command) ?? (mrOpeningOf(e.command) === undefined ? undefined : 'open')
     if (verb === undefined) return next(e)
     return enforce($, await consent($, e.command, verb), /git-commit-guard/, () => next(e))
   }).catch(($, e, next) =>
