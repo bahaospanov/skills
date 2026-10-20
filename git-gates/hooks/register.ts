@@ -178,25 +178,10 @@ const consent = async ($: EngineInterface, command: string, verb: Verb | 'open')
   return {}
 }
 
-type Outcome = { deny?: string | undefined; isError?: boolean | undefined; text?: string | undefined }
-
-const firstLine = (text: string) => text.split('\n')[0] ?? ''
-
-// While the settings guards still run, a call this mod allowed but its settings twin blocked is a parity gap worth seeing.
-const enforce = async <R extends Outcome>(
-  $: EngineInterface,
-  verdict: Verdict,
-  twin: RegExp,
-  run: () => Promise<R>,
-): Promise<R | { deny: string }> => {
+const enforce = async <R>($: EngineInterface, verdict: Verdict, run: () => Promise<R>): Promise<R | { deny: string }> => {
   if ('reason' in verdict) return { deny: verdict.reason }
   if (verdict.note) $.ui.log(verdict.note)
-  const result = await run()
-  const blocked = result.deny ?? (result.isError ? result.text : undefined)
-  if (blocked !== undefined && twin.test(blocked)) {
-    $.ui.log(`git-gates: allowed, but a settings guard blocked it: ${firstLine(blocked)}`)
-  }
-  return result
+  return run()
 }
 
 export const register: Register = (on) => {
@@ -253,7 +238,7 @@ export const register: Register = (on) => {
   on('tool.call', { tool: 'Bash' }, async ($, e, next) => {
     const verb = verbOf(e.command) ?? (mrOpeningOf(e.command) === undefined ? undefined : 'open')
     if (verb === undefined) return next(e)
-    return enforce($, await consent($, e.command, verb), /git-commit-guard/, () => next(e))
+    return enforce($, await consent($, e.command, verb), () => next(e))
   }).catch(($, e, next) =>
     next.called ? undefined : { deny: `git-gates: the check failed (${next.error.message ?? next.error.kind}); blocking until it works` },
   )
