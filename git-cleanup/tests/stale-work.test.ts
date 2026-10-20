@@ -5,7 +5,7 @@ import { staleReport, worktreesOf } from '../hooks/stale-work'
 describe('stale work', () => {
   test('a push that only deletes names the branches it deletes', () => {
     expect(deletedBranches('git push origin --delete fix/a')).toEqual(['fix/a'])
-    expect(deletedBranches('git -C /repo push origin --delete fix/a')).toBeUndefined()
+    expect(deletedBranches('git -C /repo push origin --delete fix/a')).toEqual(['fix/a'])
     expect(deletedBranches('cd /repo && git push -d origin fix/a fix/b')).toEqual(['fix/a', 'fix/b'])
     expect(deletedBranches('git push origin :fix/a')).toEqual(['fix/a'])
     expect(deletedBranches('git push origin refs/heads/x:refs/heads/y')).toBeUndefined()

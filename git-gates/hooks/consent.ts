@@ -1,5 +1,27 @@
-const AUTH = /(^|[^a-zA-Z])(commit|push|ship|deploy|merge|pr|mr|tag|release)([^a-zA-Z]|$)/im
-const MERGE_AUTH = /(^|[^a-zA-Z])(merge|merging|смерж[а-яё]*|влей|влить|вмерж[а-яё]*)([^a-zA-Z]|$)/imu
+import type { Verb } from './shared/git-commands'
+
+const word = (alternatives: string) => new RegExp(String.raw`(^|[^\p{L}])(${alternatives})(?=[^\p{L}]|$)`, 'giu')
+const AUTH = word('commit|push|ship|deploy|merge|pr|mr|tag|release')
+const PUSH_AUTH = word('push|ship|deploy|pr|mr|tag|release')
+// "merge request" names the thing to open, not the act of merging it.
+const MERGE_AUTH = word(String.raw`merge(?!\s+requests?)|merging|смерж[а-яё]*|влей|влить|вмерж[а-яё]*`)
+const OPEN_AUTH = word(String.raw`pr|mr|ship|pull\s+requests?|merge\s+requests?`)
+const VERB_WORDS: Record<Verb, RegExp> = { commit: word('commit'), push: word('push'), merge: MERGE_AUTH }
+// A keyword at most two words after one of these, in the same clause, is the user saying no.
+const NEGATED = /(^|[^\p{L}'])(don't|dont|do not|doesn't|never|no|not|without|stop|avoid|не|нельзя|без|никогда)(\s+[^\s.,;!?]+){0,2}\s+$/iu
+const CLAUSE = /[.,;!?\n]/g
+
+const mentions = (text: string, words: RegExp): boolean[] => {
+  const plain = text.replace(/[’‘]/g, "'")
+  return [...plain.matchAll(words)].map((m) => {
+    const start = (m.index ?? 0) + (m[1]?.length ?? 0)
+    const before = plain.slice(0, start)
+    const clause = before.slice(Math.max(0, ...[...before.matchAll(CLAUSE)].map((c) => (c.index ?? 0) + 1)))
+    return !NEGATED.test(clause)
+  })
+}
+
+const says = (text: string, words: RegExp) => mentions(text, words).some(Boolean)
 
 export const GRANT_DEFAULT_USES = 5
 export const GRANT_SESSION_USES = 10
@@ -14,9 +36,19 @@ const SESSION_WIDE = /(rest of (the |this )?session|until I (say|tell)|keep comm
 const PER_TASK =
   /(auto-?commit|commit (after|between|per|each|every|as you go|along the way)|(after|between) each (task|step|part|item|fix)[^.]{0,40}commit|one commit per|separate commits|commit them separately|коммит[а-я]* (после|на) кажд|коммить по ходу|отдельны[емх] коммит)/iu
 
-export const authorizes = (text: string) => AUTH.test(text)
+export const authorizes = (text: string) => says(text, AUTH)
 
-export const authorizesMerge = (text: string) => MERGE_AUTH.test(text)
+export const authorizesPush = (text: string) => says(text, PUSH_AUTH)
+
+export const authorizesMerge = (text: string) => says(text, MERGE_AUTH)
+
+export const authorizesOpening = (text: string) => says(text, OPEN_AUTH)
+
+// "commit, don't push": an explicit no to this very act wins over other keywords, unless the turn also says yes to it.
+export const forbids = (typed: string[], verb: Verb) => {
+  const said = typed.flatMap((text) => mentions(text, VERB_WORDS[verb]))
+  return said.includes(false) && !said.includes(true)
+}
 
 export const grantRequest = (text: string): number | undefined => {
   const flat = text.replace(/\n/g, ' ')
@@ -40,6 +72,20 @@ export const namesBranch = (text: string, branch: string) => {
 }
 
 export const noUserMessage = () => 'git-gates: no user message found in this session; blocking'
+
+export const pushRefused = (command: string) => `git-gates: blocking '${command}' — "commit" authorizes the commit, not a push.
+A push needs push, ship, deploy, pr, mr, tag or release in the current turn.
+Stop at the commit, say the branch is ready, and let the user say when to push.`
+
+export const forbiddenRefused = (command: string, verb: Verb) => `git-gates: blocking '${command}' — the user said not to ${verb} in this turn.
+Other keywords in the message do not override that. Stop here, say what is
+ready, and let the user tell you when to ${verb}.`
+
+export const openRefused = (command: string) => `git-gates: blocking '${command}' — opening a merge request needs the user to ask for one:
+"pr", "mr", "pull request", "merge request" or "ship" in the current turn.
+"push" and "commit" authorize the branch, not a request others are notified
+of. Push if that was asked, report that the branch is ready, and let the user
+say when to open it.`
 
 export const deletionNote = (branches: string[]) =>
   `git-gates: deleting ${branches.map((b) => `'${b}'`).join(', ')} — already landed, so no keyword needed`

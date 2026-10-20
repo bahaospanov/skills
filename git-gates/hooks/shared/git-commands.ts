@@ -1,19 +1,34 @@
 export type Verb = 'merge' | 'push' | 'commit'
 
 const MERGE = /(merge_requests\/[0-9]+\/merge|pulls\/[0-9]+\/merge|(^|[\s&;|(])(gh\s+pr|glab\s+mr)\s+merge(\s|$))/m
-const PUSH = /(^|[\s&;|(])git\s+push(\s|$)/m
-const COMMIT = /(^|[\s&;|(])git\s+commit(\s|$)/m
+// git's own options before the subcommand (`git -C dir push`, `git -c k=v commit`) must not hide it.
+const VALUED_GLOBALS = ['-C', '-c', '--git-dir', '--work-tree', '--namespace', '--exec-path', '--config-env']
+const GLOBALS = String.raw`(?:\s+(?:-[Cc]\s+\S+|--(?:git-dir|work-tree|namespace|exec-path|config-env)(?:=\S+|\s+\S+)?|--?[a-z][a-z-]*))*`
+const PUSH = new RegExp(String.raw`(^|[\s&;|(])git${GLOBALS}\s+push(\s|$)`, 'm')
+const COMMIT = new RegExp(String.raw`(^|[\s&;|(])git${GLOBALS}\s+commit(\s|$)`, 'm')
 
 // With no push policy a repo's integration branches are guessed: the remote's default branch, then these.
 export const FALLBACK_BASES: readonly string[] = ['dev', 'develop', 'main', 'master']
 
-// Quotes are stripped first so a message quoting `git push` is not a push.
+// A quoted string becomes one placeholder word: a message quoting `git push` is not a push, and `-C "a b"` keeps its value.
+const unquoted = (command: string) => command.replace(/'[^']*'/g, 'Q').replace(/"[^"]*"/g, 'Q')
+
 export const verbOf = (command: string): Verb | undefined => {
   if (MERGE.test(command)) return 'merge'
-  const unquoted = command.replace(/'[^']*'/g, '').replace(/"[^"]*"/g, '')
-  if (PUSH.test(unquoted)) return 'push'
-  if (COMMIT.test(unquoted)) return 'commit'
+  const plain = unquoted(command)
+  if (PUSH.test(plain)) return 'push'
+  if (COMMIT.test(plain)) return 'commit'
   return undefined
+}
+
+const tokensOf = (command: string) =>
+  [...command.replace(/\n/g, ' ; ').matchAll(/(?:"[^"]*"|'[^']*'|[^\s"'])+/g)].map((m) => m[0])
+
+const pushAt = (tokens: string[], at: number): number | undefined => {
+  if (tokens[at] !== 'git') return undefined
+  let i = at + 1
+  while ((tokens[i] ?? '').startsWith('-')) i += VALUED_GLOBALS.includes(tokens[i] ?? '') ? 2 : 1
+  return tokens[i] === 'push' ? i : undefined
 }
 
 // A prompt typed over a running turn joins the one that opened that turn, so a quick follow-up cannot withdraw its word.
@@ -40,17 +55,18 @@ export const defaultBranchOf = (symref: string | undefined) => symref?.trim().re
 
 // Every branch the command's `git push`es write to; `*` for --all/--mirror, undefined when one cannot be known.
 export const pushTargets = (command: string, current: string | undefined): string[] | undefined => {
-  const tokens = command.replace(/\n/g, ' ; ').split(/\s+/).filter(Boolean)
+  const tokens = tokensOf(command)
   const targets: string[] = []
   let found = false
   let i = 0
   while (i < tokens.length) {
-    if (tokens[i] !== 'git' || tokens[i + 1] !== 'push') {
+    const push = pushAt(tokens, i)
+    if (push === undefined) {
       i++
       continue
     }
     found = true
-    i += 2
+    i = push + 1
     let remoteSeen = false
     let all = false
     const refs: string[] = []
@@ -84,17 +100,18 @@ export const pushTargets = (command: string, current: string | undefined): strin
 }
 
 export const deletedBranches = (command: string): string[] | undefined => {
-  const tokens = command.replace(/\n/g, ' ; ').split(/\s+/).filter(Boolean)
+  const tokens = tokensOf(command)
   const deleted: string[] = []
   let found = false
   let i = 0
   while (i < tokens.length) {
-    if (tokens[i] !== 'git' || tokens[i + 1] !== 'push') {
+    const push = pushAt(tokens, i)
+    if (push === undefined) {
       i++
       continue
     }
     found = true
-    i += 2
+    i = push + 1
     let remoteSeen = false
     let deleting = false
     const refs: string[] = []

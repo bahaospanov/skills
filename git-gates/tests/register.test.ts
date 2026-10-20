@@ -156,6 +156,19 @@ describe('register', () => {
     expect(refused.deny).toContain('does not\ncontain an authorizing keyword')
   })
 
+  test('"commit" lets the commit through but not a push', async ($, on) => {
+    const { ran } = world(on)
+
+    await $.prompt.submit(prompt('looks good, commit it'))
+    await $.tool.call(bash('git commit -m "fix: a"'))
+    const push = await $.tool.call(bash('git push'))
+    await $.prompt.submit(prompt('push it'))
+    await $.tool.call(bash('git push'))
+
+    expect(push.deny).toContain('"commit" authorizes the commit, not a push')
+    expect(ran).toEqual(['git commit -m "fix: a"', 'git push'])
+  })
+
   test('a message typed while the turn runs does not take its authorization away', async ($, on) => {
     const { ran } = world(on, { files: POLICY })
 
@@ -205,10 +218,58 @@ describe('register', () => {
     expect(refused.deny).toContain("'feat/x' does not contain the latest 'dev'")
     expect(ran).toEqual([])
 
-    await $.prompt.submit(prompt('no rebase, open it'))
+    await $.prompt.submit(prompt('no rebase, open the MR'))
     await $.tool.call(bash(open))
 
     expect(ran).toEqual([open])
+  })
+
+  test('opening a merge request needs the user to ask for one', async ($, on) => {
+    const { ran } = world(on, { base: 'fresh' })
+    const open = 'gh pr create --base dev --head feat/x --title x'
+
+    await $.prompt.submit(prompt('push it'))
+    const refused = await $.tool.call(bash(open))
+    await $.prompt.submit(prompt('open a PR'))
+    await $.tool.call(bash(open))
+
+    expect(refused.deny).toContain('opening a merge request needs the user to ask for one')
+    expect(ran).toEqual([open])
+  })
+
+  test('git -C does not slip a commit or push past consent', async ($, on) => {
+    const { ran } = world(on)
+
+    await $.prompt.submit(prompt('tidy the tests'))
+    const commit = await $.tool.call(bash('git -C /repo commit -m "test: tidy"'))
+    const push = await $.tool.call(bash('git -C /repo push'))
+
+    expect(commit.deny).toContain('does not\ncontain an authorizing keyword')
+    expect(push.deny).toContain('does not\ncontain an authorizing keyword')
+    expect(ran).toEqual([])
+  })
+
+  test('"commit, don\'t push" lets the commit through and stops the push', async ($, on) => {
+    const { ran } = world(on)
+
+    await $.prompt.submit(prompt("commit it, but don't push"))
+    await $.tool.call(bash('git commit -m "fix: a"'))
+    const push = await $.tool.call(bash('git push'))
+
+    expect(push.deny).toContain('said not to push')
+    expect(ran).toEqual(['git commit -m "fix: a"'])
+  })
+
+  test('a standing grant does not override "don\'t commit" in the current turn', async ($, on) => {
+    const { ran } = world(on)
+
+    await $.prompt.submit(prompt('do the five tasks and commit after each task'))
+    await $.tool.call(bash('git commit -m "fix: a"'))
+    await $.prompt.submit(prompt("hold on, don't commit the next one"))
+    const refused = await $.tool.call(bash('git commit -m "fix: b"'))
+
+    expect(refused.deny).toContain('said not to commit')
+    expect(ran).toEqual(['git commit -m "fix: a"'])
   })
 
   test('a merge request whose source has the latest target opens', async ($, on) => {
