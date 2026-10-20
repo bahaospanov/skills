@@ -161,7 +161,7 @@ describe('register', () => {
     expect(logs).toEqual(['lean-docs/docs-review: no verdict: Sorry, I cannot help with that.'])
   })
 
-  test('docs-no-repeat-code: a doc line repeating identifiers stated in code is refused before it is written', async ($, on) => {
+  test('docs-no-repeat-code: a doc line repeating identifiers stated in code is written, and Claude gets the hint', async ($, on) => {
     const { repo, asked, ran } = world(on, REJECT)
     repo.grep['API_URL'] = ['src/config.ts', 'README.md']
     repo.grep['config.ts'] = ['src/config.ts']
@@ -173,9 +173,10 @@ describe('register', () => {
       new_string: 'Setup.\nSet `API_URL` in `config.ts`.',
     })
 
-    expect(refused.deny?.startsWith('lean-docs/docs-no-repeat-code: this line repeats API_URL/config.ts, already stated in src/config.ts:')).toBe(true)
-    expect(ran).toEqual([])
-    expect(asked).toEqual([])
+    expect(refused.deny).toBeUndefined()
+    expect(refused.context?.at(-1)?.startsWith('lean-docs/docs-no-repeat-code: this line repeats API_URL/config.ts, already stated in src/config.ts:')).toBe(true)
+    expect(ran).toEqual(['/repo/docs/setup.md'])
+    expect(asked.length).toBe(1)
   })
 
   test('skill files: a new SKILL.md, a sibling and a nested file in a skill folder skip docs-review and docs-no-repeat-code', async ($, on) => {
@@ -217,9 +218,9 @@ describe('register', () => {
     const refused = await $.tool.call({ tool: 'Edit', file_path: '/repo/skills/README.md', old_string: 'A.', new_string: 'A.\nSet `API_URL` in `config.ts`.' })
     const reviewed = await $.tool.call({ tool: 'Edit', file_path: '/repo/skills/README.md', old_string: 'a', new_string: 'a longer page' })
 
-    expect(refused.deny?.startsWith('lean-docs/docs-no-repeat-code:')).toBe(true)
+    expect(refused.context?.at(-1)?.startsWith('lean-docs/docs-no-repeat-code:')).toBe(true)
     expect(reviewed.context).toEqual(['lean-docs/docs-review: one-time procedure'])
-    expect(asked.length).toBe(1)
+    expect(asked.length).toBe(2)
   })
 
   test('changesets: a changeset skips docs-review and docs-no-repeat-code, and limit-docs does not count it', async ($, on) => {

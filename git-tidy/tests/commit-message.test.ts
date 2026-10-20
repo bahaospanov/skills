@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'claude-code/testing'
-import { aiAttributionViolations, commitMessageViolations, invokesCommit, messageFrom, runsGitCommit } from '../hooks/commit-message'
+import { aiAttributionViolations, commitMessageViolations, invokesCommit, messageFrom, preAnswers, runsGitCommit } from '../hooks/commit-message'
 import { commandDir } from '../hooks/shared/git-commands'
 
 describe('commit-message', () => {
@@ -31,7 +31,7 @@ describe('commit-message', () => {
     expect(messageFrom('git commit --amend --no-edit')).toBeUndefined()
   })
 
-  test('the subject must be Conventional Commits and the body must not pre-answer a reviewer', () => {
+  test('the subject must be Conventional Commits; a body pre-answering a reviewer is advised against', () => {
     expect(commitMessageViolations('fix(api): reject short secrets')).toEqual([])
     expect(commitMessageViolations('fix(api-py,infra): one change across two apps')).toEqual([])
     expect(commitMessageViolations('Fixed stuff')).toEqual([
@@ -40,9 +40,9 @@ describe('commit-message', () => {
     for (const subject of ['fix(api,): x', 'fix(,api): x', 'fix(api, infra): x']) {
       expect(commitMessageViolations(subject)).toEqual([`first line is not Conventional Commits: '${subject}'`])
     }
-    expect(commitMessageViolations('fix: x\n\nNothing else changed.')).toEqual([
-      'pre-answers a reviewer instead of saying why:\n      Nothing else changed.',
-    ])
+    expect(commitMessageViolations('fix: x\n\nNothing else changed.')).toEqual([])
+    expect(preAnswers('fix: x\n\nNothing else changed.')).toBe('pre-answers a reviewer instead of saying why:\n      Nothing else changed.')
+    expect(preAnswers('fix: x\n\nThe cache kept a stale key.')).toBeUndefined()
   })
 
   test('a Co-Authored-By trailer naming Claude or Anthropic is refused, in the message or as --trailer', () => {

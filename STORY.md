@@ -97,9 +97,9 @@ Split from git-gates on 2026-10-20; the origins are from git-gates' history.
 | No push to a branch that already landed | proj | code | deny | 2026-09-21: a follow-up pushed minutes after its MR merged recreated the deleted branch, outside any MR, looking shipped |
 | Fresh base before opening an MR | proj | code | deny | dfd41df |
 | Conventional Commits subject | proj | code | deny | c488005 |
-| No reviewer pre-answers ("no X changed") | proj | regex | deny | c488005 |
+| No reviewer pre-answers ("no X changed") | proj | regex | note | c488005 as a deny; a note since 2026-10-20: real causes match the pattern and there was no way past it |
 | No Claude credit: Co-Authored-By trailer, "Generated with" line | proj | code | deny | a0ab38c |
-| A body only for a subtle cause | proj | Haiku | deny | The settings prompt hook, moved verbatim 2026-09-16, 4da7656 |
+| A body only for a subtle cause | proj | Haiku | note | The settings prompt hook, moved verbatim 2026-09-16, 4da7656. A note since 2026-10-20: someone new to the rules cannot argue with a model's block |
 | Every commit works | proj | Sonnet | deny | 2026-10-01, a team project: the API dropped endpoints one commit before the admin stopped calling them |
 | One commit per change | proj | code, Sonnet | hold | 2026-10-15, a team project: a teammate's branches grew a commit per fix. A contract change and its match in another app count as one since 2026-10-20: vertical commits, the user's call |
 | One feature per MR | proj | code, Sonnet | hold | 2026-10-15, a team project: a teammate's MRs carried several features, often in one commit |
@@ -126,7 +126,7 @@ Split from git-gates on 2026-10-20; the origins are from git-gates' history.
 | Rule | Kind | Check | Effect | Origin |
 | --- | --- | --- | --- | --- |
 | Will anyone read it again? | proj | Haiku | note | The settings prompt hook, moved verbatim 2026-09-16, 4da7656 |
-| A doc line does not restate code | proj | code | deny | 18129c5 |
+| A doc line does not restate code | proj | code | note | 18129c5 as a deny; a note since 2026-10-20: it blocked legitimate writes, a glossary mapping, an agent-doc line and a table row in this file |
 | A turn adds little prose | proj | code | follow-up | 18129c5 |
 | Skill folders | — | — | skip | b63fe7b: a skill is read again on every use |
 | Changesets | — | — | skip | 3966435: docs-review flagged every one, and `changeset version` deletes them |

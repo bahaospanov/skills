@@ -48,9 +48,12 @@ export const commitMessageViolations = (text: string): string[] => {
   if (subject === undefined) return []
   const found: string[] = []
   if (!CONVENTIONAL.test(subject)) found.push(`first line is not Conventional Commits: ${quoted(subject.slice(0, 70))}`)
-  const hits = body.filter((line) => PREEMPT.test(line)).map((line) => line.trim().slice(0, 90))
-  if (hits.length > 0) {
-    found.push(`pre-answers a reviewer instead of saying why:\n      ${hits.slice(0, 3).join('\n      ')}`)
-  }
   return found
+}
+
+// A pattern, and real causes match it ("X was not touched by the migration"), so it advises and never denies.
+export const preAnswers = (text: string): string | undefined => {
+  const body = text.trim().split(/\r?\n/).slice(1).filter((line) => line.trim() !== '')
+  const hits = body.filter((line) => PREEMPT.test(line)).map((line) => line.trim().slice(0, 90))
+  return hits.length === 0 ? undefined : `pre-answers a reviewer instead of saying why:\n      ${hits.slice(0, 3).join('\n      ')}`
 }

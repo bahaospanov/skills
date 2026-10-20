@@ -62,8 +62,8 @@ export const addedDocLines = (diff: string, skip: ReadonlySet<string> = new Set(
 
 export const repeatMessage = (tokens: string[], where: string, line: string) =>
   `lean-docs/docs-no-repeat-code: this line repeats ${tokens.slice(0, 3).join('/')}, already stated in ${where}:\n  ${line.trim().slice(0, 160)}\n` +
-  'A duplicated fact is a second copy to keep in sync, and it is ' +
-  'the copy that drifts and starts lying. Point at the source or add nothing.'
+  'A duplicated fact is a second copy to keep in sync, and it is the copy that drifts. ' +
+  'If the line restates that file, point at the source instead; if the names only meet there, keep it.'
 
 export const docNotesOf = (perDoc: Record<string, number>, code: number, newDocs: Set<string>, hints: RepeatHint[]) => {
   const notes: string[] = []

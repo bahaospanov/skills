@@ -1,5 +1,5 @@
 import type { EngineInterface, Register } from 'claude-code'
-import { aiAttributionViolations, commitMessageViolations, invokesCommit, messageFrom, runsGitCommit } from './commit-message'
+import { aiAttributionViolations, commitMessageViolations, invokesCommit, messageFrom, preAnswers, runsGitCommit } from './commit-message'
 import {
   acknowledgesOrder,
   commitOrderRefused,
@@ -227,6 +227,9 @@ const judge = async (
 }
 
 
+const relayed = (advice: string) =>
+  `${advice}\nThe commit ran. Tell the user this as a recommendation; amend it only if they ask. The playbook skill's COMMITS.md has the rule.`
+
 export const register: Register = (on) => {
   on('prompt.submit', ($, e, next) => {
     if (e.origin.kind === 'plugin' && CONTINUATION_PLUGINS.includes(e.origin.name)) return next(e)
@@ -334,7 +337,13 @@ export const register: Register = (on) => {
     const text =
       source === undefined ? undefined : 'text' in source ? source.text : await $.fs.read(source.file).catch(() => undefined)
     const found = [...(text ? commitMessageViolations(text) : []), ...aiAttributionViolations(e.command, text)]
-    return found.length > 0 ? { deny: `git-tidy (commit message): ${found.join('; ')}` } : next(e)
+    if (found.length > 0) return { deny: `git-tidy (commit message): ${found.join('; ')}` }
+    const advice = text === undefined ? undefined : preAnswers(text)
+    if (advice === undefined) return next(e)
+    const result = await next(e)
+    if (result.deny !== undefined) return result
+    $.ui.log(`git-tidy (commit message): ${advice}`)
+    return { ...result, context: [...(result.context ?? []), relayed(`git-tidy (commit message): ${advice}`)] }
   })
 
   on('tool.call', { tool: 'Bash' }, async ($, e, next) => {
@@ -346,7 +355,10 @@ export const register: Register = (on) => {
       cwd: await $.session.cwd(),
     })
     if (review?.ok !== false) return next(e)
+    // A model judgment advises: someone new to the rules cannot argue with a model's block.
+    const result = await next(e)
+    if (result.deny !== undefined) return result
     $.ui.log(`git-tidy (${COMMIT_REVIEW.name}): ${review.reason}`)
-    return { deny: `git-tidy (${COMMIT_REVIEW.name}): ${review.reason}` }
+    return { ...result, context: [...(result.context ?? []), relayed(`git-tidy (${COMMIT_REVIEW.name}): ${review.reason}`)] }
   })
 }

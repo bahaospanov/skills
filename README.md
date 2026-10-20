@@ -74,7 +74,8 @@ The rules' text lives in the [playbook](skills/playbook/SKILL.md); the commit-or
 
 | Check | Runs on | Needs | Then |
 | --- | --- | --- | --- |
-| messages | A git commit | Conventional Commits subject, no reviewer pre-answers, no Co-Authored-By trailer naming Claude or Anthropic (in the message or a `--trailer` flag) and no "Generated with Claude Code" line; then Haiku: a body only when the cause is subtle | Commit denied |
+| messages | A git commit | Conventional Commits subject, no Co-Authored-By trailer naming Claude or Anthropic (in the message or a `--trailer` flag) and no "Generated with Claude Code" line | Commit denied |
+| message advice | A git commit | No reviewer pre-answers ("no X changed"); then Haiku: a body only when the cause is subtle | Commit runs; the user gets the advice |
 | fresh base | Opening an MR/PR: `gh pr create`, `glab mr create`, a GitLab API POST to `merge_requests` | The source branch, as origin has it, contains the target's latest commit, fetched first; skipped when the message says not to rebase | Call denied |
 | landed branch | A git push | The branch's pushed head already sits in a protected branch, and the message names no new MR | Push denied |
 | every commit works | A git push of 2 to 15 commits no remote has | Sonnet: no commit removes something a later one stops using, or uses something a later one adds; skipped when the message says the order is fine | Push denied |
@@ -114,7 +115,7 @@ Enabled in a repo's own `.claude/settings.json`, it applies to everyone working 
 | Check | Runs on | Flags | Then |
 | --- | --- | --- | --- |
 | docs-review | A doc grown in a git checkout | Haiku: text nobody reads after the task (runbooks, setup pages, narration) | Claude gets the reason |
-| docs-no-repeat-code | A doc line being written | Identifiers that already appear together in one code file | Write denied |
+| docs-no-repeat-code | A doc line being written | Identifiers that already appear together in one code file | Claude gets the hint; the write goes ahead |
 | limit-docs | The end of a turn | New or grown docs, prose outweighing code, doc lines repeating code | Follow-up prompt |
 
 No check reads a skill's folder, the one holding `SKILL.md`, or anything under it: a skill is read again on every use.

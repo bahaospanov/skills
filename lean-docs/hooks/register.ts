@@ -177,7 +177,10 @@ export const register: Register = (on) => {
     const added = e.tool === 'Write' ? e.content : e.new_string
     const old = e.tool === 'Write' ? await $.fs.read(e.file_path).catch(() => '') : e.old_string
     const reason = await repeatedFact($, e.file_path, added, old)
-    return reason === undefined ? next(e) : { deny: reason }
+    // Names meeting in one code file hint at a repeat without proving one, so it advises and the write goes ahead.
+    const result = await next(e)
+    if (reason === undefined || result.deny !== undefined || result.isError) return result
+    return { ...result, context: [...(result.context ?? []), reason] }
   })
 
   on('tool.call', { tool: ['Write', 'Edit'] }, async ($, e, next) => {
