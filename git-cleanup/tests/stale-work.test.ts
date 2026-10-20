@@ -51,14 +51,14 @@ describe('stale work', () => {
     expect(text).toContain('git push origin --delete fix/a-9')
     expect(text).toContain('git branch -d fix/b')
     expect(text).not.toContain('push origin --delete fix/b')
-    expect(text).toContain('If a check is still pending')
+    expect(text).toContain('When the user asks to clean up')
     expect(text).not.toContain('up to origin')
   })
 
   test('a local base behind origin is fast-forwarded first, by merge where it is checked out', () => {
     const item = { branch: 'fix/a', base: 'dev', local: true, remote: true }
     const here = staleReport([item], '/repo', [{ base: 'dev', checkout: '/repo' }])
-    expect(here).toContain('remove it now and bring the local dev up to origin,')
+    expect(here).toContain('remove it and bring the local dev up to origin,')
     expect(here).toContain('cd /repo\n  git merge --ff-only origin/dev\n  git branch -d fix/a')
     expect(staleReport([item], '/repo', [{ base: 'dev', checkout: '/repo/wt b' }])).toContain(
       "git -C '/repo/wt b' merge --ff-only origin/dev",

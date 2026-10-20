@@ -43,15 +43,15 @@ export const staleReport = (items: Stale[], main: string, behind: BehindBase[] =
     ]),
   ]
   const sync = behind.length > 0 ? ` and bring the local ${behind.map((b) => b.base).join(', ')} up to origin` : ''
-  return `git-cleanup (stale work): this session's work below is merged and its worktree is clean:
+  return `git-cleanup (stale work): the user saw a one-line note that this session's work below is merged and its worktree is clean:
 ${lines.join('\n')}
 
-If it is finished and checked (verified where it deploys), remove it now${sync},
-from the main checkout:
+When the user asks to clean up, remove it${sync}, from the main checkout:
 ${commands.map((c) => `  ${c}`).join('\n')}
 
 \`branch -d\` may call a branch unmerged when the local base lags behind
-origin or the merge rebased it; its commits are in origin, so -D is safe then.
-If a check is still pending, say what is left instead and clean up when it
-passes: this note does not repeat.`
+origin or the merge rebased it; its commits are in origin, so -D is safe then.`
 }
+
+export const staleNotice = (branches: string[]) =>
+  `git-cleanup: ${branches.join(', ')} ${branches.length === 1 ? 'is' : 'are'} merged; say "clean up" when it's checked`

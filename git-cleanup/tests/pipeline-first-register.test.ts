@@ -136,20 +136,20 @@ describe('pipeline first', () => {
     expect(logs.some((line) => line.includes('no gitlab_token in git-cleanup options'))).toBe(true)
   })
 
-  test('the stale-work follow-up waits for a green pipeline too', TOKEN, async ($, on) => {
-    const { ci, submitted, clock } = world(on)
+  test('the stale-work notice waits for a green pipeline too', TOKEN, async ($, on) => {
+    const { ci, logs, clock } = world(on)
+    const notices = () => logs.filter((line) => line.startsWith('git-cleanup: '))
     await $.prompt.submit(prompt('ship'))
     await $.tool.call(bash(`cd ${WT} && git commit -m "fix: a"`))
     await $.tool.call(bash(`cd ${WT} && git push -u origin fix/a`))
 
     await $.turn.complete(turnEnds())
     await clock.settle()
-    expect(submitted).toEqual([])
+    expect(notices()).toEqual([])
 
     ci.status = 'success'
     await $.turn.complete(turnEnds())
     await clock.settle()
-    expect(submitted.length).toBe(1)
-    expect(submitted[0]).toContain(`fix/a: in origin/dev; worktree ${WT}, local branch`)
+    expect(notices()).toEqual(['git-cleanup: fix/a is merged; say "clean up" when it\'s checked'])
   })
 })

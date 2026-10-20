@@ -24,7 +24,7 @@ import {
   type Verb,
 } from './shared/git-commands'
 import { refsInText } from './shared/issue-refs'
-import { staleReport, worktreesOf, type BehindBase, type Stale } from './stale-work'
+import { staleNotice, staleReport, worktreesOf, type BehindBase, type Stale } from './stale-work'
 
 const HUMAN_ORIGINS: readonly string[] = ['composer', 'bridge', 'sdk']
 const LOOKBACK = 30
@@ -44,6 +44,8 @@ let gitlabToken: string | undefined
 const worked = new Map<string, { dir: string | undefined; branches: Set<string> }>()
 const reportedStale = new Set<string>()
 let staleFollowUps = 0
+// The report behind the last one-line notice, carried unseen to the model with the user's next prompt.
+let staleContext: string | undefined
 
 const firstLine = (text: string) => text.split('\n')[0] ?? ''
 
@@ -259,8 +261,12 @@ export const register: Register = (on, options) => {
   gitlabToken = typeof options.gitlab_token === 'string' && options.gitlab_token !== '' ? options.gitlab_token : undefined
 
   on('prompt.submit', ($, e, next) => {
-    if (HUMAN_ORIGINS.includes(e.origin.kind)) typed = [...typed, { text: e.text, turnId: e.turnId }].slice(-LOOKBACK)
-    return next(e)
+    if (!HUMAN_ORIGINS.includes(e.origin.kind)) return next(e)
+    typed = [...typed, { text: e.text, turnId: e.turnId }].slice(-LOOKBACK)
+    if (staleContext === undefined) return next(e)
+    const context = [...(e.context ?? []), staleContext]
+    staleContext = undefined
+    return next({ ...e, context })
   })
 
   on('tool.call', { tool: 'Bash' }, async ($, e, next) => {
@@ -296,12 +302,9 @@ export const register: Register = (on, options) => {
     const reports = await staleWork($).catch(() => [])
     if (reports.length === 0) return result
     staleFollowUps++
-    const branches = reports.flatMap((r) => r.items.map((s) => s.branch))
-    $.ui.log(`git-cleanup (stale work): ${branches.join(', ')} merged and clean; a follow-up prompt asks to remove them`)
-    const text = reports.map((r) => staleReport(r.items, r.main, r.behind)).join('\n\n')
-    $.clock.after(0, () => {
-      $.prompt.submit({ text }).catch(() => undefined)
-    })
+    // A one-line notice for the user instead of a follow-up prompt: the cleanup waits for them to ask.
+    $.ui.log(staleNotice(reports.flatMap((r) => r.items.map((s) => s.branch))))
+    staleContext = reports.map((r) => staleReport(r.items, r.main, r.behind)).join('\n\n')
     return result
   })
 }

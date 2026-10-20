@@ -11,12 +11,18 @@ type Repo = { landed: boolean; dirty: boolean; remoteBranch: boolean; localDevBe
 const world = (on: On) => {
   const repo: Repo = { landed: false, dirty: false, remoteBranch: true, localDevBehind: false }
   const submitted: string[] = []
+  const notices: string[] = []
+  const carried: (readonly string[])[] = []
   const clock = mock.clock(on)
   mock.env(on, { HOME: '/Users/me' })
-  on('ui.log', () => ({ value: undefined }))
+  on('ui.log', ($, e) => {
+    if (e.text.startsWith('git-cleanup: ')) notices.push(e.text)
+    return { value: undefined }
+  })
   on('fs.read', ($, e) => ({ deny: `ENOENT: ${e.path}` }))
   on('prompt.submit', ($, e) => {
     if (e.origin.kind === 'plugin') submitted.push(e.text)
+    else carried.push(e.context ?? [])
     return { text: e.text }
   })
   on('turn.complete', ($, e) => ({ text: e.answer }))
@@ -43,7 +49,7 @@ const world = (on: On) => {
     return no
   })
   on('tool.call', { tool: 'Bash' }, () => ({ result: { stdout: '', stderr: '', interrupted: false } }))
-  return { repo, submitted, clock }
+  return { repo, submitted, notices, carried, clock }
 }
 
 const bash = (command: string) => ({ tool: 'Bash' as const, command })
@@ -64,13 +70,13 @@ const ship = async ($: Engine) => {
 }
 
 describe('stale work', () => {
-  test('once the branch lands, one follow-up asks to remove its worktree and branches', async ($, on) => {
-    const { repo, submitted, clock } = world(on)
+  test('once the branch lands, one line tells the user and the report rides unseen with their next message', async ($, on) => {
+    const { repo, submitted, notices, carried, clock } = world(on)
     await ship($)
 
     await $.turn.complete(turnEnds())
     await clock.settle()
-    expect(submitted).toEqual([])
+    expect(notices).toEqual([])
 
     repo.landed = true
     await $.turn.complete(turnEnds())
@@ -78,37 +84,44 @@ describe('stale work', () => {
     await $.turn.complete(turnEnds())
     await clock.settle()
 
-    expect(submitted.length).toBe(1)
-    expect(submitted[0]).toContain(`fix/a: in origin/dev; worktree ${WT}, local branch, on origin`)
-    expect(submitted[0]).toContain(`cd /repo\n  git worktree remove ${WT}\n  git branch -d fix/a\n  git push origin --delete fix/a`)
+    expect(notices).toEqual(['git-cleanup: fix/a is merged; say "clean up" when it\'s checked'])
+    expect(submitted).toEqual([])
+
+    await $.prompt.submit(prompt('clean up'))
+    await $.prompt.submit(prompt('thanks'))
+    const report = carried.at(-2)?.at(-1) ?? ''
+    expect(report).toContain(`fix/a: in origin/dev; worktree ${WT}, local branch, on origin`)
+    expect(report).toContain(`cd /repo\n  git worktree remove ${WT}\n  git branch -d fix/a\n  git push origin --delete fix/a`)
+    expect(carried.at(-1)).toEqual([])
   })
 
-  test('a local base behind origin is fast-forwarded in the same follow-up, where it is checked out', async ($, on) => {
-    const { repo, submitted, clock } = world(on)
+  test('a local base behind origin is fast-forwarded in the same report, where it is checked out', async ($, on) => {
+    const { repo, carried, clock } = world(on)
     await ship($)
     repo.landed = true
     repo.localDevBehind = true
 
     await $.turn.complete(turnEnds())
     await clock.settle()
+    await $.prompt.submit(prompt('clean up'))
 
-    expect(submitted.length).toBe(1)
-    expect(submitted[0]).toContain('remove it now and bring the local dev up to origin,')
-    expect(submitted[0]).toContain(`cd /repo\n  git merge --ff-only origin/dev\n  git worktree remove ${WT}`)
+    const report = carried.at(-1)?.at(-1) ?? ''
+    expect(report).toContain('remove it and bring the local dev up to origin,')
+    expect(report).toContain(`cd /repo\n  git merge --ff-only origin/dev\n  git worktree remove ${WT}`)
   })
 
-  test('a dirty worktree, a subagent turn or untouched work gets no follow-up', async ($, on) => {
-    const { repo, submitted, clock } = world(on)
+  test('a dirty worktree, a subagent turn or untouched work gets no notice', async ($, on) => {
+    const { repo, notices, clock } = world(on)
     repo.landed = true
     await $.turn.complete(turnEnds())
     await clock.settle()
-    expect(submitted).toEqual([])
+    expect(notices).toEqual([])
 
     await ship($)
     repo.dirty = true
     await $.turn.complete(turnEnds())
     await $.turn.complete(turnEnds({ agentId: 'a1' }))
     await clock.settle()
-    expect(submitted).toEqual([])
+    expect(notices).toEqual([])
   })
 })
