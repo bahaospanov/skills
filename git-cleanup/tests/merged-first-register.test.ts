@@ -30,6 +30,7 @@ const world = (on: On) => {
       'git rev-parse --verify --quiet refs/heads/fix/b': 'b1\n',
       'git merge-base --is-ancestor a1 refs/remotes/origin/main': '',
       'git cherry refs/remotes/origin/main b1': '+ b1\n',
+      'git worktree list --porcelain': 'worktree /repo\nHEAD m1\nbranch refs/heads/main\n\nworktree /repo/.worktrees/b\nHEAD b1\nbranch refs/heads/fix/b\n',
       'gh run list --branch main --limit 20 --json databaseId,headSha,status,conclusion,url': '[]',
       'gh pr list --head fix/b --state merged --limit 1 --json number': forge.mergedPr ? '[{"number":3}]' : '[]',
     }
@@ -47,6 +48,17 @@ const bash = (command: string) => ({ tool: 'Bash' as const, command })
 const prompt = (text: string, origin: PromptOrigin = { kind: 'composer' }) => ({ text, origin, wait: false })
 
 describe('merged first', () => {
+  test('removing the worktree of an unmerged branch keeps the branch, so it runs; removing the branch too is held', async ($, on) => {
+    const { ran } = world(on)
+    await $.prompt.submit(prompt('clean up'))
+
+    await $.tool.call(bash('cd /repo && git worktree remove .worktrees/b'))
+    const held = await $.tool.call(bash('cd /repo && git worktree remove .worktrees/b && git branch -D fix/b'))
+
+    expect(ran).toEqual(['cd /repo && git worktree remove .worktrees/b'])
+    expect(held.deny).toContain("nothing says 'fix/b' is merged")
+  })
+
   test('with no pipeline, a branch git shows merged is removed; one it does not is held', async ($, on) => {
     const { ran, logs } = world(on)
     await $.prompt.submit(prompt('clean up the branches'))

@@ -108,7 +108,7 @@ Split from git-gates on 2026-10-20; the origins are from git-gates' history.
 
 | Rule | Kind | Check | Effect | Origin |
 | --- | --- | --- | --- | --- |
-| Removing a branch or worktree needs it merged | op | code | deny | bb1060d |
+| Removing a branch needs it merged | op | code | deny | bb1060d. A worktree's removal is not held since 2026-10-20: it keeps the branch |
 | Cleanup and issue edits wait for the pipeline | op | code | deny | 2026-10-05: right after an MR merged, the agent removed its worktree and branch and ticked the issue while the deploy pipeline still ran |
 | Closing an issue is left to the user | op | — | skip | 05cb416. Since 2026-10-20 the release skill leaves issues open too: the user's call |
 | Merged, clean work gets removed | op | code | follow-up | 2026-10-05: a merged, checked branch kept its worktree and branches, and nothing came back for them |
