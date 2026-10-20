@@ -9,17 +9,22 @@ describe('signals', () => {
     expect(addedSignal('# a\n# b\n# c\nx = 1', ['#'], 'a.py')).toBeUndefined()
   })
 
-  test('a five-line comment block near the edit is a signal even at low density', () => {
-    const body = [...code(10), '# n1', '# n2', '# n3', '# n4', '# n5', ...code(5, 'y')].join('\n')
-    expect(densitySignal('a.py', body, 'x9 = 9', ['#'])).toBe(
-      'The region you edited (a.py:1-20) carries a 5-line comment block at line 11 (region is 25% comment). ' +
-        'Every comment in that range is in scope, including the ones you did not write: editing here is what puts them in your blast radius.',
+  test('a five-line comment block near an edit adding a comment is a signal even at low density', () => {
+    const body = [...code(9), '# why x9', 'x9 = 9', '# n1', '# n2', '# n3', '# n4', '# n5', ...code(4, 'y')].join('\n')
+    expect(densitySignal('a.py', body, '# why x9\nx9 = 9', ['#'])).toBe(
+      'The region you edited (a.py:1-20) carries a 5-line comment block at line 12 (region is 30% comment), and this edit adds 1 comment line to it. ' +
+        'Cut yours to what earns its place; the comments you did not write are not yours to prune.',
     )
   })
 
   test('a region over 30% comments is a signal; an edit not found in the file is not', () => {
-    const body = ['a = 1', '# c1', 'b = 2', '# c2', 'c = 3', '# c3', 'd = 4', '# c4'].join('\n')
-    expect(densitySignal('a.py', body, 'b = 2', ['#'])).toContain('(a.py:1-8) carries 50% comment - 4 comment lines against 4 of code.')
-    expect(densitySignal('a.py', body, 'z = 9', ['#'])).toBeUndefined()
+    const body = ['a = 1', '# c1', 'b = 2  # c0', '# c2', 'c = 3', '# c3', 'd = 4', '# c4'].join('\n')
+    expect(densitySignal('a.py', body, '# c2', ['#'])).toContain('(a.py:1-8) carries 50% comment - 4 comment lines against 4 of code')
+    expect(densitySignal('a.py', body, '# z9', ['#'])).toBeUndefined()
+  })
+
+  test('an edit adding no comment is not held to the comments around it', () => {
+    const body = [...code(10), '# n1', '# n2', '# n3', '# n4', '# n5', ...code(5, 'y')].join('\n')
+    expect(densitySignal('a.py', body, 'x9 = 9', ['#'])).toBeUndefined()
   })
 })

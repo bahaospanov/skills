@@ -6,7 +6,10 @@ export const addedSignal = (text: string, marks: readonly string[], path: string
   return comment.length > ADD_LIMIT ? `This edit adds ${comment.length} comment-only lines (soft limit ${ADD_LIMIT}).` : undefined
 }
 
+// Only an edit that adds comments of its own makes the region's density its business.
 export const densitySignal = (path: string, body: string, text: string, marks: readonly string[]) => {
+  const own = classify(splitLines(text), marks, true, path).comment.length
+  if (own === 0) return undefined
   const lines = splitLines(body)
   const index = body.indexOf(text)
   if (index < 0) return undefined
@@ -40,9 +43,8 @@ export const densitySignal = (path: string, body: string, text: string, marks: r
     ? `a ${best}-line comment block at line ${lo + bestStart + 1} (region is ${percent}% comment)`
     : `${percent}% comment - ${comment.length} comment lines against ${code} of code`
   return (
-    `The region you edited (${path}:${lo + 1}-${hi}) carries ${what}. Every comment in that ` +
-    'range is in scope, including the ones you did not write: editing here ' +
-    'is what puts them in your blast radius.'
+    `The region you edited (${path}:${lo + 1}-${hi}) carries ${what}, and this edit adds ${own} comment ` +
+    `line${own === 1 ? '' : 's'} to it. Cut yours to what earns its place; the comments you did not write are not yours to prune.`
   )
 }
 
