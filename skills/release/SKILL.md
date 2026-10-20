@@ -172,6 +172,8 @@ The backup sentence appears only after a rewrite. Referencing each `#N` cross-li
 
 ### 10. Ship waves
 
+**Before shots**, ahead of wave 1's promote, while production still lacks every change: write the presentation skill's `shots.json` ([`../presentation/SHOTS.md`](../presentation/SHOTS.md)) for the user-visible changes the waves ship, production as both `before` and `after`, and shoot the before side into the run's scratch folder: `node ../presentation/scripts/shoot.mjs shots.json shots/ before`, from this skill's folder. Done when every shot's outline sits on its change; step 11's report hands the file and the shots over.
+
 Per wave, in order:
 
 1. Hand the user the wave's before-promote steps (and, in wave 1, the any-time ones); wait for their "deploy" for this wave. A flag the user asks the run to set goes through the flag script ([`TRACKERS.md`](TRACKERS.md), Scripts).
@@ -188,7 +190,7 @@ Once the user confirms production works after the last shipped wave (or after th
 
 1. **Version.** `scripts/next-version.sh <shipped tip>` prints the previous tag and the next SemVer from the commits since it: a breaking `!` or `BREAKING CHANGE:` → major, any `feat` → minor, else patch; no previous tag → `v1.0.0`, unless the user names another. `git tag -a <v> -m <v> <full sha>`, `git push origin <v>`, then a release entry named `<v>` whose notes list the shipped issues (`- #N title`) and the runbook ([`TRACKERS.md`](TRACKERS.md)).
 2. **Issues.** `scripts/issue-close.sh` per issue a shipped commit references: note `Shipped to production in <v> (runbook #R)`, the production label, closed. An issue with work left — a held commit, an open MR — gets `--keep-open` and `Partly shipped in <v>: <shas>`, no label.
-3. **Report.** Call the Skill tool with "presentation", handing it the changes — the shipped tickets' how-to-test items (step 4), a flag-gated one only when its flag is on in production — `<v>` as the label, and production as the site. Append a `## Release album` section to the runbook's description, the caption then the images, with the image script ([`TRACKERS.md`](TRACKERS.md)), so the album stays with the release record. A run with no user-visible change says so and has no album.
+3. **Report.** Call the Skill tool with "presentation", handing it the changes — the shipped tickets' how-to-test items (step 4), a flag-gated one only when its flag is on in production — `<v>` as the label, production as the site, and step 10's `shots.json` and before shots. Append a `## Release album` section to the runbook's description, the caption then the images, with the image script ([`TRACKERS.md`](TRACKERS.md)), so the album stays with the release record. A run with no user-visible change says so and has no album.
 4. **Runbook.** `scripts/issue-close.sh --dates <first day of the run> <today> <runbook> "Released as <v>: <release link>" type::release`.
 
 Done when the tag and its release entry exist, every shipped issue is closed or noted, the presentation skill's build is done and the album is in the runbook's description, and the runbook is closed.

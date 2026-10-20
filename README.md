@@ -30,7 +30,7 @@ Reachable only when you type them (Claude Code: `disable-model-invocation: true`
 Model- or user-reachable.
 
 - **[mr-style](skills/mr-style/SKILL.md)**: An MR or PR description built from fixed `### Label` blocks (Symptom, Cause, Measured, Scope, Constraint, Cost, Verified, Remaining), each line at column 0, written as the author's own.
-- **[presentation](skills/presentation/SKILL.md)**: Phone-sized slides of what changed for a product's users, shot from the live site and rendered as 4:5 PNGs with a caption to post in a chat; release builds its release album with it.
+- **[presentation](skills/presentation/SKILL.md)**: Phone-sized slides of what changed for a product's users, one changed place per slide: its page URL and desktop before/after shots with the change outlined, rendered as 4:5 PNGs with a caption to post in a chat; release builds its release album with it.
 - **[prototype-stages](skills/prototype-stages/SKILL.md)**: [mattpocock/skills `prototype`](https://github.com/mattpocock/skills/tree/main/skills/engineering/prototype) (MIT), its UI branch reworked: whole flows, options grouped by stage in a one-click panel.
 - **[scheme](skills/scheme/SKILL.md)**: ASCII schematic of a code change: control flow, data flow, before/after, or layers.
 

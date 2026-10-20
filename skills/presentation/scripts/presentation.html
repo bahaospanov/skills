@@ -4,33 +4,23 @@
 <meta charset="utf-8">
 <title>Presentation</title>
 <style>
-  :root { --bg: #0b0b0f; --line: #26262e; --text: #f2f2f4; --muted: #a0a0ac; --accent: #b8f23c; }
+  :root { --bg: #0b0b0f; --line: #26262e; --text: #f2f2f4; --muted: #a0a0ac; --accent: #b8f23c; --old: #ff5c5c; }
   * { box-sizing: border-box; margin: 0; }
   body { background: #333; font: 17px/1.4 -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", sans-serif; color: var(--text); padding: 20px; display: flex; flex-direction: column; gap: 20px; }
-  .slide { width: 540px; height: 675px; background: var(--bg); padding: 32px 30px; display: flex; flex-direction: column; overflow: hidden; }
+  .slide { width: 540px; height: 675px; background: var(--bg); padding: 30px 30px 28px; display: flex; flex-direction: column; overflow: hidden; }
   .top { display: flex; justify-content: space-between; font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
   .top b { color: var(--text); }
-  h2 { font-size: 34px; line-height: 1.08; font-weight: 800; letter-spacing: -.02em; margin-top: 22px; }
+  h2 { font-size: 34px; line-height: 1.08; font-weight: 800; letter-spacing: -.02em; margin-top: 18px; }
   h2 span { color: var(--accent); }
-  p { color: var(--muted); margin-top: 10px; }
-  .media { margin-top: 20px; flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 12px; }
-  .frame { border: 1px solid var(--line); border-radius: 14px; overflow: hidden; background: #000; }
+  .where { font: 15px/1.4 ui-monospace, "SF Mono", Menlo, monospace; color: var(--muted); margin-top: 10px; white-space: nowrap; }
+  .where b { color: var(--accent); font-weight: 500; }
+  p { color: var(--muted); margin-top: 6px; }
+  .stack { margin-top: 14px; flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 6px; }
+  .lbl { font-size: 12px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
+  .lbl.old { color: var(--old); }
+  .lbl.new { color: var(--accent); margin-top: 6px; }
+  .frame { flex: 1; min-height: 0; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: #000; }
   .frame img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: center top; }
-  .lbl { font-size: 12px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: var(--accent); }
-  .pair { flex: 1; min-height: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-  .col { display: flex; flex-direction: column; gap: 6px; min-height: 0; }
-  .col .frame { flex: 1; min-height: 0; }
-  .phone { flex: 1; min-height: 0; width: 300px; align-self: center; border-radius: 28px; border: 6px solid #22222a; }
-  .url { font: 14px/1.5 ui-monospace, "SF Mono", Menlo, monospace; color: var(--muted); margin-top: 14px; }
-  .url s { color: #6b6b75; }
-  .url b { color: var(--accent); font-weight: 500; }
-  .bubble { background: #1e2a38; border-radius: 16px 16px 16px 4px; padding: 12px 14px 14px; }
-  .bubble .link { color: #6ab3f3; font-size: 15px; }
-  .preview { border-left: 3px solid #6ab3f3; padding-left: 10px; margin-top: 8px; }
-  .preview .site { color: #6ab3f3; font-weight: 600; font-size: 14px; }
-  .preview .title { font-weight: 600; font-size: 14px; margin-top: 2px; }
-  .preview .desc { color: #c9d1da; font-size: 13px; margin-top: 2px; }
-  .preview img { display: block; width: 100%; border-radius: 8px; margin-top: 8px; }
   ul { list-style: none; padding: 0; margin-top: 8px; flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 34px; }
   li { font-size: 26px; font-weight: 700; line-height: 1.25; padding-left: 30px; position: relative; }
   li::before { content: ""; position: absolute; left: 0; top: .42em; width: 12px; height: 12px; border-radius: 50%; background: var(--accent); }
@@ -41,43 +31,32 @@
 <body>
 
 <section class="slide">
-  <div class="top"><span><b>Brand</b> · v1.2.0 · 13 Oct</span><span>1 / 4</span></div>
-  <h2>Feature name<br>is <span>live</span></h2>
-  <p>One line on what the user gets.</p>
-  <div class="media">
-    <div class="pair">
-      <div class="col"><div class="lbl">Page A</div><div class="frame"><img src="shots/a.png"></div></div>
-      <div class="col"><div class="lbl">Page B</div><div class="frame"><img src="shots/b.png"></div></div>
-    </div>
+  <div class="top"><span><b>Brand</b> · v1.2.0 · 13 Oct</span><span>1 / 3</span></div>
+  <h2>Every model shows<br>its <span>size</span></h2>
+  <div class="where">example.com<b>/models/garlic-05</b> → Details</div>
+  <p>One line: what replaced what.</p>
+  <div class="stack">
+    <div class="lbl old">Before · live site</div><div class="frame"><img src="shots/model-before.png"></div>
+    <div class="lbl new">After · dev</div><div class="frame"><img src="shots/model-after.png"></div>
   </div>
 </section>
 
 <section class="slide">
-  <div class="top"><span><b>Brand</b> · v1.2.0 · 13 Oct</span><span>2 / 4</span></div>
-  <h2>Clearer <span>pages</span></h2>
-  <p>One line on what changed.</p>
-  <div class="url"><s>/old/path</s><br><b>/new/path</b></div>
-  <div class="media"><div class="frame phone"><img src="shots/c.png"></div></div>
-</section>
-
-<section class="slide">
-  <div class="top"><span><b>Brand</b> · v1.2.0 · 13 Oct</span><span>3 / 4</span></div>
-  <h2>Link previews<br>show <span>the thing</span></h2>
-  <p>One line on what a shared link now shows.</p>
-  <div class="media">
-    <div class="bubble">
-      <div class="link">example.com/page</div>
-      <div class="preview"><div class="site">Brand</div><div class="title">og:title</div><div class="desc">og:description</div><img src="shots/og.png"></div>
-    </div>
+  <div class="top"><span><b>Brand</b> · v1.2.0 · 13 Oct</span><span>2 / 3</span></div>
+  <h2>All <span>collections</span><br>in one place</h2>
+  <div class="where">example.com<b>/collections</b></div>
+  <p>One line: what the user gets.</p>
+  <div class="stack">
+    <div class="frame"><img src="shots/hub-after.png"></div>
   </div>
 </section>
 
 <section class="slide">
-  <div class="top"><span><b>Brand</b> · v1.2.0 · 13 Oct</span><span>4 / 4</span></div>
+  <div class="top"><span><b>Brand</b> · v1.2.0 · 13 Oct</span><span>3 / 3</span></div>
   <h2>Also <span>new</span></h2>
   <ul>
-    <li>Small change<small>What the user notices</small></li>
-    <li>Small change<small>What the user notices</small></li>
+    <li>Change with no one place<small>What the user notices</small></li>
+    <li>Change with no one place<small>What the user notices</small></li>
   </ul>
   <div class="foot">example.com</div>
 </section>
