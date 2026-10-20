@@ -1,7 +1,7 @@
 // Observed 2026-10-05: right after an MR merged, the agent removed its worktree and branch
 // and ticked the issue while the pipeline deploying the merge still ran.
 
-export type PipelineState = 'success' | 'running' | 'failed'
+export type PipelineState = 'success' | 'running' | 'idle' | 'failed'
 export type Pipeline = { id: string; sha: string; state: PipelineState; status: string; url?: string | undefined }
 export type Coverage =
   | { kind: 'green' }
@@ -10,11 +10,14 @@ export type Coverage =
 export type Cleanup = { branches: string[]; worktrees: string[] }
 
 const SEPARATORS = ['&&', '||', ';', '|']
-// Anything neither success nor in flight (manual, canceled, skipped) did not ship.
+// Anything neither success, in flight nor idle (canceled, failed) did not ship.
 const RUNNING = new Set([
   'created', 'waiting_for_resource', 'preparing', 'pending', 'running', 'scheduled',
   'queued', 'in_progress', 'requested', 'waiting',
 ])
+// GitLab parks a pipeline at manual (a job waits for a click) or skipped (CI did not run it): nothing
+// runs or fails any more, so waiting for it would hold the cleanup forever.
+const IDLE = new Set(['manual', 'skipped'])
 const GITHUB_PASS = new Set(['success', 'skipped', 'neutral'])
 
 const segmentsOf = (command: string) => {
@@ -62,7 +65,7 @@ export const remoteOf = (url: string): { host: string; path: string } | undefine
 }
 
 const stateOf = (status: string): PipelineState =>
-  status === 'success' ? 'success' : RUNNING.has(status) ? 'running' : 'failed'
+  status === 'success' ? 'success' : RUNNING.has(status) ? 'running' : IDLE.has(status) ? 'idle' : 'failed'
 
 const parse = (json: string): unknown => {
   try {
@@ -127,7 +130,9 @@ export const coverageOf = (pipelines: (Pipeline & { covers: boolean })[]): Cover
     return { kind: 'unknown', why: pipelines.length === 0 ? 'the branch has no pipelines' : 'no pipeline holds this work' }
   }
   const running = covering.find((p) => p.state === 'running')
-  return running !== undefined ? { kind: 'waiting', pipeline: running } : { kind: 'failed', pipeline: newest }
+  if (running !== undefined) return { kind: 'waiting', pipeline: running }
+  if (newest.state === 'idle') return { kind: 'unknown', why: `pipeline ${newest.id} is ${newest.status}` }
+  return { kind: 'failed', pipeline: newest }
 }
 
 const ACKNOWLEDGES =
