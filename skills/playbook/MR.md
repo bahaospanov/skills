@@ -1,5 +1,10 @@
 # Merge requests
 
+Temporarily off: the user's own PR-body skill writes MR and PR descriptions for now. This part stays below, commented out, until it returns; apply none of it.
+
+<!--
+# Merge requests
+
 An MR or PR targets the base and carries one branch's feature ([BRANCHES.md](BRANCHES.md)).
 
 ## Before pushing
@@ -38,3 +43,4 @@ Work touching a frontend carries screenshots under Verified: the real app runnin
 ## After the merge
 
 [CLEANUP.md](CLEANUP.md).
+-->
