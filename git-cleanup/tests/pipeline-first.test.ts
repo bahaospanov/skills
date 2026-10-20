@@ -44,9 +44,9 @@ describe('pipeline first: what a command cleans up or fills in', () => {
 
 describe('pipeline first: reading the forge', () => {
   test('remotes in scp, ssh and https form', () => {
-    expect(remoteOf('git@gitlab.dev-scanwow.com:scanwow/scanwow-monorepo.git')).toEqual({
-      host: 'gitlab.dev-scanwow.com',
-      path: 'scanwow/scanwow-monorepo',
+    expect(remoteOf('git@gitlab.example.com:team/app-monorepo.git')).toEqual({
+      host: 'gitlab.example.com',
+      path: 'team/app-monorepo',
     })
     expect(remoteOf('ssh://git@gitlab.example.com:2222/a/b/c.git')).toEqual({ host: 'gitlab.example.com', path: 'a/b/c' })
     expect(remoteOf('https://github.com/bahaospanov/skills')).toEqual({ host: 'github.com', path: 'bahaospanov/skills' })

@@ -1,4 +1,4 @@
-// Asked for 2026-10-15 (scanwow): a teammate's branches grew a commit per fix and per
+// Asked for 2026-10-15 in a team project: a teammate's branches grew a commit per fix and per
 // increment of the one feature they built, and nobody sat beside them to fold those in.
 
 export const FOLLOW_UP_MODEL = 'claude-sonnet-5-5'

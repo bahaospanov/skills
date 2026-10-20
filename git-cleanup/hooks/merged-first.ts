@@ -1,6 +1,6 @@
-const SAYS_MERGED = /(^|[^\p{L}])(merged|смержен[аоы]?|смержил[аи]?|влит[аоы]?|влил[аи]?)(?!\p{L})/iu
-const DENIES_MERGED = /(\bnot|n't|\bnever|\bun)[\s-]*(yet\s+)?merged|не\s+(смерж|влит|влил)/iu
-const LETS_GO = /\b(abandon(ed)?|discard(ed)?|throw (it )?away|delete (it )?(anyway|unmerged))\b|выброс|не нужн/iu
+const SAYS_MERGED = /(^|[^\p{L}])(merged)(?!\p{L})/iu
+const DENIES_MERGED = /(\bnot|n't|\bnever|\bun)[\s-]*(yet\s+)?merged/iu
+const LETS_GO = /\b(abandon(ed)?|discard(ed)?|throw (it )?away|delete (it )?(anyway|unmerged))\b/iu
 
 export const saysMerged = (text: string) => (SAYS_MERGED.test(text) && !DENIES_MERGED.test(text)) || LETS_GO.test(text)
 

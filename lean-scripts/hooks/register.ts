@@ -1,5 +1,5 @@
 import type { EngineInterface, Register } from 'claude-code'
-import { hasScriptExt, isApplicationSource, isTestFile } from './gates'
+import { isScriptPath, isTestFile } from './gates'
 import { SCRIPT_FILE } from './prompts'
 import { dirOf, isDotfileOrTemp, isTrim, MEDIA_CHECK } from './shared/paths'
 import { MODEL, promptFor, SYSTEM, verdictOf, type Review, type Verdict } from './shared/verdict'
@@ -29,7 +29,7 @@ const judge = async ($: EngineInterface, review: Review, input: object): Promise
 export const register: Register = (on) => {
   on('tool.call', { tool: ['Write', 'Edit'] }, async ($, e, next) => {
     const path = e.file_path
-    if (isApplicationSource(path) || isTestFile(path) || isDotfileOrTemp(path, await $.env.get('HOME'), await $.env.get('TMPDIR'))) {
+    if (isTestFile(path) || isDotfileOrTemp(path, await $.env.get('HOME'), await $.env.get('TMPDIR'))) {
       return next(e)
     }
     const result = await next(e)
@@ -37,7 +37,7 @@ export const register: Register = (on) => {
 
     if (e.tool === 'Edit' && isTrim(e.new_string, e.old_string)) return result
     const isScript =
-      hasScriptExt(path) || (e.tool === 'Write' ? e.content : await $.fs.read(path).catch(() => '')).startsWith('#!')
+      isScriptPath(path) || (e.tool === 'Write' ? e.content : await $.fs.read(path).catch(() => '')).startsWith('#!')
     if (!isScript || !(await inCheckout($, path)) || (await isMediaWork($, path))) return result
 
     const tool_input =

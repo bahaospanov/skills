@@ -56,7 +56,6 @@ describe('consent', () => {
     expect(authorizes("commit, don't push")).toBe(true)
     expect(authorizes("you said don't commit, now commit it")).toBe(true)
     expect(authorizes('no tests needed so commit')).toBe(true)
-    expect(authorizesMerge('не смерживай пока')).toBe(false)
     expect(authorizesMerge("don't merge it")).toBe(false)
     expect(authorizesMerge('open a merge request')).toBe(false)
     expect(authorizesMerge('merge the merge request')).toBe(true)
@@ -100,14 +99,12 @@ describe('consent', () => {
     expect(authorizes('a catchy tagline')).toBe(false)
     expect(authorizes('what was released last week?')).toBe(false)
     expect(authorizesMerge('merge it')).toBe(true)
-    expect(authorizesMerge('смержи в dev')).toBe(true)
     expect(authorizesMerge('ship it')).toBe(false)
   })
 
   test('a message asking for repeated commits opens a grant of that size', () => {
     expect(grantRequest('do it, commit x3')).toBe(3)
     expect(grantRequest('split into 4 separate commits')).toBe(4)
-    expect(grantRequest('коммит х2')).toBe(2)
     expect(grantRequest('keep committing for the rest of the session')).toBe(10)
     expect(grantRequest('commit after each task')).toBe(5)
     expect(grantRequest('commit this')).toBeUndefined()
@@ -133,7 +130,6 @@ describe('consent', () => {
 
   test('a direct push is authorized only when the branch is named near the verb', () => {
     expect(namesBranch('push to dev', 'dev')).toBe(true)
-    expect(namesBranch('запушь в dev', 'dev')).toBe(true)
     expect(namesBranch('push it', 'dev')).toBe(false)
     expect(namesBranch('push to dev-2', 'dev')).toBe(false)
   })
