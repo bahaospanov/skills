@@ -4,7 +4,8 @@ set -euo pipefail
 # Adapted from mattpocock/skills scripts/link-skills.sh (MIT).
 # Use this or the bahaospanov-skills plugin, not both: each skill would load twice.
 
-REPO="$(cd "$(dirname "$0")/.." && pwd)"
+# An exported CDPATH makes cd print the directory, doubling it in REPO.
+REPO="$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)"
 DESTS=("$HOME/.claude/skills" "$HOME/.agents/skills")
 
 names=()
