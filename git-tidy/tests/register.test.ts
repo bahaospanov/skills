@@ -222,16 +222,28 @@ describe('register', () => {
     expect(asked.length).toBe(1)
   })
 
-  test('a well-formed commit whose body Haiku rejects is denied before it runs', async ($, on) => {
+  test('a commit whose body Haiku rejects runs, and the user gets the review as advice', async ($, on) => {
     const { ran, asked, logs } = world(on, { review: '{"ok": false, "reason": "body restates the diff"}' })
 
     await $.prompt.submit(prompt('commit'))
-    const refused = await $.tool.call(bash('git commit -m "fix: a" -m "Changed a.py"'))
+    const advised = await $.tool.call(bash('git commit -m "fix: a" -m "Changed a.py"'))
 
     expect(asked[0]?.prompt.startsWith('Reviewer for a commit message. {"hook_event_name":"PreToolUse"')).toBe(true)
-    expect(refused.deny).toBe('git-tidy (commit message review): body restates the diff')
+    expect(advised.deny).toBeUndefined()
+    expect(advised.context?.at(-1)).toContain('git-tidy (commit message review): body restates the diff\nThe commit ran.')
     expect(logs).toEqual(['git-tidy (commit message review): body restates the diff'])
-    expect(ran).toEqual([])
+    expect(ran).toEqual(['git commit -m "fix: a" -m "Changed a.py"'])
+  })
+
+  test('a body pre-answering a reviewer runs, and the user gets advice', async ($, on) => {
+    const { ran, logs } = world(on)
+
+    await $.prompt.submit(prompt('commit'))
+    const advised = await $.tool.call(bash('git commit -m "fix: a" -m "Nothing else changed."'))
+
+    expect(advised.deny).toBeUndefined()
+    expect(logs).toEqual(['git-tidy (commit message): pre-answers a reviewer instead of saying why:\n      Nothing else changed.'])
+    expect(ran).toEqual(['git commit -m "fix: a" -m "Nothing else changed."'])
   })
 
   test('a commit Haiku gives no answer on still runs, and the reason is logged', async ($, on) => {
