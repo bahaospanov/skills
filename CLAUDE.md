@@ -5,6 +5,10 @@ Two kinds of plugin share this repo and its marketplace (`.claude-plugin/marketp
 - **mods**: a folder each (`git-gates/`, `lean-docs/`, …) with its own `.claude-plugin/plugin.json`. Building and checking them: README, "Develop" and "Check".
 - **skills**: `skills/<name>/`, shipped together as one plugin, `bahaospanov-skills`, whose manifest is the root `.claude-plugin/plugin.json`.
 
+## Mods
+
+- Adding, changing or removing a mod's rule: [STORY.md](STORY.md) holds the tests it passes first and the ledger row it updates.
+
 ## Skills
 
 - A skill folder holds `SKILL.md`, reference files named in UPPERCASE (`REWRITE.md`), and `agents/openai.yaml` (Codex picker metadata).
