@@ -29,7 +29,7 @@ Reachable only when you type them (Claude Code: `disable-model-invocation: true`
 
 Model- or user-reachable.
 
-- **[mr-style](skills/mr-style/SKILL.md)**: An MR or PR description built from fixed `### Label` blocks (Symptom, Cause, Measured, Scope, Constraint, Cost, Verified, Remaining), each line at column 0, written as the author's own.
+- **[playbook](skills/playbook/SKILL.md)**: How a change goes from issue to merged branch, in parts: issues, branches, commits, merge requests, cleanup. A project states its facts (base branch, issue number format, deviations) in a `### Playbook` block of its AGENTS.md.
 - **[presentation](skills/presentation/SKILL.md)**: Phone-sized slides of what changed for a product's users, one changed place per slide: its page URL and desktop before/after shots with the change outlined, rendered as 4:5 PNGs with a caption to post in a chat; release builds its release album with it.
 - **[prototype-stages](skills/prototype-stages/SKILL.md)**: [mattpocock/skills `prototype`](https://github.com/mattpocock/skills/tree/main/skills/engineering/prototype) (MIT), its UI branch reworked: whole flows, options grouped by stage in a one-click panel.
 - **[scheme](skills/scheme/SKILL.md)**: ASCII schematic of a code change: control flow, data flow, before/after, or layers.
@@ -67,7 +67,7 @@ the call is blocked.
 | fresh base | Opening an MR/PR: `gh pr create`, `glab mr create`, a GitLab API POST to `merge_requests` | The source branch, as origin has it, contains the target's latest commit, fetched first; skipped when the message says not to rebase | Call denied |
 | landed branch | A git push | The branch's pushed head already sits in a protected branch, and the message names no new MR | Push denied |
 | every commit works | A git push of 2 to 15 commits no remote has | Sonnet: no commit removes something a later one stops using, or uses something a later one adds; skipped when the message says the order is fine | Push denied |
-| one commit per change | A git push of new commits to a branch whose commits not yet in an integration branch number 2 to 15, pushed or not | No `fixup!`, `squash!` or `amend!` subject; then Sonnet: no later commit spends most of its diff fixing, reworking or extending lines an earlier one added; skipped when the message says to keep the commits | Push held: the agent shows the user the reason and asks; any answer lets the same commits through |
+| one commit per change | A git push of new commits to a branch whose commits not yet in an integration branch number 2 to 15, pushed or not | No `fixup!`, `squash!` or `amend!` subject; then Sonnet: no later commit spends most of its diff fixing, reworking or extending lines an earlier one added, or matches an earlier one's API contract change in another app; skipped when the message says to keep the commits | Push held: the agent shows the user the reason and asks; any answer lets the same commits through |
 | one feature per MR | A git push of new commits to a branch whose commits not yet in an integration branch number 1 to 15, pushed or not | Its commit messages name at most one issue; then Sonnet: no piece of it could ship alone apart from the rest; skipped when the message says one MR or to keep them together | Push held: the agent shows the user the features, recommends a branch and MR each, and asks; any answer lets the branch through for the session |
 
 Protected branches come from a repo's own push policy file.

@@ -1,14 +1,14 @@
 {
   "name": "bahaospanov-skills",
   "version": "1.18.0",
-  "description": "Bakhtiyar Ospanov's agent skills: mr-style, presentation, prototype-stages, release, scheme.",
+  "description": "Bakhtiyar Ospanov's agent skills: playbook, presentation, prototype-stages, release, scheme.",
   "author": {
     "name": "Bakhtiyar Ospanov"
   },
   "repository": "https://github.com/bahaospanov/skills",
   "license": "MIT",
   "skills": [
-    "./skills/mr-style",
+    "./skills/playbook",
     "./skills/presentation",
     "./skills/prototype-stages",
     "./skills/release",

@@ -25,4 +25,5 @@ is, show the user the features named above with this reason, recommend a branch
 and MR per feature, each from its own issue, and ask.
 - Split: per feature, a branch off the base taking its commits (\`git cherry-pick\`),
   or its files when one commit carries several (\`git checkout <commit> -- <paths>\`).
-- Keep: push again as is. Once the user has answered, this branch goes through.`
+- Keep: push again as is. Once the user has answered, this branch goes through.
+The playbook skill's BRANCHES.md has the rule.`
