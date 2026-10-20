@@ -114,7 +114,8 @@ const overBudget = async ($: EngineInterface) => {
     const before = findings.length
     for (const [path, lines] of Object.entries(await addedComments($, wt, info.head))) {
       const fresh = lines.filter((line) => !info.baseline.has(keyOf(path, line)))
-      if (fresh.length > ADD_LIMIT && !(await isInstalled($, `${wt}/${path}`))) findings.push({ path, lines: fresh })
+      const skipped = (await isInstalled($, `${wt}/${path}`)) || (await isMediaWork($, `${wt}/${path}`))
+      if (fresh.length > ADD_LIMIT && !skipped) findings.push({ path, lines: fresh })
     }
     if (findings.length > before) bases.push(info.head)
   }

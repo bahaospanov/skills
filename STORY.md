@@ -150,4 +150,4 @@ Split from git-gates on 2026-10-20; the origins are from git-gates' history.
 
 | Rule | Kind | Check | Effect | Origin |
 | --- | --- | --- | --- | --- |
-| Ignored files, folders under a `.lean-skip` | — | — | skip | 160d3aa |
+| Ignored files, folders under a `.lean-skip` | — | — | skip | 160d3aa. The end-of-turn checks honour `.lean-skip` too since 2026-10-20 |

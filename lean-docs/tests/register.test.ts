@@ -266,6 +266,17 @@ describe('register', () => {
     expect(submitted[0]).not.toContain('skills/')
   })
 
+  test('limit-docs: a document under a .lean-skip folder is not counted at the end of the turn', async ($, on) => {
+    const { repo, submitted, clock } = world(on)
+
+    await $.tool.call({ tool: 'Bash', command: 'cd /repo && make' })
+    repo.untracked['reels/teaser/SCRIPT.md'] = prose(45)
+    await $.turn.complete(turnEnds())
+    await clock.settle()
+
+    expect(submitted).toEqual([])
+  })
+
   test('limit-docs: a new untracked document sends one follow-up', async ($, on) => {
     const { repo, logs, submitted, clock } = world(on)
 
