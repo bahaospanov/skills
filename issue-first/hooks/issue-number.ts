@@ -1,4 +1,5 @@
 const BRANCH_TAIL = /(?:^|-)[a-z0-9]*[a-z][a-z0-9]*-(\d+)$/i
+const ISSUE_TAIL = /(?:^|-)[a-z0-9]*[a-z][a-z0-9]*-[a-z0-9]*[a-z][a-z0-9]*-(\d+)$/i
 const TRAILING = /(?:^|\s)((?:\(?#[A-Za-z0-9]+(?:-\d+)?\)?[.,]?\s*)+)$/
 const ENDED = /#(\d+|[A-Za-z][A-Za-z0-9]*-\d+)/g
 
@@ -6,6 +7,13 @@ const ENDED = /#(\d+|[A-Za-z][A-Za-z0-9]*-\d+)/g
 // demanded: in `chore/node-22` it is a version.
 export const tailRefInBranch = (branch: string, tracked: boolean): string[] => {
   const number = tracked ? branch.split('/').at(-1)?.match(BRANCH_TAIL)?.[1] : undefined
+  return number === undefined ? [] : [`#${number}`]
+}
+
+// Enough on its own to name a feature's issue only after two or more words (`catalog-menu-107`): after one it is
+// usually a version (`react-19`, `node-22`).
+export const issueTailInBranch = (branch: string): string[] => {
+  const number = branch.split('/').at(-1)?.match(ISSUE_TAIL)?.[1]
   return number === undefined ? [] : [`#${number}`]
 }
 

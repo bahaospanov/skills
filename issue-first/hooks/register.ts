@@ -1,6 +1,6 @@
 import type { EngineInterface, Register } from 'claude-code'
 import { featureRefused, isFeature, messageOf, waives } from './feature-commit'
-import { missingRefViolation, subjectOf, subjectRefs, tailRefInBranch } from './issue-number'
+import { issueTailInBranch, missingRefViolation, subjectOf, subjectRefs, tailRefInBranch } from './issue-number'
 import { commandDir, currentTurn } from './shared/git-commands'
 import { refsInBranch, refsInText } from './shared/issue-refs'
 
@@ -84,7 +84,7 @@ export const register: Register = (on) => {
     if (text === undefined) return next(e)
     const tracked = !!(await git($, ['remote'], cwd))
     const branch = await currentBranch($, cwd)
-    const branchIssues = branch ? [...refsInBranch(branch, true), ...tailRefInBranch(branch, true)] : []
+    const branchIssues = branch ? [...refsInBranch(branch, true), ...issueTailInBranch(branch)] : []
     if (
       tracked &&
       isFeature(text) &&

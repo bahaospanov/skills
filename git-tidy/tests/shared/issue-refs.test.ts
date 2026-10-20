@@ -36,5 +36,7 @@ describe('issue-refs', () => {
     expect(refsInBranch('feat/session-chat', true)).toEqual([])
     expect(refsInBranch('release/2026-09', true)).toEqual([])
     expect(refsInBranch('fix/utf-8-names', true)).toEqual([])
+    expect(refsInBranch('feat/react-19', true)).toEqual([])
+    expect(refsInBranch('feat/BLK-23', true)).toEqual(['#BLK-23'])
   })
 })
