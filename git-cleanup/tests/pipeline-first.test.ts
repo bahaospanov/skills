@@ -53,18 +53,22 @@ describe('pipeline first: reading the forge', () => {
     expect(remoteOf('/srv/git/repo.git')).toBeUndefined()
   })
 
-  test('GitLab statuses: manual and canceled did not ship', () => {
+  test('GitLab statuses: manual and skipped are idle, canceled did not ship', () => {
     const list = gitlabPipelines(
       JSON.stringify([
         { id: 346, sha: 'c1', status: 'running', web_url: 'https://g/p/346' },
         { id: 345, sha: 'b1', status: 'manual' },
         { id: 344, sha: 'a1', status: 'success' },
+        { id: 343, sha: 'z1', status: 'skipped' },
+        { id: 342, sha: 'y1', status: 'canceled' },
       ]),
     )
     expect(list?.map((p) => [p.id, p.state])).toEqual([
       ['#346', 'running'],
-      ['#345', 'failed'],
+      ['#345', 'idle'],
       ['#344', 'success'],
+      ['#343', 'idle'],
+      ['#342', 'failed'],
     ])
     expect(gitlabPipelines('{"message":"401 Unauthorized"}')).toBeUndefined()
   })
@@ -95,6 +99,14 @@ describe('pipeline first: verdict', () => {
       kind: 'failed',
       pipeline: { id: '#3' },
     })
+  })
+
+  test('a pipeline parked at manual or skipped holds nothing back', () => {
+    expect(coverageOf([pipeline('#3', 'idle', true, 'manual'), pipeline('#2', 'success', false)])).toEqual({
+      kind: 'unknown',
+      why: 'pipeline #3 is manual',
+    })
+    expect(coverageOf([pipeline('#4', 'running', true), pipeline('#3', 'idle', true, 'manual')]).kind).toBe('waiting')
   })
 
   test('no pipeline holding the work is unknown, not a block', () => {
