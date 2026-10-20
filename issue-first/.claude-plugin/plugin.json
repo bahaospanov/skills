@@ -1,6 +1,6 @@
 {
   "name": "issue-first",
-  "version": "1.18.0",
+  "version": "1.19.0",
   "description": "Feature work starts from an issue, and each commit names its own: a feat commit naming none is refused until Claude finds the issue, drafts one the user agrees to, or the user says it needs none; a commit whose subject does not end with the issue the user or the branch named gets a suggestion.",
   "author": {
     "name": "Bakhtiyar Ospanov"

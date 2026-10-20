@@ -1,5 +1,50 @@
 # bahaospanov
 
+## 1.19.0
+
+### Minor Changes
+
+- d4501ce: - **git-tidy**: a body that pre-answers a reviewer and a body Haiku rejects no longer block the commit: it runs, the user sees the advice, and the model is told to relay it and amend only if asked. The Conventional Commits subject and Claude credit still deny.
+  - **lean-docs**: docs-no-repeat-code no longer blocks the write; Claude gets the hint after it.
+- a92eebc: - **git-gates**: consent holes closed.
+  - `git -C <dir>`, `git -c <key=value>` and git's other own options before `commit` or `push` no longer hide the command from consent and the push reviews.
+  - A negated keyword ("don't commit", "no need to push") no longer authorizes. An explicit no to the act itself ("commit, don't push") refuses it even when other keywords or a standing grant would allow it, unless the turn also says yes to it.
+  - Opening a PR or MR (`gh pr create`, `glab mr create`, a GitLab API POST) now needs "pr", "mr", "pull request", "merge request" or "ship" in the current turn.
+  - "merge request" no longer authorizes merging.
+  - "commit" no longer authorizes a push: pushing needs push, ship, deploy, pr, mr, tag or release.
+  - **git-cleanup**, **issue-first**: the same `git -C` fix, in their copy of the shared `git-commands.ts`. In git-cleanup, deleting a branch with `git -C <dir> push --delete` is now checked like any other deletion.
+- 6415f99: - **git-tidy**: new mod, the team half of git-gates: commit message checks and the Haiku body review, fresh base, landed branch, every commit works, one commit per change and one feature per MR, unchanged. A project that enabled git-gates for these checks enables git-tidy too.
+  - **git-gates**: consent only: commit, push, MR opening and merge on the user's word, grants and protected branches.
+- 0328527: - **issue-first**: owns every issue-number check. A commit missing the issue the user named, or the one its branch names, still runs, and the user gets a suggestion to end the subject with it, as git-gates did. A `feat` commit names its issue at the end of its subject or in its branch; a number in the body no longer counts.
+  - **git-gates**: no longer checks issue numbers; that moved to issue-first.
+  - **git-cleanup**: the shared issue-refs copy drops the code issue-first now keeps.
+- 102ed90: - **bahaospanov-skills**: new model-invoked skill `playbook`: how a change goes from issue to merged branch, in parts (issues, branches, commits, merge requests, cleanup); a project states its facts in a `### Playbook` block of its AGENTS.md. It replaces `mr-style`, whose labels now live in its MR part.
+  - **git-gates**: vertical commits. One commit per change counts a later commit matching an earlier one's API contract change in another app as a follow-up, and every commit works suggests squashing such a pair. Refusals name the playbook part holding their rule.
+  - **issue-first**: the refusal points to the playbook's ISSUES part for the procedure.
+- a4e4939: - **git-gates**, **git-cleanup**: Russian words no longer count as consent, a merge or a branch let go; only English ones do.
+  - **lean-scripts**: a script is a shell file, a file in a `scripts`, `bin`, `tools` or `ops` folder, or a file starting with a shebang; the `src/`/`app/` layout guess is gone. The review's examples no longer come from one project.
+  - **bahaospanov-skills**: **release** labels the runbook with the label step 1 found, not a fixed `type::release`.
+- 757338e: - **bahaospanov-skills**: **release** notes and labels the shipped issues and the runbook and leaves them open: closing is the user's. `scripts/issue-close.sh` is now `scripts/issue-note.sh`, without `--keep-open`.
+
+### Patch Changes
+
+- 937b22d: - **issue-first**: a version at the end of a branch name (`feat/react-19`) no longer counts as the feature's issue. A slug's number names one after two or more words (`feat/catalog-menu-107`), and a bare lowercase `word-number` is not read as a tracker key.
+  - **git-cleanup**, **git-tidy**: the same shared branch parsing.
+- 6c4fc9d: - **git-cleanup**: merged, clean work gets a one-line notice instead of a follow-up prompt; the cleanup commands reach Claude with the user's next message and run when the user asks.
+  - **git-gates**, **git-tidy**: git-cleanup leaves the follow-up mod list, since it sends none.
+- 741a170: - **git-gates**, **git-tidy**: the mods whose follow-up prompts continue the user's turn live in one shared list, and `npm run check:continuations` fails when a mod sending follow-ups is missing from it or a listed one sends none.
+- 6781bea: - **lean-comments**: the comment-heavy region signal fires only when the edit adds comments of its own, and no longer asks Claude to prune comments it did not write.
+- 6fecbbf: - **lean-comments**: the comment guidance sends reasoning to the commit message or the project's decision log, no longer to `docs/decisions.md` or a runbook, which lean-docs rejects.
+- 64667ba: - **lean-comments**: the edit guidance states "No comments by default." itself instead of quoting a CLAUDE.md line that no longer exists.
+- 5a32b77: - **lean-scripts**: a script in a skill's folder, the one holding `SKILL.md`, is no longer reviewed: the skill runs it on every use.
+- b3b1a56: - **lean-docs**, **lean-comments**: the end-of-turn checks (limit-docs, limit-turns) skip files under a `.lean-skip` folder, as the per-edit checks already did.
+- dfd27b5: - **git-cleanup**: a GitLab pipeline parked at `manual` or `skipped` no longer holds cleanup back; it is logged instead. It never finishes, so it held cleanup forever.
+- 0a7e886: - **bahaospanov-skills**: the description format in the playbook's MR part, mr-style's labels, is commented out for now; it is temporary. Rebasing, checks and screenshots still apply.
+- 65b502a: - **git-gates**: the settings-twin parity log is gone; the settings guards it compared against were removed long ago.
+- 909ca97: - **git-cleanup**: a squash-merged branch waits for the pipeline holding the commit the merge landed as, read from the forge; it used to skip the pipeline check.
+- 350c941: - **bahaospanov-skills**: STORY.md records how the mods came about, the tests a rule passes before it becomes a mod, and a ledger of every rule with the incident behind it.
+- 46d4b14: - **git-cleanup**: removing the worktree of an unmerged branch is no longer refused: the branch, and its commits, stay. Removing the branch itself still needs it merged.
+
 ## 1.18.0
 
 ### Minor Changes
