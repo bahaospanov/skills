@@ -15,7 +15,7 @@ export const KEEP =
   'break something, or an invariant spanning processes - those are the ones ' +
   'this codebase is built on. Delete the ones that restate the code, narrate ' +
   'the change, or argue a decision; that reasoning belongs in the commit ' +
-  'message, docs/decisions.md, or a runbook.'
+  "message or the project's decision log."
 
 // Only blocks whose opening line starts with the quote: `sql = """SELECT` is a value, not prose.
 export const docstringLines = (lines: string[], path: string | undefined): Set<number> => {
