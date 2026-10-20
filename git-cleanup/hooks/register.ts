@@ -161,18 +161,19 @@ const heldWork = async ($: EngineInterface, command: string, saidMerged: boolean
   const issues = issuesEditedBy(command)
   if (branches.length === 0 && issues.length === 0 && !cleanup?.worktrees.length) return undefined
   const cwd = await repoOf($, command)
+  const checkedOut: string[] = []
   if (cleanup?.worktrees.length) {
     const trees = worktreesOf((await git($, ['worktree', 'list', '--porcelain'], cwd)) ?? '')
     for (const path of cleanup.worktrees) {
       const tail = path.replace(/^\.\//, '').replace(/\/$/, '')
       const tree = trees.find((wt) => wt.path === tail || wt.path.endsWith(`/${tail}`))
-      if (tree?.branch !== undefined) branches.push(tree.branch)
+      if (tree?.branch !== undefined) checkedOut.push(tree.branch)
     }
   }
   await $.process.run(['git', 'fetch', '--quiet', 'origin'], { ...(cwd === undefined ? {} : { cwd }), timeoutMs: FETCH_TIMEOUT_MS }).catch(() => undefined)
   const bases = await integrationBases($, cwd)
   const work: { what: string; head: string; base: string }[] = []
-  for (const branch of new Set(branches)) {
+  for (const branch of new Set([...branches, ...checkedOut])) {
     if (bases.includes(branch)) continue
     const head =
       (await git($, ['rev-parse', '--verify', '--quiet', `refs/heads/${branch}`], cwd)) ??
@@ -180,7 +181,8 @@ const heldWork = async ($: EngineInterface, command: string, saidMerged: boolean
     if (head === undefined) continue
     const base = await landedBase($, head, bases, cwd)
     if (base !== undefined) work.push({ what: `'${branch}'`, head, base })
-    else if (!saidMerged && !(await mergedOnForge($, branch, cwd))) return { kind: 'unmerged', branch, bases }
+    // Removing a worktree keeps its branch, so only removing the branch itself can lose its commits.
+    else if (branches.includes(branch) && !saidMerged && !(await mergedOnForge($, branch, cwd))) return { kind: 'unmerged', branch, bases }
   }
   for (const ref of issues) {
     const landing = await issueLanding($, ref, bases, cwd)
