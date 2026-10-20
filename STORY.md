@@ -135,7 +135,7 @@ Split from git-gates on 2026-10-20; the origins are from git-gates' history.
 
 | Rule | Kind | Check | Effect | Origin |
 | --- | --- | --- | --- | --- |
-| At most 3 comment lines per edit, no comment-heavy region | proj | code | note | 06830d8 |
+| At most 3 comment lines per edit, no comment-heavy region | proj | code | note | 06830d8. The region counts only when the edit adds comments since 2026-10-20: it fired on every edit near old comments |
 | At most 3 new comment lines per file per turn | proj | code | follow-up | 06830d8 |
 | Installed skills and plugins | — | — | skip | 6c17732: someone else's code |
 
