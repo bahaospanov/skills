@@ -44,7 +44,7 @@ One mod per purpose.
 | --- | --- |
 | [git-gates](#git-gates) | Git work is authorized and tidy |
 | [git-cleanup](#git-cleanup) | Merged work is cleaned up once it shipped |
-| [issue-first](#issue-first) | Feature work starts from an issue |
+| [issue-first](#issue-first) | Feature work starts from an issue, and each commit names its own |
 | [lean-docs](#lean-docs) | Docs worth keeping |
 | [lean-comments](#lean-comments) | Comments worth keeping |
 | [lean-scripts](#lean-scripts) | Scripts worth keeping |
@@ -63,7 +63,7 @@ the call is blocked.
 | --- | --- | --- | --- |
 | consent | git commit, push, with or without git's own options (`git -C dir push`); opening a PR/MR; PR/MR merge | commit, push, ship, deploy, pr, mr, tag or release typed in the current turn (a message typed while it runs or a background task's report does not withdraw it); a push needs one of them other than commit; opening needs pr, mr, pull request, merge request or ship; merge needs "merge", and "merge request" is not it; a protected branch must be named. A negated keyword ("don't push") does not count, and a no to the act itself refuses it, standing grant included, unless the turn also asks for it | Call denied |
 | grants | Later commits in the session | A message asking for a commit per task, or the grant tool after an authorizing message | Commits spend the grant; pushes never |
-| messages | A git commit | Conventional Commits subject, no reviewer pre-answers, no Co-Authored-By trailer naming Claude or Anthropic (in the message or a `--trailer` flag) and no "Generated with Claude Code" line, a last line with the issue or ticket (#87, #BLK-23) when your messages or the branch name one; then Haiku: a body only when the cause is subtle | Commit denied |
+| messages | A git commit | Conventional Commits subject, no reviewer pre-answers, no Co-Authored-By trailer naming Claude or Anthropic (in the message or a `--trailer` flag) and no "Generated with Claude Code" line; then Haiku: a body only when the cause is subtle | Commit denied |
 | fresh base | Opening an MR/PR: `gh pr create`, `glab mr create`, a GitLab API POST to `merge_requests` | The source branch, as origin has it, contains the target's latest commit, fetched first; skipped when the message says not to rebase | Call denied |
 | landed branch | A git push | The branch's pushed head already sits in a protected branch, and the message names no new MR | Push denied |
 | every commit works | A git push of 2 to 15 commits no remote has | Sonnet: no commit removes something a later one stops using, or uses something a later one adds; skipped when the message says the order is fine | Push denied |
@@ -73,8 +73,6 @@ the call is blocked.
 Protected branches come from a repo's own push policy file.
 Integration branches are the protected ones; with no policy, the remote's default branch and any of dev, develop, main, master that exist.
 Deleting a branch on origin needs no keyword when origin's head of it already sits in an integration branch.
-A bare `#87` counts only in a repo with a remote; with no issue tracker, nothing is asked.
-Issues you typed bind only commits in the session's repo and its worktrees; a branch ending in its issue number (`perf/mobile-lcp-89`) lets the message end with that one instead.
 
 ### git-cleanup
 
@@ -95,9 +93,12 @@ Pipelines are read with `gh` on GitHub and, on GitLab, with the `gitlab_token` o
 
 | Check | Runs on | Needs | Then |
 | --- | --- | --- | --- |
-| feature issue | A `feat` commit | An issue (#107, #BLK-23) in the message or the branch name (`feat/catalog-menu-107`), or "no issue" typed by the user in the current turn | Commit denied; Claude looks for the issue, else drafts one and asks the user before creating it |
+| feature issue | A `feat` commit | An issue (#107, #BLK-23) at the end of the subject, or in the branch name (`feat/catalog-menu-107`), or "no issue" typed by the user in the current turn | Commit denied; Claude looks for the issue, else drafts one and asks the user before creating it |
+| issue number | A git commit | The issue or ticket your messages or the branch name, at the end of the subject | Commit runs; the user gets the suggestion |
 
-A repo with no remote is skipped. Enabled in a repo's own `.claude/settings.json`, it applies to everyone working there.
+A repo with no remote has no issue tracker: feature issue is skipped, and only a ticket (#BLK-23) counts as an issue.
+Issues you typed bind only commits in the session's repo and its worktrees; a branch ending in its issue number (`perf/mobile-lcp-89`) lets the subject end with that one instead.
+Enabled in a repo's own `.claude/settings.json`, it applies to everyone working there.
 
 ### lean-docs
 

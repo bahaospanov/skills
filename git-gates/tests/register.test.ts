@@ -444,66 +444,6 @@ describe('register', () => {
     expect(asked).toEqual([])
   })
 
-  test('a commit without the issue the user named goes through with a suggestion', async ($, on) => {
-    const { ran, logs } = world(on, { remote: true })
-
-    await $.prompt.submit(prompt('implement #160, then commit'))
-    const unlinked = await $.tool.call(bash('git commit -m "feat: chat"'))
-    const linked = await $.tool.call(bash('git commit -m "feat: chat" -m "#160"'))
-
-    expect(ran).toEqual(['git commit -m "feat: chat"', 'git commit -m "feat: chat" -m "#160"'])
-    expect(logs).toEqual([
-      'git-gates (commit message): committed without an issue reference; suggestion: end the message with the issue it is about, e.g. a last line "#160" (mentioned: #160)',
-    ])
-    expect(unlinked.deny).toBeUndefined()
-    expect(unlinked.context?.at(-1)).toContain('do not file an issue or rewrite the commit unless they ask')
-    expect(linked.context ?? []).toEqual([])
-  })
-
-  test('a commit message that breaks a rule is still denied when an issue is missing too', async ($, on) => {
-    const { ran } = world(on, { remote: true })
-
-    await $.prompt.submit(prompt('implement #160, then commit'))
-    const refused = await $.tool.call(bash('git commit -m "Fixed stuff"'))
-
-    expect(refused.deny).toBe("git-gates (commit message): first line is not Conventional Commits: 'Fixed stuff'")
-    expect(ran).toEqual([])
-  })
-
-  test("an issue named in passing does not override the branch's issue", async ($, on) => {
-    const { ran } = world(on, { remote: true, branch: 'chore/nuxt4-ui4-89' })
-
-    await $.prompt.submit(prompt("what's the #82 script"))
-    await $.prompt.submit(prompt('ship'))
-    await $.tool.call(bash('git commit -m "chore(web): upgrade to nuxt 4 #89"'))
-
-    expect(ran).toEqual(['git commit -m "chore(web): upgrade to nuxt 4 #89"'])
-  })
-
-  test('a commit in a worktree answers to that worktree’s branch', async ($, on) => {
-    const worktree = { branch: 'chore/nuxt4-ui4-89', remote: true, common: '/repo/.git' }
-    const { ran } = world(on, { remote: true, common: '/repo/.git', branch: 'dev', repos: { '/repo/wt': worktree } })
-
-    await $.prompt.submit(prompt("what's the #82 script"))
-    await $.prompt.submit(prompt('ship'))
-    const linked = await $.tool.call(bash('cd /repo/wt && git commit -m "chore(web): upgrade to nuxt 4 #89"'))
-    const unlinked = await $.tool.call(bash('cd /repo/wt && git commit -m "chore(web): upgrade to nuxt 4 #88"'))
-
-    expect(linked.context ?? []).toEqual([])
-    expect(unlinked.context?.at(-1)).toContain('(mentioned: #82)')
-  })
-
-  test('what the user typed does not bind a commit in another repo', async ($, on) => {
-    const mods = { branch: 'main', remote: true, common: '/mods/.git' }
-    const { ran } = world(on, { remote: true, common: '/repo/.git', repos: { '/mods': mods } })
-
-    await $.prompt.submit(prompt("what's the #82 script"))
-    await $.prompt.submit(prompt('release it'))
-    await $.tool.call(bash('cd /mods && git commit -m "fix(git-gates): read the repo the command works in"'))
-
-    expect(ran).toEqual(['cd /mods && git commit -m "fix(git-gates): read the repo the command works in"'])
-  })
-
   test('a push from a worktree targets the worktree’s branch, not the session’s', async ($, on) => {
     const worktree = { branch: 'perf/css-89', remote: true, common: '/repo/.git' }
     const files = { '/repo/wt/.claude/push-policy.json': '{"protected_branches": ["dev", "main"]}' }
@@ -542,25 +482,6 @@ describe('register', () => {
     expect(footer.deny).toBe('git-gates (commit message): a "Generated with Claude" line credits Claude; commit without it')
     expect(ran).toEqual(['git commit -m "fix: a"'])
     expect(asked.length).toBe(1)
-  })
-
-  test('a ticket in the branch name counts as mentioned', async ($, on) => {
-    const { ran } = world(on, { branch: 'feat/BLK-7-login' })
-
-    await $.prompt.submit(prompt('commit'))
-    const unlinked = await $.tool.call(bash('git commit -m "fix: login"'))
-
-    expect(unlinked.context?.at(-1)).toContain('"#BLK-7"')
-    expect(ran).toEqual(['git commit -m "fix: login"'])
-  })
-
-  test('without an issue tracker a numbered mention asks for nothing', async ($, on) => {
-    const { ran } = world(on)
-
-    await $.prompt.submit(prompt('fix #87 and commit'))
-    await $.tool.call(bash('git commit -m "fix: a"'))
-
-    expect(ran).toEqual(['git commit -m "fix: a"'])
   })
 
   test('a well-formed commit whose body Haiku rejects is denied before it runs', async ($, on) => {
