@@ -50,6 +50,6 @@ export const densitySignal = (path: string, body: string, text: string, marks: r
 
 export const editGuidance = (name: string, findings: string[]) =>
   `lean-comments/limit-edits on ${name}:\n${findings.map((f) => `- ${f}`).join('\n')}\n\n` +
-  "CLAUDE.md: 'Do not write comments by default. Default is no comment.'\n" +
+  'No comments by default.\n' +
   `${KEEP}\n${OUTRANKS}\n` +
   'Prune, then say in your reply which comments you kept and why.'
