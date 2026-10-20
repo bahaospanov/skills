@@ -27,9 +27,6 @@ export const waives = (text: string) => WAIVER.test(text)
 export const featureRefused = (subject: string) =>
   [
     `issue-first: "${subject.slice(0, 70)}" is a feature, and neither its subject's end nor the branch names an issue (#N).`,
-    'Before committing:',
-    "1. Search the tracker's open issues for the one this work belongs to (AGENTS.md or the repo docs say how to reach it).",
-    `2. Found: end the subject with its number: "${endSubject(subject, '#N')}".`,
-    '3. None: draft an issue from the diff (title; what and why) and show it to the user. Create it only once they agree, then commit with its number.',
-    'Ask the user rather than skipping this: only a message from them saying "no issue" lets the commit through without one.',
+    `Find the open issue this work belongs to, or draft one and show it to the user, creating it once they agree; then end the subject with its number: "${endSubject(subject, '#N')}".`,
+    'The playbook skill\'s ISSUES.md has the whole procedure. Only the user saying "no issue" lets the commit through without one.',
   ].join('\n')

@@ -1,0 +1,3 @@
+interface:
+  display_name: "Playbook"
+  short_description: "How a change goes from issue to merged branch"

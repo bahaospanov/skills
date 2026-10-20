@@ -55,7 +55,8 @@ export const commitOrderRefused = (command: string, reason: string) =>
   `git-gates (every commit works): blocking '${command}' — ${reason}
 
 Every commit must leave the whole project working, so a checkout, a bisect or a
-revert never lands on a broken state. Reorder or squash the series - for a
-removal, the consumer first and the provider last - and run the checks at each
-commit. If the order is right, say so, e.g. "the order is fine", and this check
-steps aside.`
+revert never lands on a broken state. An API contract change and the matching
+change in another app go in one commit; otherwise reorder - for a removal, the
+consumer first and the provider last - and run the checks at each commit. If the
+order is right, say so, e.g. "the order is fine", and this check steps aside.
+The playbook skill's COMMITS.md has the rule.`

@@ -27,4 +27,5 @@ choice is the user's: leave the commits as they are, show the user the commits
 named above with this reason, recommend folding them, and ask.
 - Fold: \`git reset --soft\` when they are the last commits, otherwise a rebase
   with GIT_SEQUENCE_EDITOR; push with --force-with-lease if the branch is on origin.
-- Keep: push again as is. Once the user has answered, these commits go through.`
+- Keep: push again as is. Once the user has answered, these commits go through.
+The playbook skill's COMMITS.md has the rule.`
