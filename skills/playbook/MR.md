@@ -39,6 +39,14 @@ A run of `### Label` blocks, using the labels that apply, from these eight:
 
 Work touching a frontend carries screenshots in its description: the real app running locally with seeded data, not component mocks, each with its viewport named. The reviewer sees the change before merging; a diff is not a look at the thing. The same shots later go in the issue's How to test ([ISSUES.md](ISSUES.md)). Backend-only work skips them.
 
+Every shot marks what changed, so the reviewer finds it at a glance instead of comparing two pictures:
+
+- an outline on the changed element: dashed red on the before, solid in an accent colour on the after
+- a label on the shot with the old or new value, for a change with no look of its own (an alt text, a heading's text or level)
+- the shot cropped to the marks, with enough page around them to place them
+
+Done when each mark sits on a change and every change the page shows has one.
+
 ## After the merge
 
 [CLEANUP.md](CLEANUP.md).
