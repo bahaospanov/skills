@@ -1,5 +1,15 @@
 # bahaospanov
 
+## 1.20.0
+
+### Minor Changes
+
+- 70f1351: - **bahaospanov-skills**: the playbook's MR part writes the description again: Summary, Evidence and Merge Danger, adapted from mattpocock/skills `pr`, whose Summary visuals come from Dex Horthy's HumanLayer `show-me`; credits in the skill's frontmatter and `CREDITS.md`. Screenshots go in Evidence. It replaces the switched-off `### Label` format.
+
+### Patch Changes
+
+- ae20ce7: - **bahaospanov-skills**: the playbook's MR screenshots mark what changed: a dashed red outline on the before, a solid accent one on the after, a label for a change with no look of its own, the shot cropped to the marks.
+
 ## 1.19.2
 
 ### Patch Changes
