@@ -12,32 +12,167 @@ git fetch origin <base> && git rebase origin/<base>
 
 ## Description
 
-Temporarily off: the user's own PR-body skill writes MR and PR descriptions for now. The format below stays commented out until it returns; apply none of it.
+Adapted from [mattpocock/skills `pr`](https://github.com/mattpocock/skills/blob/main/skills/engineering/pr/SKILL.md) (MIT); its Summary visuals come from Dex Horthy's [HumanLayer `show-me`](https://github.com/humanlayer/skills/blob/main/plugins/show-me/skills/show-me/SKILL.md) (MIT). See [CREDITS.md](CREDITS.md).
 
-<!--
-A run of `### Label` blocks, using the labels that apply, from these eight:
+Use this template for the MR body:
 
-| Label | Holds |
-| --- | --- |
-| Symptom | What was seen: the bug, or the gap the issue names |
-| Cause | Why it happened: the mechanism behind the symptom |
-| Measured | Numbers: the method first (where, viewport, throttling, runs), then the results before and after |
-| Scope | What the change does, one bullet per area; a diff sketch in a fence where the shape matters |
-| Constraint | What the change works within: merge order, an upstream bug, a limitation accepted |
-| Cost | What it costs: bytes, time, behaviour changed on purpose, a one-way door and its blast radius |
-| Verified | How it was checked: commands and their results, screenshots with their viewport |
-| Remaining | What was not checked, or is left for later |
+```markdown
+## Summary
 
-- The description opens with its first heading; the issue number (`#90`) sits inside a block.
-- A label is always a `### Label` heading, spelled as in the table.
-- Every line starts at column 0: Markdown runs indented lines into one paragraph. Command output and transcripts go in ``` fences.
-- Every line says what the change does or what was found. What it leaves alone, the diff already shows.
-- The description reads as the author's own and names no tool or model that wrote it.
--->
+<diagram, diff-sketch, or tree>
+
+## Evidence
+
+- **Before:** <screenshot/output/failing test run>
+  **After:** <screenshot/output/passing test run>
+
+## Merge Danger
+
+**Door:** <one-way or two-way>
+
+<optional: description>
+
+**Blast Radius:** <one-word description>
+
+<optional: potential ramifications of merge>
+```
+
+Skip all preambles and keep prose brief. Use the domain language of the project's `GLOSSARY.md`, where it has one. The issue number (`#90`) goes in the Summary's text. The description reads as the author's own and names no tool or model that wrote it.
+
+### Summary
+
+Pick the smallest view that makes the key point clear.
+
+- Show logic or an algorithm as pseudocode:
+
+```text
+on(save)
+  if content is unchanged
+    return cached result
+  write new content
+  return fresh result
+```
+
+- Show runtime control flow as a call tree:
+
+```text
+submitForm
+  createSession
+    persistPrompt
+    launchAgent
+  navigateToSession
+```
+
+- Show UI structure as a component tree, including state and module boundaries that matter:
+
+```text
+<SessionPage> (apps/example/src/routes/session.tsx)
+  useSessionEvents()
+  <SessionToolbar>
+    <RunSkillButton> (packages/ui)
+```
+
+- Show file responsibility or a broad refactor as a shallow file tree:
+
+```text
+src/
+├── commands/       # parses user actions
+├── sessions/       # owns session state
+└── transport/      # sends API requests
+```
+
+- Show component interaction, control flow, or data flow with Mermaid:
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant UI
+    participant Daemon
+    User->>UI: choose command
+    UI->>Daemon: send expanded prompt
+    Daemon-->>UI: stream result
+```
+
+- Use `diff` when the point is what changes and the surrounding shape already exists. Match the diff shape to the topic.
+
+For a component change:
+
+```diff
+ <SessionPage>
+   useSessionEvents()
+   <SessionToolbar>
++    <RunSkillButton />
+   <SessionTimeline>
++    <SkillResultCard />
+```
+
+For a file-layout change:
+
+```diff
+ src/
+ ├── commands/
++│   └── show-me.ts       # expands the slash command
+ ├── sessions/
+-└── transport.ts
++└── transport/
++    ├── client.ts
++    └── stream.ts
+```
+
+For a call-tree or call-stack change:
+
+```diff
+ submitForm
+   createSession
+     persistPrompt
++    expandSkillMention
+     launchAgent
+-  navigateToSession
++  navigateToSession
++    subscribeToEvents
+```
+
+For a state or control-flow change:
+
+```diff
+ on(save)
+-  write content
++  if content is unchanged
++    return cached result
++  write new content
++  invalidate cache
+```
+
+- Show the whole block when most of it is new, when omitted context would hide ownership or order, or when the reviewer needs a copyable target shape:
+
+```ts
+function expandSkill(command: string): string {
+  const skillName = command.slice(1);
+  return `use the ${skillName} skill`;
+}
+```
+
+Place each visual next to the short text it supports. Keep only the calls, files, props, states, and boundaries the reviewer needs to see what the change does.
+
+One visual may be enough, several may be needed; all of them rarely are. Use your judgement and don't overwhelm the reviewer.
+
+### Evidence
+
+Concrete evidence that the change works. Show a before and after.
+
+Screenshots are S-tier when the change is visual; take and mark them as [Screenshots](#screenshots) says.
+
+Execution-based evidence is A-tier: test results, console output. Show the exact test that now fails and passes, using pseudocode.
+
+### Merge Danger
+
+Describe whether it's a one-way or two-way door. You can walk back through two-way doors, but not one-way doors. An MR that is cheap to roll back is lower risk. Changes that involve destructive actions or hard-to-reverse decisions are one-way doors.
+
+The blast radius is the potential impact or scope of the changes introduced by this MR. Consider all possibilities. Examples are layout shift, breakages for consumers, mobile responsiveness, etc.
 
 ## Screenshots
 
-Work touching a frontend carries screenshots in its description: the real app running locally with seeded data, not component mocks, each with its viewport named. The reviewer sees the change before merging; a diff is not a look at the thing. The same shots later go in the issue's How to test ([ISSUES.md](ISSUES.md)). Backend-only work skips them.
+Work touching a frontend carries screenshots in its Evidence: the real app running locally with seeded data, not component mocks, each with its viewport named. The reviewer sees the change before merging; a diff is not a look at the thing. The same shots later go in the issue's How to test ([ISSUES.md](ISSUES.md)). Backend-only work skips them.
 
 Every shot marks what changed, so the reviewer finds it at a glance instead of comparing two pictures:
 
