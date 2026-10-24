@@ -169,7 +169,7 @@ A band above the prompt says whether you can leave the session.
 | --- | --- |
 | 🟢 safe to leave | The PR is merged into dev, develop, main or master and every GitHub Actions run of that push passed; a run a newer push cancelled is judged by the newer one |
 | 🟡 waiting on PR | The PR is open, failing checks included, or merged with its pipeline still running |
-| 🔴 needs you | Claude is asking you, the repo holds uncommitted or unpushed work, there is no PR, it closed unmerged or merged elsewhere, or the pipeline failed |
+| 🔴 working | Claude is asking you, the repo holds uncommitted or unpushed work, there is no PR, it closed unmerged or merged elsewhere, or the pipeline failed |
 
 The repo is the one Claude last edited a file in. A feature branch is judged by its own PR; on an integration branch, or once the worktree is gone, by the PR a `gh pr` command last printed. The light refreshes after git and gh commands, and every 30 seconds while yellow. `/traffic-light` prints it; `/traffic-light demo` shows each color.
 

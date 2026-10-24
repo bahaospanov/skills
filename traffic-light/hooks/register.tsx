@@ -21,7 +21,7 @@ const DOT: Record<Color, string> = { green: '🟢', yellow: '🟡', red: '🔴' 
 const HEADLINE: Record<Color, string> = {
   green: 'safe to leave',
   yellow: 'waiting on PR',
-  red: 'needs you',
+  red: 'working',
 }
 const THEME = { green: 'success', yellow: 'warning', red: 'error' } as const
 

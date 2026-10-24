@@ -90,9 +90,9 @@ async function light($: Engine) {
 test('a branch with no PR is red, in the band too', async ($, on) => {
   await start($, on, {})
 
-  expect(await light($)).toBe('🔴 needs you · no PR yet')
+  expect(await light($)).toBe('🔴 working · no PR yet')
   const ui = await $.ui.mount({ ...BAND, surface: 'terminal' })
-  expect((await ui.find({ type: 'Text', text: /NEEDS YOU/ }))?.text).toBeDefined()
+  expect((await ui.find({ type: 'Text', text: /WORKING/ }))?.text).toBeDefined()
   expect((await ui.find({ type: 'Text', text: /no PR yet/ }))?.text).toBeDefined()
   await ui.unmount()
 })
@@ -100,7 +100,7 @@ test('a branch with no PR is red, in the band too', async ($, on) => {
 test('uncommitted changes are red even with an open PR', async ($, on) => {
   await start($, on, { status: ' M hooks/register.tsx\n', pr: pull('OPEN') })
 
-  expect(await light($)).toBe('🔴 needs you · uncommitted changes')
+  expect(await light($)).toBe('🔴 working · uncommitted changes')
 })
 
 test('an open PR is yellow, failing checks included', async ($, on) => {
@@ -122,7 +122,7 @@ test('a merged PR is yellow while its pipeline runs, green once it passed', asyn
 test('a failed pipeline is red', async ($, on) => {
   await start($, on, { pr: pull('MERGED'), runs: [run('completed', 'failure')] })
 
-  expect(await light($)).toBe('🔴 needs you · #7 merged into dev, deploy-dev failure')
+  expect(await light($)).toBe('🔴 working · #7 merged into dev, deploy-dev failure')
 })
 
 test('a run cancelled by a newer push is settled by that push', async ($, on) => {
@@ -138,7 +138,7 @@ test('a run cancelled by a newer push is settled by that push', async ($, on) =>
 test('a PR merged into a feature branch is red', async ($, on) => {
   await start($, on, { pr: pull('MERGED', { baseRefName: 'feat/base' }) })
 
-  expect(await light($)).toBe('🔴 needs you · #7 merged into feat/base, not dev or main')
+  expect(await light($)).toBe('🔴 working · #7 merged into feat/base, not dev or main')
 })
 
 test('the PR a gh command printed is followed once the branch is gone', async ($, on) => {
@@ -156,7 +156,7 @@ test('a permission prompt turns it red until the next prompt', async ($, on) => 
   expect(await light($)).toBe('🟡 waiting on PR · #7 open, waiting for merge')
 
   await $.classic.PermissionRequest({ tool_name: 'Bash', tool_input: { command: 'git push' } })
-  expect(await light($)).toBe('🔴 needs you · Claude is asking you')
+  expect(await light($)).toBe('🔴 working · Claude is asking you')
 
   await $.prompt.submit({ text: 'yes, push it', wait: false, origin: { kind: 'composer' } })
   expect(await light($)).toBe('🟡 waiting on PR · #7 open, waiting for merge')
