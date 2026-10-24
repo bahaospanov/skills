@@ -285,7 +285,7 @@ export const register: Register = on => {
     return (
       <Box>
         <Text color={THEME[now.color]} weight="bold">
-          ● {HEADLINE[now.color].toUpperCase()}
+          ● {HEADLINE[now.color]}
         </Text>
         <Text dimColor>  {now.reason}</Text>
       </Box>

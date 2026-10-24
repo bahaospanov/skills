@@ -92,7 +92,7 @@ test('a branch with no PR is red, in the band too', async ($, on) => {
 
   expect(await light($)).toBe('🔴 working · no PR yet')
   const ui = await $.ui.mount({ ...BAND, surface: 'terminal' })
-  expect((await ui.find({ type: 'Text', text: /WORKING/ }))?.text).toBeDefined()
+  expect((await ui.find({ type: 'Text', text: /● working/ }))?.text).toBeDefined()
   expect((await ui.find({ type: 'Text', text: /no PR yet/ }))?.text).toBeDefined()
   await ui.unmount()
 })
