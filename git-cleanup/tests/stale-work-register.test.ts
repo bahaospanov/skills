@@ -28,8 +28,8 @@ const world = (on: On) => {
   on('turn.complete', ($, e) => ({ text: e.answer }))
   on('process.run', ($, e) => {
     const args = e.argv.join(' ')
-    const ok = (stdout: string) => ({ value: { exitCode: 0, stdout, stderr: '' } })
-    const no = { value: { exitCode: 1, stdout: '', stderr: '' } }
+    const ok = (stdout: string) => ({ value: { exitCode: 0, stdout, stderr: '', isStdoutTruncated: false, isStderrTruncated: false } })
+    const no = { value: { exitCode: 1, stdout: '', stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }
     const inWorktree = e.init?.cwd === WT
     if (args === 'git rev-parse --path-format=absolute --git-common-dir') return ok('/repo/.git\n')
     if (args === 'git rev-parse --show-toplevel') return ok(`${e.init?.cwd ?? '/repo'}\n`)
@@ -49,7 +49,7 @@ const world = (on: On) => {
     if (/^git (worktree remove|branch -D|push origin --delete|merge --ff-only) /.test(args)) {
       removals.push(`${args} @ ${e.init?.cwd}`)
       if (repo.refusesDelete && args.startsWith('git push origin --delete')) {
-        return { value: { exitCode: 1, stdout: '', stderr: 'remote: permission denied\n' } }
+        return { value: { exitCode: 1, stdout: '', stderr: 'remote: permission denied\n', isStdoutTruncated: false, isStderrTruncated: false } }
       }
       return ok('')
     }

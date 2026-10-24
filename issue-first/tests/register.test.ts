@@ -40,7 +40,7 @@ const world = (on: On, options: World = {}) => {
           : args === 'git rev-parse --path-format=absolute --git-common-dir' && common !== undefined
             ? `${common}\n`
             : undefined
-    return { value: { exitCode: stdout === undefined ? 1 : 0, stdout: stdout ?? '', stderr: '' } }
+    return { value: { exitCode: stdout === undefined ? 1 : 0, stdout: stdout ?? '', stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }
   })
   on('fs.read', ($, e) => {
     const text = options.files?.[e.path]

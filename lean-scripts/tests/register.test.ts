@@ -1,4 +1,4 @@
-import type { ModelCompleteRequest, On } from 'claude-code'
+import type { ModelCompleteInput, On } from 'claude-code'
 import { describe, expect, mock, test, tier } from 'claude-code/testing'
 
 tier('user')
@@ -14,7 +14,7 @@ const answered = (text: string) => ({
 
 // Beneath the mod: /repo is a git checkout, HOME is /Users/me, `files` is the disk.
 const world = (on: On, reply: string, files: Record<string, string> = {}) => {
-  const asked: ModelCompleteRequest[] = []
+  const asked: ModelCompleteInput[] = []
   const logs: string[] = []
   mock.env(on, { HOME: '/Users/me' })
   on('session.cwd', () => ({ value: '/repo' }))
@@ -23,6 +23,8 @@ const world = (on: On, reply: string, files: Record<string, string> = {}) => {
       exitCode: e.argv[0] === 'sh' ? (e.argv[4]?.startsWith('/repo/reels/') ? 0 : 1) : e.argv[2]?.startsWith('/repo') ? 0 : 128,
       stdout: e.argv[0] === 'git' && e.argv[2]?.startsWith('/repo') ? '/repo\n' : '',
       stderr: '',
+      isStdoutTruncated: false,
+      isStderrTruncated: false,
     },
   }))
   on('fs.exists', ($, e) => ({ value: e.path in files }))

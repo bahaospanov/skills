@@ -40,8 +40,8 @@ const world = (on: On) => {
   })
   on('process.run', ($, e) => {
     const args = e.argv.join(' ')
-    const ok = (stdout: string) => ({ value: { exitCode: 0, stdout, stderr: '' } })
-    const no = { value: { exitCode: 1, stdout: '', stderr: '' } }
+    const ok = (stdout: string) => ({ value: { exitCode: 0, stdout, stderr: '', isStdoutTruncated: false, isStderrTruncated: false } })
+    const no = { value: { exitCode: 1, stdout: '', stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }
     const answers: Record<string, string> = {
       'git rev-parse --path-format=absolute --git-common-dir': '/repo/.git\n',
       'git rev-parse --show-toplevel': `${e.init?.cwd ?? '/repo'}\n`,

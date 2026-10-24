@@ -65,30 +65,30 @@ const world = (on: On, options: World = {}) => {
     const args = e.argv.join(' ')
     if (options.landedIn !== undefined) {
       if (args.startsWith('git rev-parse --verify --quiet refs/remotes/origin/')) {
-        return { value: { exitCode: 0, stdout: 'cafe123\n', stderr: '' } }
+        return { value: { exitCode: 0, stdout: 'cafe123\n', stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }
       }
       if (args === `git merge-base --is-ancestor cafe123 refs/remotes/origin/${options.landedIn}`) {
-        return { value: { exitCode: 0, stdout: '', stderr: '' } }
+        return { value: { exitCode: 0, stdout: '', stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }
       }
     }
     if (options.base !== undefined) {
       if (args.startsWith('git rev-parse --verify --quiet refs/remotes/origin/')) {
-        return { value: { exitCode: 0, stdout: args.endsWith('/dev') ? 'base1\n' : 'head1\n', stderr: '' } }
+        return { value: { exitCode: 0, stdout: args.endsWith('/dev') ? 'base1\n' : 'head1\n', stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }
       }
       if (args === 'git merge-base --is-ancestor base1 head1') {
-        return { value: { exitCode: options.base === 'fresh' ? 0 : 1, stdout: '', stderr: '' } }
+        return { value: { exitCode: options.base === 'fresh' ? 0 : 1, stdout: '', stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }
       }
     }
     const tracked = /^git rev-parse --verify --quiet refs\/remotes\/origin\/(.+)$/.exec(args)?.[1]
     if (tracked !== undefined && options.origin?.includes(tracked)) {
-      return { value: { exitCode: 0, stdout: `${tracked}1\n`, stderr: '' } }
+      return { value: { exitCode: 0, stdout: `${tracked}1\n`, stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }
     }
     const unpushed = options.unpushed ?? {}
     const branch = { ...options.pushed, ...unpushed }
     const shown = /^git show (-s --format=%s|-s --format=%B|--format= --name-status|--format= -U0 --no-color --diff-filter=AM) (\w+)$/.exec(args)
     if (args.startsWith('git rev-list --reverse ')) {
       const listed = args.endsWith(' --not --remotes') ? unpushed : branch
-      return { value: { exitCode: 0, stdout: Object.keys(listed).map((sha) => `${sha}\n`).join(''), stderr: '' } }
+      return { value: { exitCode: 0, stdout: Object.keys(listed).map((sha) => `${sha}\n`).join(''), stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }
     }
     const commit = shown?.[2] === undefined ? undefined : branch[shown[2]]
     if (shown && commit) {
@@ -100,7 +100,7 @@ const world = (on: On, options: World = {}) => {
             : shown[1] === '--format= --name-status'
               ? commit.files
               : (commit.diff ?? '')
-      return { value: { exitCode: 0, stdout: `${part}\n`, stderr: '' } }
+      return { value: { exitCode: 0, stdout: `${part}\n`, stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }
     }
     const cwd = e.init?.cwd
     const repo = cwd === undefined ? undefined : options.repos?.[cwd]
@@ -117,7 +117,7 @@ const world = (on: On, options: World = {}) => {
             : args === 'git rev-parse --path-format=absolute --git-common-dir' && common !== undefined
               ? `${common}\n`
               : undefined
-    return { value: { exitCode: stdout === undefined ? 1 : 0, stdout: stdout ?? '', stderr: '' } }
+    return { value: { exitCode: stdout === undefined ? 1 : 0, stdout: stdout ?? '', stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }
   })
   on('fs.read', ($, e) => {
     const text = options.files?.[e.path]

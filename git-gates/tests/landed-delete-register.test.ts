@@ -17,8 +17,8 @@ const world = (on: On) => {
   on('prompt.submit', ($, e) => ({ text: e.text }))
   on('process.run', ($, e) => {
     const args = e.argv.join(' ')
-    const ok = (stdout: string) => ({ value: { exitCode: 0, stdout, stderr: '' } })
-    const no = { value: { exitCode: 1, stdout: '', stderr: '' } }
+    const ok = (stdout: string) => ({ value: { exitCode: 0, stdout, stderr: '', isStdoutTruncated: false, isStderrTruncated: false } })
+    const no = { value: { exitCode: 1, stdout: '', stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }
     if (args === 'git rev-parse --show-toplevel') return ok('/repo\n')
     if (args === 'git rev-parse --abbrev-ref HEAD') return ok('dev\n')
     if (args === 'git symbolic-ref --quiet refs/remotes/origin/HEAD') return ok('refs/remotes/origin/main\n')

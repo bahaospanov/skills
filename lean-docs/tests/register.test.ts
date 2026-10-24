@@ -1,4 +1,4 @@
-import type { ModelCompleteRequest, On } from 'claude-code'
+import type { ModelCompleteInput, On } from 'claude-code'
 import { describe, expect, mock, test, tier, type Engine } from 'claude-code/testing'
 
 tier('user')
@@ -30,7 +30,7 @@ const world = (on: On, reply = APPROVE) => {
   const repo: Repo = { diff: '', diffs: {}, head: 'abc', parents: {}, untracked: {}, grep: {}, files: {} }
   const descends = (commit: string | undefined, from: string): boolean =>
     commit !== undefined && (commit === from || descends(repo.parents[commit], from))
-  const asked: ModelCompleteRequest[] = []
+  const asked: ModelCompleteInput[] = []
   const logs: string[] = []
   const submitted: string[] = []
   const ran: string[] = []
@@ -43,7 +43,7 @@ const world = (on: On, reply = APPROVE) => {
   on('process.run', ($, e) => {
     const args = e.argv.slice(1).join(' ')
     const answer = (stdout: string | undefined) => ({
-      value: { exitCode: stdout === undefined ? 1 : 0, stdout: stdout ?? '', stderr: '' },
+      value: { exitCode: stdout === undefined ? 1 : 0, stdout: stdout ?? '', stderr: '', isStdoutTruncated: false, isStderrTruncated: false },
     })
     if (e.argv[0] === 'sh') return answer(e.argv[4]?.startsWith('/repo/reels/') ? '' : undefined)
     if (args.endsWith('rev-parse --show-toplevel')) return answer(/^(-C \/repo|rev-parse)/.test(args) ? '/repo\n' : undefined)
