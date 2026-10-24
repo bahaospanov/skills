@@ -1,6 +1,6 @@
 {
   "name": "git-gates",
-  "version": "1.24.0",
+  "version": "1.25.0",
   "description": "Gates git work on the user's word: no commit, push, MR opening or merge without their say-so in the current turn, a protected branch named, a grant for a commit per task; a negated keyword does not count.",
   "author": {
     "name": "Bakhtiyar Ospanov"

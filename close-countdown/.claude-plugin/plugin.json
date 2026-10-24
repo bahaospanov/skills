@@ -1,6 +1,6 @@
 {
   "name": "close-countdown",
-  "version": "1.24.0",
+  "version": "1.25.0",
   "description": "A Herdr pane counts down before it closes: the agent calls close_pane_later, a band above the prompt shows the seconds left, and a typed message, Keep open or /keep-open cancels it while Close now closes it at once.",
   "author": {
     "name": "Bakhtiyar Ospanov"
