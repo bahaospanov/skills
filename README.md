@@ -169,9 +169,9 @@ A band above the prompt says whether you can leave the session.
 | --- | --- |
 | 🟢 safe to leave | The PR is merged into dev, develop, main or master and every GitHub Actions run of that push passed; a run a newer push cancelled is judged by the newer one |
 | 🟡 waiting on PR | The PR is open, failing checks included, or merged with its pipeline still running |
-| 🔴 working | Claude is asking you, the repo holds uncommitted or unpushed work, there is no PR, it closed unmerged or merged elsewhere, or the pipeline failed |
+| 🔴 working | Claude is asking you, a turn is running where the light would be green, the repo holds uncommitted or unpushed work, there is no PR, it closed unmerged or merged elsewhere, the pipeline failed, or work began after the PR merged |
 
-The repo is the one Claude last edited a file in. A feature branch is judged by its own PR; on an integration branch, or once the worktree is gone, by the PR a `gh pr` command last printed. The light refreshes after git and gh commands, and every 30 seconds while yellow. `/traffic-light` prints it; `/traffic-light demo` shows each color.
+The repo is the one Claude last edited a file in. A feature branch is judged by its own PR; on an integration branch, or once the worktree is gone, by the PR a `gh pr` command last printed. A turn that changes nothing, such as a question, ends green again. A turn that edits a file git does not ignore, or creates a commit, branch, worktree, issue or PR, leaves that merged PR unable to turn the light green: green waits for the new work's PR. The light refreshes after git and gh commands, and every 30 seconds while yellow. `/traffic-light` prints it; `/traffic-light demo` shows each color.
 
 It runs `git` and `gh`, so the session needs both on its PATH and `gh` signed in.
 

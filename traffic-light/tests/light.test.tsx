@@ -55,6 +55,7 @@ function reply(world: World, argv: readonly string[]) {
   if (line.includes('status --porcelain')) return ok(world.status)
   if (line.includes('rev-list --count')) return ok('0\n')
   if (line.includes('branch --show-current')) return ok(`${world.branch}\n`)
+  if (line.includes('check-ignore')) return fail('')
   if (line.startsWith('gh pr view')) {
     return world.pr === null ? fail(`no pull requests found for branch "${world.branch}"`) : ok(JSON.stringify(world.pr))
   }
@@ -73,6 +74,8 @@ async function start($: Engine, on: On, world: Partial<World>) {
   on('tool.call', () => ({ result: {}, text: full.printed }))
   on('session.start', (_, e) => ({ cwd: e.cwd }))
   on('prompt.submit', (_, e) => ({ text: e.text }))
+  on('turn.start', (_, e) => ({ turnId: e.turnId }))
+  on('turn.complete', () => ({ text: '' }))
   on('classic.PermissionRequest', () => ({}))
   on('ui.render', ($, e) => {
     const { Text } = $.ui.resolve(e)
@@ -149,6 +152,43 @@ test('the PR a gh command printed is followed once the branch is gone', async ($
   world.pr = pull('MERGED')
   world.runs = [run('completed', 'success')]
   expect(await light($)).toBe('🟢 safe to leave · #7 merged into dev, deploy-dev passed')
+})
+
+const GREEN = '🟢 safe to leave · #7 merged into dev, deploy-dev passed'
+const ENDED = { turnId: 't1', answer: 'done', durationMs: 1_000, isAborted: false, reason: 'answer' } as const
+
+test('a turn after green is red while it runs, and green again when it changed nothing', async ($, on) => {
+  await start($, on, { pr: pull('MERGED'), runs: [run('completed', 'success')] })
+  expect(await light($)).toBe(GREEN)
+
+  await $.turn.start({ text: 'what does the band read?', turnId: 't1' })
+  expect(await light($)).toBe('🔴 working · Claude is working')
+
+  await $.turn.complete(ENDED)
+  expect(await light($)).toBe(GREEN)
+})
+
+test('an edit in a turn after green keeps the merged PR from turning it green again', async ($, on) => {
+  const world = await start($, on, { pr: pull('MERGED'), runs: [run('completed', 'success')] })
+  expect(await light($)).toBe(GREEN)
+
+  await $.turn.start({ text: 'make the footer bolder', turnId: 't1' })
+  await $.tool.call({ tool: 'Edit', file_path: '/repo/footer.tsx', old_string: 'a', new_string: 'b' })
+  await $.turn.complete(ENDED)
+  expect(await light($)).toBe('🔴 working · new work since #7 merged')
+
+  world.pr = pull('MERGED', { number: 8, url: 'https://github.com/o/r/pull/8' })
+  expect(await light($)).toBe('🟢 safe to leave · #8 merged into dev, deploy-dev passed')
+})
+
+test('a worktree opened in a turn after green spends it too', async ($, on) => {
+  await start($, on, { pr: pull('MERGED'), runs: [run('completed', 'success')] })
+  expect(await light($)).toBe(GREEN)
+
+  await $.turn.start({ text: 'now the scan screen', turnId: 't1' })
+  await $.tool.call({ tool: 'Bash', command: 'git -C /repo worktree add .worktrees/scan -b feat/scan dev' })
+  await $.turn.complete(ENDED)
+  expect(await light($)).toBe('🔴 working · new work since #7 merged')
 })
 
 test('a permission prompt turns it red until the next prompt', async ($, on) => {

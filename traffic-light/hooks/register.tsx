@@ -9,6 +9,8 @@ const INTEGRATION = ['dev', 'develop', 'main', 'master']
 const PR_URL = /https:\/\/github\.com\/([\w.-]+)\/([\w.-]+)\/pull\/(\d+)/
 const PR_COMMAND = /\bgh\s+pr\s+(create|view|merge|ready|checks|edit)\b/
 const GIT_COMMAND = /\b(git|gh)\s/
+const CHANGE_COMMAND =
+  /\b(git\s+(-C\s+\S+\s+)?(commit|revert|cherry-pick|worktree\s+add|checkout\s+-[bB]|switch\s+(-[cC]|--create))|gh\s+(pr|issue)\s+create)\b/
 const POLL_MS = 30_000
 const PIPELINE_START_MS = 3 * 60_000
 const DEMO_STEP_MS = 4_000
@@ -16,6 +18,7 @@ const DEMO_STEP_MS = 4_000
 const light = atom({ plugin: 'traffic-light', key: 'light' } as const, null)
 const pr = atom({ plugin: 'traffic-light', key: 'pr' } as const, null)
 const workDir = atom({ plugin: 'traffic-light', key: 'workDir' } as const, null)
+const spent = atom({ plugin: 'traffic-light', key: 'spent' } as const, [])
 
 const DOT: Record<Color, string> = { green: '🟢', yellow: '🟡', red: '🔴' }
 const HEADLINE: Record<Color, string> = {
@@ -48,8 +51,12 @@ type Run = {
   created_at: string
 }
 
+// A green verdict's `pr` is the URL of the merged PR it stands for.
+type Verdict = Light & { pr?: string }
+
 const lit = (color: Color, reason: string): Light => ({ color, reason })
 const ASKING = lit('red', 'Claude is asking you')
+const WORKING = lit('red', 'Claude is working')
 const DEMO = [
   lit('green', '#182 merged into dev, deploy-dev passed'),
   lit('yellow', '#182 open, checks running'),
@@ -57,6 +64,11 @@ const DEMO = [
 ]
 
 let asking = false
+let working = false
+// The PR the last verdict judged green, and the one green when the running
+// turn began: the turn's first change spends that one.
+let greenPr: string | undefined
+let pending: string | undefined
 let isDemo = false
 let refreshing: Promise<void> | undefined
 let isStale = false
@@ -151,7 +163,7 @@ async function prLight($: Engine, found: Pr): Promise<Light> {
   return lit(after.color, `${label} merged into ${found.baseRefName}, ${after.reason}`)
 }
 
-async function judge($: Engine): Promise<Light> {
+async function judge($: Engine): Promise<Verdict> {
   const dir = (await read($, workDir)) ?? (await $.session.cwd())
   const root = await gitRoot($, dir)
   const left = root === undefined ? undefined : await unfinished($, root)
@@ -162,11 +174,19 @@ async function judge($: Engine): Promise<Light> {
     branch !== undefined ? await viewPr($, branch, root) : tracked !== null ? await viewPr($, tracked) : 'none'
   if (found === 'error') return lit('red', "can't reach GitHub (gh)")
   if (found === 'none') return lit('red', 'no PR yet')
-  return prLight($, found)
+  const verdict = await prLight($, found)
+  if (verdict.color !== 'green') return verdict
+  if ((await read($, spent)).includes(found.url)) return lit('red', `new work since #${found.number} merged`)
+  return { ...verdict, pr: found.url }
 }
 
 async function show($: Engine, next: Light) {
   await update($, light, () => next)
+}
+
+function face(next: Light) {
+  if (asking) return ASKING
+  return working && next.color === 'green' ? WORKING : next
 }
 
 function refresh($: Engine): Promise<void> {
@@ -178,8 +198,9 @@ function refresh($: Engine): Promise<void> {
   refreshing = (async () => {
     do {
       isStale = false
-      const next = await judge($).catch(() => lit('red', "couldn't read the work state"))
-      if (!isDemo) await show($, asking ? ASKING : next)
+      const { pr: merged, ...next } = await judge($).catch((): Verdict => lit('red', "couldn't read the work state"))
+      greenPr = merged
+      if (!isDemo) await show($, face(next))
     } while (isStale)
   })().finally(() => {
     refreshing = undefined
@@ -206,6 +227,22 @@ async function remember($: Engine, file: string) {
   const root = await gitRoot($, file.slice(0, Math.max(file.lastIndexOf('/'), 1)))
   if (root === undefined) return
   await update($, workDir, () => root)
+  soon($)
+  return root
+}
+
+async function edited($: Engine, file: string) {
+  const root = await remember($, file)
+  if (root === undefined || pending === undefined) return
+  const ignored = await run($, ['git', '-C', root, 'check-ignore', '-q', file])
+  if (ignored?.exitCode !== 0) await spend($)
+}
+
+async function spend($: Engine) {
+  const merged = pending
+  if (merged === undefined) return
+  pending = undefined
+  await update($, spent, list => [...list, merged])
   soon($)
 }
 
@@ -249,8 +286,21 @@ export const register: Register = on => {
     return next(e)
   })
 
+  on('turn.start', async ($, e, next) => {
+    if (e.agentId === undefined) {
+      working = true
+      pending = greenPr
+      if (!isDemo && (await read($, light))?.color === 'green') await show($, WORKING)
+    }
+    return next(e)
+  })
+
   on('turn.complete', ($, e, next) => {
     asking = false
+    if (e.agentId === undefined) {
+      working = false
+      pending = undefined
+    }
     soon($)
     return next(e)
   })
@@ -265,9 +315,10 @@ export const register: Register = on => {
     const ran = await next(e)
     try {
       stopAsking($)
-      if (e.tool === 'Edit' || e.tool === 'Write') await remember($, e.file_path)
-      if (e.tool === 'NotebookEdit') await remember($, e.notebook_path)
+      if (e.tool === 'Edit' || e.tool === 'Write') await edited($, e.file_path)
+      if (e.tool === 'NotebookEdit') await edited($, e.notebook_path)
       if (e.tool === 'Bash') {
+        if (CHANGE_COMMAND.test(e.command)) await spend($)
         const url = PR_COMMAND.test(e.command) ? PR_URL.exec(ran.text ?? '')?.[0] : undefined
         if (url !== undefined) await update($, pr, () => url)
         if (GIT_COMMAND.test(e.command)) soon($)

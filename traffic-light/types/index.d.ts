@@ -7,6 +7,7 @@ declare module 'claude-code' {
       light: Light | null
       pr: string | null
       workDir: string | null
+      spent: readonly string[]
     }
   }
 }
