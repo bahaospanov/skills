@@ -1,5 +1,11 @@
 # bahaospanov
 
+## 1.25.2
+
+### Patch Changes
+
+- 8b0fb92: - **traffic-light**: the band's headline is in normal case, `● working` in place of `● WORKING`.
+
 ## 1.25.1
 
 ### Patch Changes
