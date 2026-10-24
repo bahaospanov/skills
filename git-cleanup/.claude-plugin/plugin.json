@@ -1,6 +1,6 @@
 {
   "name": "git-cleanup",
-  "version": "1.23.0",
+  "version": "1.24.0",
   "description": "Cleans up after merged work, once it shipped: removing a branch needs git, the forge or the user to say it merged; removing it or filling in its issue waits for the pipeline holding it to pass; merged, clean work is removed at the end of the turn, with one line saying what went.",
   "author": {
     "name": "Bakhtiyar Ospanov"

@@ -1,6 +1,6 @@
 {
   "name": "lean-docs",
-  "version": "1.23.0",
+  "version": "1.24.0",
   "description": "Docs worth keeping: docs-review asks Haiku whether new text will be read again, docs-no-repeat-code flags lines that may restate code, limit-docs shows a one-line notice when a turn adds too much prose.",
   "author": {
     "name": "Bakhtiyar Ospanov"
