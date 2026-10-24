@@ -30,7 +30,7 @@ A subtask is an agent that another agent, its parent, started in a Herdr pane (`
    herdr agent prompt <child> "<own name> is closing: send your report to <parent> instead."
    ```
 
-4. Close the subtask's pane a minute later, so its last screen stays readable meanwhile. The last pane of a tab closes the tab.
+4. Close the subtask's pane a minute later, so its last screen stays readable meanwhile. The last pane of a tab closes the tab. With the close-countdown mod, call its `close_pane_later` tool, `note` naming where the report went: the pane counts down above the prompt, where the person keeps it open or closes it now. Without the mod:
 
    ```sh
    P="$HERDR_PANE_ID" nohup sh -c 'sleep 60; herdr pane close "$P"' >/dev/null 2>&1 &
