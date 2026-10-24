@@ -1,6 +1,6 @@
 {
   "name": "git-tidy",
-  "version": "1.25.0",
+  "version": "1.25.1",
   "description": "Keeps git history tidy: commit messages in Conventional Commits with no Claude credit, then a Haiku review of the body; a push to a branch that already landed is refused; an MR whose branch lacks the target's latest commit is refused; a pushed series must leave the project working at every commit; follow-up commits and MRs carrying several features are held for the user.",
   "author": {
     "name": "Bakhtiyar Ospanov"

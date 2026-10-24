@@ -1,5 +1,11 @@
 # bahaospanov
 
+## 1.25.1
+
+### Patch Changes
+
+- e2c37ca: - **traffic-light**: the red light reads 🔴 working in place of needs you.
+
 ## 1.25.0
 
 ### Minor Changes
