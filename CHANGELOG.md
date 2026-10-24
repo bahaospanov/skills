@@ -1,5 +1,15 @@
 # bahaospanov
 
+## 1.23.0
+
+### Minor Changes
+
+- 76f3b1b: - **close-countdown**: new mod. A Herdr pane counts down before it closes: the agent calls `close_pane_later` in place of a sleep-then-close shell line, and a band above the prompt shows the seconds left with ✋ Keep open and ❌ Close now buttons. A typed message or `/keep-open` cancels it too.
+
+### Patch Changes
+
+- 28e112f: - **git-gates**, **git-tidy**, **git-cleanup**, **issue-first**, **lean-docs**, **lean-comments**, **lean-scripts**: tests type-check against Claude Code 2.1.309's types; no behaviour change.
+
 ## 1.22.0
 
 ### Minor Changes
