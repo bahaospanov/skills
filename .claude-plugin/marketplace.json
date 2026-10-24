@@ -47,6 +47,11 @@
       "source": "./close-countdown"
     },
     {
+      "name": "traffic-light",
+      "description": "A band above the prompt says whether the session's work is done: green once its PR is merged into an integration branch and that push's pipeline passed, yellow while it waits on the PR or the pipeline, red when it needs you.",
+      "source": "./traffic-light"
+    },
+    {
       "name": "bahaospanov-skills",
       "description": "Every skill in this repo's skills/ folder.",
       "source": "./"

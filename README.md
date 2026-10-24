@@ -50,6 +50,7 @@ One mod per purpose. Why each one and each of its rules exists: [STORY.md](STORY
 | [lean-comments](#lean-comments) | Comments worth keeping |
 | [lean-scripts](#lean-scripts) | Scripts worth keeping |
 | [close-countdown](#close-countdown) | A Herdr pane counts down before it closes |
+| [traffic-light](#traffic-light) | The band says whether the session's work is done |
 
 Haiku reviews are gated in code first, so a call that cannot fail the review
 costs no model call. End-of-turn checks read the git diff of repos the turn
@@ -159,6 +160,20 @@ A Herdr subtask closing its own pane shows it first, so whoever watches can stop
 | Cancel | A message typed into the session, ✋ Keep open or `/keep-open`; ❌ Close now closes the pane at once |
 
 It runs `herdr pane close`, so the session needs `herdr` on its PATH and a Herdr pane (`HERDR_PANE_ID`).
+
+### traffic-light
+
+A band above the prompt says whether you can leave the session.
+
+| Light | When |
+| --- | --- |
+| 🟢 safe to leave | The PR is merged into dev, develop, main or master and every GitHub Actions run of that push passed; a run a newer push cancelled is judged by the newer one |
+| 🟡 waiting on PR | The PR is open, failing checks included, or merged with its pipeline still running |
+| 🔴 needs you | Claude is asking you, the repo holds uncommitted or unpushed work, there is no PR, it closed unmerged or merged elsewhere, or the pipeline failed |
+
+The repo is the one Claude last edited a file in. A feature branch is judged by its own PR; on an integration branch, or once the worktree is gone, by the PR a `gh pr` command last printed. The light refreshes after git and gh commands, and every 30 seconds while yellow. `/traffic-light` prints it; `/traffic-light demo` shows each color.
+
+It runs `git` and `gh`, so the session needs both on its PATH and `gh` signed in.
 
 ## Install mods
 
