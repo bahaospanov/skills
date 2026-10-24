@@ -49,6 +49,7 @@ One mod per purpose. Why each one and each of its rules exists: [STORY.md](STORY
 | [lean-docs](#lean-docs) | Docs worth keeping |
 | [lean-comments](#lean-comments) | Comments worth keeping |
 | [lean-scripts](#lean-scripts) | Scripts worth keeping |
+| [close-countdown](#close-countdown) | A Herdr pane counts down before it closes |
 
 Haiku reviews are gated in code first, so a call that cannot fail the review
 costs no model call. End-of-turn checks read the git diff of repos the turn
@@ -146,6 +147,18 @@ Media and marketing work is out of scope too: a file its own checkout ignores (a
 A script is a shell file, a file in a `scripts`, `bin`, `tools` or `ops` folder, or one starting with a shebang. A skill's folder is skipped: the skill runs its scripts on every use.
 
 Media and marketing work is out of scope too: a file its own checkout ignores (a local `reels/` or `renders/` folder) or one under a folder holding a `.lean-skip` file.
+
+### close-countdown
+
+A Herdr subtask closing its own pane shows it first, so whoever watches can stop it.
+
+| Part | What it does |
+| --- | --- |
+| `close_pane_later` tool | Closes this session's Herdr pane, or `pane`, after `seconds` (default 60) and returns at once; `note` is shown beside the countdown |
+| The band | `⏻ Closing this pane in 42s · <note> [ ✋ Keep open ] [ ❌ Close now ]` above the prompt, a draining bar under it |
+| Cancel | A message typed into the session, ✋ Keep open or `/keep-open`; ❌ Close now closes the pane at once |
+
+It runs `herdr pane close`, so the session needs `herdr` on its PATH and a Herdr pane (`HERDR_PANE_ID`).
 
 ## Install mods
 
