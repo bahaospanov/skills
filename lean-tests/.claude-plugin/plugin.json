@@ -1,6 +1,6 @@
 {
   "name": "lean-tests",
-  "version": "1.26.0",
+  "version": "1.27.0",
   "description": "Tests worth keeping: static-text asks Haiku whether the text assertions a UI test gains only retype copy its component always shows.",
   "author": {
     "name": "Bakhtiyar Ospanov"

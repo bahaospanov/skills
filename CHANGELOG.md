@@ -1,5 +1,11 @@
 # bahaospanov
 
+## 1.27.0
+
+### Minor Changes
+
+- 287418a: - **lean-tests**: new mod. static-text runs after a UI test is written or edited: when its new lines check literal text, Haiku judges whether that text is copy the component always shows, whatever its props, state, data or a user action, and Claude gets the reason to delete those assertions instead of updating them.
+
 ## 1.26.0
 
 ### Minor Changes
