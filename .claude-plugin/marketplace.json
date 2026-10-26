@@ -42,6 +42,11 @@
       "source": "./lean-scripts"
     },
     {
+      "name": "lean-tests",
+      "description": "Tests worth keeping: static-text asks Haiku whether the text assertions a UI test gains only retype copy its component always shows.",
+      "source": "./lean-tests"
+    },
+    {
       "name": "close-countdown",
       "description": "A Herdr pane counts down before it closes: the agent calls close_pane_later, a band above the prompt shows the seconds left, and a typed message, Keep open or /keep-open cancels it while Close now closes it at once.",
       "source": "./close-countdown"

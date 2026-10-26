@@ -49,6 +49,7 @@ One mod per purpose. Why each one and each of its rules exists: [STORY.md](STORY
 | [lean-docs](#lean-docs) | Docs worth keeping |
 | [lean-comments](#lean-comments) | Comments worth keeping |
 | [lean-scripts](#lean-scripts) | Scripts worth keeping |
+| [lean-tests](#lean-tests) | Tests worth keeping |
 | [close-countdown](#close-countdown) | A Herdr pane counts down before it closes |
 | [traffic-light](#traffic-light) | The band says whether the session's work is done |
 
@@ -146,6 +147,20 @@ Media and marketing work is out of scope too: a file its own checkout ignores (a
 | scripts-review | A script written or grown in a git checkout | Haiku: scripts you could just type again when needed | Claude gets the reason |
 
 A script is a shell file, a file in a `scripts`, `bin`, `tools` or `ops` folder, or one starting with a shebang. A skill's folder is skipped: the skill runs its scripts on every use.
+
+Media and marketing work is out of scope too: a file its own checkout ignores (a local `reels/` or `renders/` folder) or one under a folder holding a `.lean-skip` file.
+
+### lean-tests
+
+A test pins behaviour. Copy a component always shows is content: asserting it
+types the copy a second time, and the test fails only when the wording changed
+on purpose.
+
+| Check | Runs on | Flags | Then |
+| --- | --- | --- | --- |
+| static-text | A UI test written or edited in a git checkout whose new lines check literal text: `getByText('…')`, a role's `name: '…'`, `toHaveTextContent('…')`, `toHaveText`, a snapshot | Haiku: assertions of text the component shows whatever its props, state, data or a user action | Claude gets the reason |
+
+A UI test is a `.test` or `.spec` file in JSX or TSX, or one using Testing Library, Playwright or Vue Test Utils. Haiku reads it with the component beside it (`Card.test.tsx` → `Card.tsx`, or one folder up from `__tests__/`).
 
 Media and marketing work is out of scope too: a file its own checkout ignores (a local `reels/` or `renders/` folder) or one under a folder holding a `.lean-skip` file.
 

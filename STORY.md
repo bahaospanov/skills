@@ -139,3 +139,9 @@ Split from git-gates on 2026-10-20; the origins are from git-gates' history.
 | Rule | Kind | Check | Effect | Origin |
 | --- | --- | --- | --- | --- |
 | Could it be typed again on the spot? | proj | Haiku | note | The settings prompt hook, moved verbatim 2026-09-16, 4da7656 |
+
+### lean-tests
+
+| Rule | Kind | Check | Effect | Origin |
+| --- | --- | --- | --- | --- |
+| A UI test does not assert static copy | proj | code, Haiku | note | 2026-10-25: two copy changes on a home page each retyped their new strings into its test, which could fail only when the wording changed on purpose; 2026-10-26, the user's call |
