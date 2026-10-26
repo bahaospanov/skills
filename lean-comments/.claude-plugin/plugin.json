@@ -1,6 +1,6 @@
 {
   "name": "lean-comments",
-  "version": "1.27.0",
+  "version": "1.27.1",
   "description": "Comments worth keeping: limit-edits flags comment-heavy edits, limit-turns shows a one-line notice when a turn's diff adds too many comments.",
   "author": {
     "name": "Bakhtiyar Ospanov"
