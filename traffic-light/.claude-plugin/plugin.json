@@ -1,7 +1,7 @@
 {
   "name": "traffic-light",
   "version": "1.27.0",
-  "description": "A band above the prompt says whether the session's work is done: green once its PR is merged into an integration branch and that push's pipeline passed, yellow while it waits on the PR or the pipeline, red when it needs you.",
+  "description": "A band above the prompt says whether the session's work is done: green before any work starts, and once its PR is merged into an integration branch, or its commit pushed straight to one, and that push's pipeline passed; yellow while it waits on the PR or the pipeline, red when it needs you.",
   "author": {
     "name": "Bakhtiyar Ospanov"
   },

@@ -25,6 +25,9 @@ type World = {
   runs: Run[]
   newest: Run[]
   printed: string
+  head: string
+  pushedAt: string
+  isFresh: boolean
 }
 
 const run = (status: string, conclusion: string | null, created_at = '2026-10-25T10:00:05Z'): Run => ({
@@ -56,6 +59,9 @@ function reply(world: World, argv: readonly string[]) {
   if (line.includes('rev-list --count')) return ok('0\n')
   if (line.includes('branch --show-current')) return ok(`${world.branch}\n`)
   if (line.includes('check-ignore')) return fail('')
+  if (line.includes('log -g')) return ok(`origin/${world.branch}@{${world.pushedAt}}\n`)
+  if (line.includes('log -1')) return ok(`${world.head}000 ${world.head}\n`)
+  if (line.includes('remote get-url origin')) return ok('git@github.com:o/r.git\n')
   if (line.startsWith('gh pr view')) {
     return world.pr === null ? fail(`no pull requests found for branch "${world.branch}"`) : ok(JSON.stringify(world.pr))
   }
@@ -64,10 +70,22 @@ function reply(world: World, argv: readonly string[]) {
   return fail('unexpected command')
 }
 
-// Stands for the engine beneath the mod: git, gh and the Bash tool answer from `world`.
+// Stands for the engine beneath the mod: git, gh and the Bash tool answer from `world`. Unless fresh, the session has
+// started work with an edit.
 async function start($: Engine, on: On, world: Partial<World>) {
-  const full: World = { branch: 'feat/x', status: '', pr: null, runs: [], newest: [], printed: '', ...world }
-  mock.clock(on)
+  const full: World = {
+    branch: 'feat/x',
+    status: '',
+    pr: null,
+    runs: [],
+    newest: [],
+    printed: '',
+    head: 'abc1234',
+    pushedAt: '2026-10-25T10:00:00Z',
+    isFresh: false,
+    ...world,
+  }
+  const clock = mock.clock(on, { now: Date.parse('2026-10-25T10:01:00Z') })
   on('command.register', () => ({ value: { command: 'traffic-light' } }))
   on('session.cwd', () => ({ value: '/repo' }))
   on('process.run', (_, e) => ({ value: reply(full, e.argv) }))
@@ -82,13 +100,37 @@ async function start($: Engine, on: On, world: Partial<World>) {
     return <Text>engine</Text>
   })
   await $.session.start({ cwd: '/repo', surface: 'terminal', isInteractive: true })
-  return full
+  if (!full.isFresh) await $.tool.call({ tool: 'Edit', file_path: '/repo/a.ts', old_string: 'a', new_string: 'b' })
+  return Object.assign(full, { clock })
 }
 
 async function light($: Engine) {
   const presentation = { isFullscreen: false, columns: 120 }
   return (await $.command.run({ command: 'traffic-light', args: '', origin: { kind: 'composer' }, presentation })).text
 }
+
+test('a session that started no work is green, and red only while a turn runs', async ($, on) => {
+  await start($, on, { isFresh: true, status: ' M notes.md\n' })
+  expect(await light($)).toBe('🟢 safe to leave · no work started')
+
+  await $.turn.start({ text: 'what does this repo do?', turnId: 't1' })
+  expect(await light($)).toBe('🔴 working · Claude is working')
+
+  await $.turn.complete(ENDED)
+  expect(await light($)).toBe('🟢 safe to leave · no work started')
+})
+
+test('a commit, a push or a PR starts the work', async ($, on) => {
+  const world = await start($, on, { isFresh: true })
+  await $.tool.call({ tool: 'Bash', command: 'git -C /repo push origin feat/x' })
+  expect(await light($)).toBe('🔴 working · no PR yet')
+
+  world.branch = 'dev'
+  world.printed = `${URL}\n`
+  world.pr = pull('OPEN')
+  await $.tool.call({ tool: 'Bash', command: 'gh pr view 7' })
+  expect(await light($)).toBe('🟡 waiting on PR · #7 open, waiting for merge')
+})
 
 test('a branch with no PR is red, in the band too', async ($, on) => {
   await start($, on, {})
@@ -189,6 +231,40 @@ test('a worktree opened in a turn after green spends it too', async ($, on) => {
   await $.tool.call({ tool: 'Bash', command: 'git -C /repo worktree add .worktrees/scan -b feat/scan dev' })
   await $.turn.complete(ENDED)
   expect(await light($)).toBe('🔴 working · new work since #7 merged')
+})
+
+const PUSHED = '🟢 safe to leave · abc1234 pushed to main, deploy-dev passed'
+
+test('work pushed straight to an integration branch, with no PR, is judged by its pushed head', async ($, on) => {
+  const world = await start($, on, { branch: 'main', runs: [run('in_progress', null)] })
+  expect(await light($)).toBe('🟡 waiting on pipeline · abc1234 pushed to main, deploy-dev running')
+  const ui = await $.ui.mount({ ...BAND, surface: 'terminal' })
+  expect((await ui.find({ type: 'Text', text: /● waiting on pipeline/ }))?.text).toBeDefined()
+  await ui.unmount()
+
+  world.runs = [run('completed', 'success')]
+  expect(await light($)).toBe(PUSHED)
+})
+
+test('a push no pipeline picks up is yellow for three minutes, then green', async ($, on) => {
+  const world = await start($, on, { branch: 'main' })
+  expect(await light($)).toBe('🟡 waiting on pipeline · abc1234 pushed to main, pipeline not started yet')
+
+  await world.clock.advance(3 * 60_000)
+  expect(await light($)).toBe('🟢 safe to leave · abc1234 pushed to main, no pipeline ran')
+})
+
+test('an edit after a pushed head was green waits for the next push', async ($, on) => {
+  const world = await start($, on, { branch: 'main', runs: [run('completed', 'success')] })
+  expect(await light($)).toBe(PUSHED)
+
+  await $.turn.start({ text: 'one more fix', turnId: 't1' })
+  await $.tool.call({ tool: 'Edit', file_path: '/repo/footer.tsx', old_string: 'a', new_string: 'b' })
+  await $.turn.complete(ENDED)
+  expect(await light($)).toBe('🔴 working · new work since abc1234 was pushed')
+
+  world.head = 'def5678'
+  expect(await light($)).toBe('🟢 safe to leave · def5678 pushed to main, deploy-dev passed')
 })
 
 test('a permission prompt turns it red until the next prompt', async ($, on) => {

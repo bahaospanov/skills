@@ -1,5 +1,5 @@
 export type Color = 'green' | 'yellow' | 'red'
-export type Light = { color: Color; reason: string }
+export type Light = { color: Color; reason: string; headline?: string }
 
 declare module 'claude-code' {
   interface PluginState {
@@ -8,6 +8,7 @@ declare module 'claude-code' {
       pr: string | null
       workDir: string | null
       spent: readonly string[]
+      started: boolean
     }
   }
 }
