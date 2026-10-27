@@ -24,6 +24,7 @@ Pick one: installing both leaves every skill twice.
 Reachable only when you type them (Claude Code: `disable-model-invocation: true`; Codex: `policy.allow_implicit_invocation: false` in `agents/openai.yaml`).
 
 - **[release](skills/release/SKILL.md)**: Integration branch to production: fold fixup commits into their parent, cut waves around migrations and one-time steps, ship wave by wave with a runbook issue, then tag a SemVer release, note the shipped issues for you to close, and build a phone-sized release album.
+- **[setup-triage-labels](skills/setup-triage-labels/SKILL.md)**: A repo's issue labels from one base set (type, priority, shipped to dev and production) and when each changes as work ships, in step with the playbook and release, written to `docs/agents/triage-labels.md`; the project's own labels sit under it and survive every re-run. Replaces the label instructions other setups left, such as [mattpocock/skills `setup-matt-pocock-skills`](https://github.com/mattpocock/skills/tree/main/skills/engineering/setup-matt-pocock-skills)' triage roles, whose setup flow it adapts (MIT), and brings the tracker's labels in line.
 
 ### Model-invoked
 

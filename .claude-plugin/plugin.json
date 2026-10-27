@@ -1,7 +1,7 @@
 {
   "name": "bahaospanov-skills",
   "version": "1.27.1",
-  "description": "Bakhtiyar Ospanov's agent skills: playbook, presentation, prototype-stages, release, scheme.",
+  "description": "Bakhtiyar Ospanov's agent skills: playbook, presentation, prototype-stages, release, scheme, setup-triage-labels.",
   "author": {
     "name": "Bakhtiyar Ospanov"
   },
@@ -12,6 +12,7 @@
     "./skills/presentation",
     "./skills/prototype-stages",
     "./skills/release",
-    "./skills/scheme"
+    "./skills/scheme",
+    "./skills/setup-triage-labels"
   ]
 }

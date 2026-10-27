@@ -1,0 +1,5 @@
+interface:
+  display_name: "Setup Triage Labels"
+  short_description: "Configure a repo's issue labels from the base set"
+policy:
+  allow_implicit_invocation: false
