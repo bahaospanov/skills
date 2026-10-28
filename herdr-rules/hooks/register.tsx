@@ -3,14 +3,14 @@ import type { EngineInterface, Register, Timer } from 'claude-code'
 
 import type { Countdown } from '../types'
 
-const PLUGIN = 'close-countdown'
+const PLUGIN = 'herdr-rules'
 const TOOL = 'close_pane_later'
 const BAR = 38
 
-const countdown = atom({ plugin: 'close-countdown', key: 'countdown' } as const, null, {
+const countdown = atom({ plugin: 'herdr-rules', key: 'countdown' } as const, null, {
   shape: 'countdown-1',
 })
-const now = atom({ plugin: 'close-countdown', key: 'now' } as const, 0)
+const now = atom({ plugin: 'herdr-rules', key: 'now' } as const, 0)
 
 let tick: Timer | undefined
 

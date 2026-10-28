@@ -51,7 +51,7 @@ One mod per purpose. Why each one and each of its rules exists: [STORY.md](STORY
 | [lean-comments](#lean-comments) | Comments worth keeping |
 | [lean-scripts](#lean-scripts) | Scripts worth keeping |
 | [lean-tests](#lean-tests) | Tests worth keeping |
-| [close-countdown](#close-countdown) | A Herdr pane counts down before it closes |
+| [herdr-rules](#herdr-rules) | A Herdr pane counts down before it closes |
 | [traffic-light](#traffic-light) | The band says whether the session's work is done |
 
 Haiku reviews are gated in code first, so a call that cannot fail the review
@@ -165,7 +165,7 @@ A UI test is a `.test` or `.spec` file in JSX or TSX, or one using Testing Libra
 
 Media and marketing work is out of scope too: a file its own checkout ignores (a local `reels/` or `renders/` folder) or one under a folder holding a `.lean-skip` file.
 
-### close-countdown
+### herdr-rules
 
 A Herdr subtask closing its own pane shows it first, so whoever watches can stop it.
 

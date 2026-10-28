@@ -7,6 +7,6 @@ export type Countdown = {
 
 declare module 'claude-code' {
   interface PluginState {
-    'close-countdown': { countdown: Shaped<Countdown | null>; now: number }
+    'herdr-rules': { countdown: Shaped<Countdown | null>; now: number }
   }
 }

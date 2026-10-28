@@ -47,9 +47,9 @@
       "source": "./lean-tests"
     },
     {
-      "name": "close-countdown",
+      "name": "herdr-rules",
       "description": "A Herdr pane counts down before it closes: the agent calls close_pane_later, a band above the prompt shows the seconds left, and a typed message, Keep open or /keep-open cancels it while Close now closes it at once.",
-      "source": "./close-countdown"
+      "source": "./herdr-rules"
     },
     {
       "name": "traffic-light",

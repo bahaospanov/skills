@@ -2,10 +2,10 @@ import { expect, mock, test } from 'claude-code/testing'
 import type { Engine } from 'claude-code/testing'
 import type { On } from 'claude-code'
 
-const TOOL = 'mcp__close-countdown__close_pane_later'
+const TOOL = 'mcp__herdr-rules__close_pane_later'
 
 const BAND = {
-  plugin: 'close-countdown',
+  plugin: 'herdr-rules',
   component: 'AbovePrompt',
   props: {
     hasSurvey: false,
@@ -20,7 +20,7 @@ const BAND = {
 // Stands for the engine beneath the mod; returns the argv of every command it ran.
 async function start($: Engine, on: On) {
   const ran: string[][] = []
-  on('tool.register', (_, e) => ({ value: { tool: `mcp__close-countdown__${e.name}` } }))
+  on('tool.register', (_, e) => ({ value: { tool: `mcp__herdr-rules__${e.name}` } }))
   on('command.register', () => ({ value: { command: 'keep-open' } }))
   on('ui.toast', () => ({ value: undefined }))
   on('process.run', (_, e) => {
