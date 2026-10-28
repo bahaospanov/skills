@@ -31,6 +31,51 @@ The base is the playbook's Base fact.
 
 Labels change by adding and removing; sending the whole set replaces it and drops what someone else just added. Every label comes from this file, or from another installed skill's operations in these docs (wayfinder's `wayfinder:*`). The tracker turns any other string into a new label on first use, so a label the work needs gets its row under Project labels first, on the user's yes.
 
+## Recipes
+
+### GitLab
+
+Over REST, with `$API` and `$TOKEN` as the tracker recipes set them.
+
+```sh
+# untriaged: open issues with no priority::, child Tasks left out.
+# Lists page at 100: follow the x-next-page response header
+curl -sS -G --header "PRIVATE-TOKEN: $TOKEN" "$API/issues" \
+  --data 'state=opened&issue_type=issue&per_page=100' \
+  --data-urlencode 'not[labels]=priority::high,priority::medium,priority::low'
+
+# on dev, waiting for a release
+curl -sS -G --header "PRIVATE-TOKEN: $TOKEN" "$API/issues" --data 'state=opened&per_page=100' \
+  --data-urlencode 'labels=shipped::dev' --data-urlencode 'not[labels]=shipped::prod'
+
+# triage: the user's priority, and their type correction in the same call
+curl -sS -X PUT "$API/issues/<iid>" --header "PRIVATE-TOKEN: $TOKEN" \
+  --data-urlencode 'add_labels=priority::high,type::fix' --data-urlencode 'remove_labels=type::bug'
+
+# shipped to dev; a release adds shipped::prod the same way
+curl -sS -X PUT "$API/issues/<iid>" --header "PRIVATE-TOKEN: $TOKEN" --data-urlencode 'add_labels=shipped::dev'
+
+# label ids, for a work item made over GraphQL: labelIds takes gid://gitlab/ProjectLabel/<id>
+curl -sS --header "PRIVATE-TOKEN: $TOKEN" "$API/labels?per_page=100" | jq -r '.[] | "\(.id) \(.name)"'
+```
+
+### GitHub
+
+```sh
+# untriaged: open issues with no priority::, sub-issues left out
+gh issue list --state open --limit 100 \
+  --search 'no:parent-issue -label:"priority::high" -label:"priority::medium" -label:"priority::low"'
+
+# on dev, waiting for a release
+gh issue list --state open --limit 100 --label shipped::dev --search '-label:"shipped::prod"'
+
+# triage: the user's priority, and their type correction in the same call
+gh issue edit <n> --add-label priority::high,type::fix --remove-label type::bug
+
+# shipped to dev; a release adds shipped::prod the same way
+gh issue edit <n> --add-label shipped::dev
+```
+
 ## Project labels
 
 Added to the base set; a row named like a base label overrides it.
