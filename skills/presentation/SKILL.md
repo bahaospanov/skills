@@ -1,6 +1,7 @@
 ---
 name: presentation
 description: Phone-sized slides of what changed for a product's users, one changed place per slide with its page URL and desktop before/after shots, the change outlined, to post in a chat. Use when the user wants a what's-new post or a visual report of shipped changes.
+disable-model-invocation: true
 ---
 
 # Presentation

@@ -1,3 +1,5 @@
 interface:
   display_name: "Presentation"
   short_description: "Phone-sized slides of what changed for a product's users"
+policy:
+  allow_implicit_invocation: false

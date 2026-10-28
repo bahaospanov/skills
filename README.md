@@ -23,6 +23,7 @@ Pick one: installing both leaves every skill twice.
 
 Reachable only when you type them (Claude Code: `disable-model-invocation: true`; Codex: `policy.allow_implicit_invocation: false` in `agents/openai.yaml`).
 
+- **[presentation](skills/presentation/SKILL.md)**: Phone-sized slides of what changed for a product's users, one changed place per slide: its page URL and desktop before/after shots with the change outlined, rendered as 4:5 PNGs with a caption to post in a chat; release builds its release album with it.
 - **[release](skills/release/SKILL.md)**: Integration branch to production: fold fixup commits into their parent, cut waves around migrations and one-time steps, ship wave by wave with a runbook issue, then tag a SemVer release, note the shipped issues for you to close, and build a phone-sized release album.
 - **[setup-triage-labels](skills/setup-triage-labels/SKILL.md)**: A repo's issue labels from one base set (type, priority, shipped to dev and production) and when each changes as work ships, in step with the playbook and release, written to `docs/agents/triage-labels.md` with the recipes that list and relabel by them; the project's own labels sit under it and survive every re-run. Replaces the label instructions other setups left, such as [mattpocock/skills `setup-matt-pocock-skills`](https://github.com/mattpocock/skills/tree/main/skills/engineering/setup-matt-pocock-skills)' triage roles, whose setup flow it adapts (MIT), and brings the tracker's labels in line.
 
@@ -31,7 +32,6 @@ Reachable only when you type them (Claude Code: `disable-model-invocation: true`
 Model- or user-reachable.
 
 - **[playbook](skills/playbook/SKILL.md)**: How a change goes from issue to merged branch, in parts: issues, branches, commits, merge requests, cleanup. A project states its facts (base branch, issue number format, deviations) in a `### Playbook` block of its AGENTS.md. Its MR description is [mattpocock/skills `pr`](https://github.com/mattpocock/skills/tree/main/skills/engineering/pr) (MIT), whose Summary visuals come from Dex Horthy's [HumanLayer `show-me`](https://github.com/humanlayer/skills/tree/main/plugins/show-me/skills/show-me) (MIT).
-- **[presentation](skills/presentation/SKILL.md)**: Phone-sized slides of what changed for a product's users, one changed place per slide: its page URL and desktop before/after shots with the change outlined, rendered as 4:5 PNGs with a caption to post in a chat; release builds its release album with it.
 - **[prototype-stages](skills/prototype-stages/SKILL.md)**: [mattpocock/skills `prototype`](https://github.com/mattpocock/skills/tree/main/skills/engineering/prototype) (MIT), its UI branch reworked: whole flows, options grouped by stage in a one-click panel.
 - **[scheme](skills/scheme/SKILL.md)**: ASCII schematic of a code change: control flow, data flow, before/after, or layers.
 
