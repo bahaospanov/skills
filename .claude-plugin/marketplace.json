@@ -27,6 +27,11 @@
       "source": "./issue-first"
     },
     {
+      "name": "playbook-rules",
+      "description": "Holds the agent to the playbook's rules no other mod checks: a PR or MR opens, or has its description changed, only with a body in the playbook's MR template, written as its MR.md says (code checks, then a Haiku review), and no tool credit.",
+      "source": "./playbook-rules"
+    },
+    {
       "name": "lean-docs",
       "description": "Docs worth keeping: docs-review asks Haiku whether new text will be read again, docs-no-repeat-code flags lines that may restate code, limit-docs shows a one-line notice when a turn adds too much prose.",
       "source": "./lean-docs"

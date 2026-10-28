@@ -8,6 +8,7 @@
     "check:shared": "node scripts/check-shared.mjs",
     "check:continuations": "node scripts/check-continuations.mjs",
     "check:version": "node scripts/sync-plugin-versions.mjs --check",
+    "check:mr-template": "node scripts/check-mr-template.mjs",
     "changeset": "changeset",
     "version": "changeset version && node scripts/sync-plugin-versions.mjs"
   },

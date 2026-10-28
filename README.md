@@ -47,6 +47,7 @@ One mod per purpose. Why each one and each of its rules exists: [STORY.md](STORY
 | [git-tidy](#git-tidy) | Git history stays tidy |
 | [git-cleanup](#git-cleanup) | Merged work is cleaned up once it shipped |
 | [issue-first](#issue-first) | Feature work starts from an issue, and each commit names its own |
+| [playbook-rules](#playbook-rules) | The playbook's rules no other mod checks: an MR's description |
 | [lean-docs](#lean-docs) | Docs worth keeping |
 | [lean-comments](#lean-comments) | Comments worth keeping |
 | [lean-scripts](#lean-scripts) | Scripts worth keeping |
@@ -114,6 +115,18 @@ Pipelines are read with `gh` on GitHub and, on GitLab, with the `gitlab_token` o
 A repo with no remote has no issue tracker: feature issue is skipped, and only a ticket (#BLK-23) counts as an issue.
 Issues you typed bind only commits in the session's repo and its worktrees; a branch ending in its issue number (`perf/mobile-lcp-89`) lets the subject end with that one instead.
 Enabled in a repo's own `.claude/settings.json`, it applies to everyone working there.
+
+### playbook-rules
+
+The [playbook](skills/playbook/SKILL.md) holds the rules; this mod checks the ones no other mod does, and each refusal names the part.
+
+| Check | Runs on | Needs | Then |
+| --- | --- | --- | --- |
+| MR description | Opening a PR/MR (`gh pr create`, `glab mr create`, a GitLab API POST to `merge_requests`) or setting its description (`gh pr edit --body`, `glab mr update -d`, a GitLab API PUT with `description`) | A body with MR.md's `## Summary`, holding a fenced block tagged with its language (`diff`, `text`, `mermaid`, …), `## Evidence` with a `**Before:**` and an `**After:**`, and `## Merge Danger` with a one-way or two-way `**Door:**` and a `**Blast Radius:**`; no template placeholder left, no byline crediting the tool; the template part is skipped when the message says "no template" | Call denied |
+| MR style | The same calls, once MR description passes | Haiku, reading the body against the playbook's MR.md: the Summary's view is one MR.md lists and shows the change, the Evidence is output, a screenshot or a test run rather than a sentence, and only a clear miss fails; skipped when the message says the description is fine, or "no template" | Call denied; with no MR.md found or no answer from Haiku, the call runs and a log line says why |
+
+The body is read from `--body`, a `"$(cat <<'EOF' … EOF)"` heredoc, `--body-file`, `glab -d`, or the API's `description` field, inline or as `description=<file`. A body it cannot read (`--fill`, `--web`, a shell variable, JSON piped in) is denied with the way to pass it readably. `npm run check:mr-template` fails when the check's copy of the template drifts from MR.md.
+MR style reads MR.md where it is installed beside the mod: this repo's checkout, the `bahaospanov-skills` plugin of the same version, or `~/.claude/skills/playbook`.
 
 ### lean-docs
 
@@ -226,6 +239,7 @@ npm run typecheck                 # tsc over every mod and its tests
 npm run check:shared              # hooks/shared/ copies are identical across mods
 npm run check:continuations       # every mod sending follow-up prompts is named where git-gates reads them
 npm run check:version             # every plugin.json carries package.json's version
+npm run check:mr-template         # playbook-rules checks the template skills/playbook/MR.md holds
 claude plugin validate ./<mod>    # what the engine sees the module hook and call
 claude plugin test ./<mod>        # the mod's tests/
 ```

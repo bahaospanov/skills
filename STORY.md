@@ -119,6 +119,13 @@ Split from git-gates on 2026-10-20; the origins are from git-gates' history.
 | A `feat` commit names an issue, at the end of its subject or in its branch | proj | code | deny | 8dc0eee |
 | The subject ends with the issue the user or the branch named | proj | code | note | 53e9700, in git-gates; moved here 2026-10-20 so one mod holds the issue number |
 
+### playbook-rules
+
+| Rule | Kind | Check | Effect | Origin |
+| --- | --- | --- | --- | --- |
+| An MR's description follows the playbook's MR template and credits no tool | proj | code | deny | 2026-10-28, boleiik PR #205: the agent opened a PR with a free-form body, the template held only in MR.md and the skill listed by its bare name. git-gates dropped its own description check in 1.16.0 for the mr-style skill; the text alone did not hold, so the check is back, reading the playbook's template, on the user's call |
+| An MR's description is written as MR.md says: a view in the Summary, output in the Evidence | proj | code, Haiku | deny | 2026-10-28, boleiik PR #205 again: its rewrite passed the template check with a Summary of arrows in an untagged fence and a Before written as a sentence; MR.md's section guidance, read only in part, held as text alone. Haiku denies only a clear miss, and "the description is fine" overrules it, on the user's call |
+
 ### lean-docs
 
 | Rule | Kind | Check | Effect | Origin |
