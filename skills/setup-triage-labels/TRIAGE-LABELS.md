@@ -29,7 +29,7 @@ The base is the playbook's Base fact.
 3. **Shipped to dev.** Once the pipeline holding the work's last merge into the base has passed, the moment the playbook's cleanup adds How to test, the issue gets `shipped::dev`. Work still to merge, another MR or an open step, holds it back. A revert on the base takes it off.
 4. **Released.** The release skill notes each shipped issue with `shipped::prod` and labels its runbook `type::release`; a release by hand does the same. A partly shipped issue waits for its last piece.
 
-Labels change by adding and removing; sending the whole set replaces it and drops what someone else just added. Every label comes from this file, or from another installed skill's operations in these docs (wayfinder's `wayfinder:*`). The tracker turns any other string into a new label on first use, so a label the work needs gets its row under Project labels first, on the user's yes.
+Labels change by adding and removing; sending the whole set replaces it and drops what someone else just added. Every label comes from this file. The tracker turns any other string into a new label on first use, so a label the work needs gets its row under Project labels first, on the user's yes.
 
 ## Recipes
 

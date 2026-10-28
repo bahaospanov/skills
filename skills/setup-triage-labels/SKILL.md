@@ -66,7 +66,7 @@ Base set from `/setup-triage-labels`, plus <its labels, or "nothing of its own">
 | move an issue | `PUT issues/<iid>` with `add_labels`, `remove_labels` | `gh issue edit <n> --add-label … --remove-label …` |
 | delete | `DELETE labels/<url-encoded name>` | `gh label delete <name> --yes` |
 
-Done when the tracker holds the base set, the project's rows and labels another installed skill operates with, each with its colour and description, and each list recipe in the file, run read-only, returns the open issues its labels pick out.
+Done when the tracker holds the base set and the project's rows, each with its colour and description, and each list recipe in the file, run read-only, returns the open issues its labels pick out.
 
 ## 6. Report
 
