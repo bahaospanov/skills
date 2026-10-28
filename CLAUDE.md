@@ -14,7 +14,13 @@ Two kinds of plugin share this repo and its marketplace (`.claude-plugin/marketp
 - A skill folder holds `SKILL.md`, reference files named in UPPERCASE (`REWRITE.md`), and `agents/openai.yaml` (Codex picker metadata).
 - Invocation, kept the same in Claude Code and Codex: [.agents/invocation.md](.agents/invocation.md).
 - Every skill is listed in the root manifest and in the README under **User-invoked** or **Model-invoked**, its name linked to its SKILL file. Run `claude plugin validate .` after touching a manifest; its one warning, that this CLAUDE.md is not plugin context, is expected.
-- `scripts/link-skills.sh` symlinks every skill into `~/.claude/skills` and `~/.agents/skills` for local work. Use it or the plugin, not both.
+
+## Unreleased work
+
+Users install from GitHub `main`: a fresh install copies its latest commit, an existing one updates only when `version` changes. Keep unfinished work in local commits or on a branch; push to `main` only with a release.
+
+- Claude Code on the maintainer's machine runs this checkout: the `bahaospanov` marketplace is added from the folder (`claude plugin marketplace add <path to this checkout>`, then `claude plugin install <plugin>@bahaospanov` for each), so edits load on `/reload-plugins` or the next session, with no release.
+- `scripts/link-skills.sh` symlinks every skill into `~/.claude/skills` and `~/.agents/skills`. Use it or the `bahaospanov-skills` plugin, not both.
 
 ## Releasing
 
