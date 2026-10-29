@@ -1,6 +1,20 @@
+---
+name: mr
+description: Opening an MR or PR and writing its description, from the rebase before pushing to the Summary, Evidence, Merge Danger and marked screenshots. Use when opening an MR or PR, or writing or changing its description.
+metadata:
+  credits:
+    - skill: pr
+      author: Matt Pocock
+      url: "https://github.com/mattpocock/skills/blob/main/skills/engineering/pr/SKILL.md"
+    - skill: show-me
+      author: Dex Horthy
+      organisation: Humanlayer
+      url: "https://github.com/humanlayer/skills/blob/main/plugins/show-me/skills/show-me/SKILL.md"
+---
+
 # Merge requests
 
-An MR or PR targets the base and carries one branch's feature ([BRANCHES.md](BRANCHES.md)).
+An MR or PR targets the base and carries one branch's feature. The base and the project's other facts come from the playbook: call the Skill tool with "playbook" first when it is not loaded.
 
 ## Before pushing
 
@@ -180,7 +194,7 @@ The blast radius is the potential impact or scope of the changes introduced by t
 
 ## Screenshots
 
-Work touching a frontend carries screenshots in its Evidence: the real app running locally with seeded data, not component mocks, each with its viewport named. The reviewer sees the change before merging; a diff is not a look at the thing. The same shots later go in the issue's How to test ([ISSUES.md](ISSUES.md)). Backend-only work skips them.
+Work touching a frontend carries screenshots in its Evidence: the real app running locally with seeded data, not component mocks, each with its viewport named. The reviewer sees the change before merging; a diff is not a look at the thing. The same shots later go in the issue's How to test, the playbook's ISSUES part. Backend-only work skips them.
 
 Every shot marks what changed, so the reviewer finds it at a glance instead of comparing two pictures:
 
@@ -192,4 +206,4 @@ Done when each mark sits on a change and every change the page shows has one.
 
 ## After the merge
 
-[CLEANUP.md](CLEANUP.md).
+The playbook's CLEANUP part.

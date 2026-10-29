@@ -1,0 +1,3 @@
+interface:
+  display_name: "MR"
+  short_description: "Open an MR or PR with a Summary, Evidence and Merge Danger"
