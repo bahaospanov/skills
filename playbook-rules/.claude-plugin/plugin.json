@@ -1,8 +1,0 @@
-{
-  "name": "playbook-rules",
-  "version": "1.28.0",
-  "description": "Holds the agent to the playbook's rules no other mod checks: a PR or MR opens, or has its description changed, only with a body in the playbook's MR template, written as its MR.md says (code checks, then a Haiku review), and no tool credit.",
-  "author": {
-    "name": "Bakhtiyar Ospanov"
-  }
-}

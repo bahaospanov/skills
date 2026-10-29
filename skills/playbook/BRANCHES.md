@@ -13,6 +13,7 @@ git worktree add -b <type>/<slug>-<issue> .worktrees/<slug> origin/<base>
 - The branch ends with the issue number when there is one (`feat/catalog-menu-107`), so its commits answer to that issue.
 - `.worktrees/` sits in the repo's `.gitignore`.
 - A fresh worktree needs its own install before the checks run.
+- A branch whose MR merged takes no more pushes: a follow-up gets its own branch, or the push recreates the deleted branch outside any MR, looking shipped.
 
 A question answered without changing anything needs no worktree, and neither does work the user says to do in the current checkout.
 

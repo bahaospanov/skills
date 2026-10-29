@@ -11,6 +11,7 @@ Why the mods in this repo exist, the tests a rule passes before it becomes one, 
 5. **Rules began moving back to text.** 1.15.0 turned a missing issue reference from a block into a note. 1.16.0 moved the MR description format out of git-gates into the mr-style skill.
 6. **The playbook took the text.** On 2026-10-20 the workflow's rules, from issue to cleanup, went into one skill, the playbook, which a project adopts and feeds its own facts. mr-style folded into it, the mods began pointing to its parts, and each rule kept one home: the issue number, checked by both git-gates and issue-first, moved into issue-first alone.
 7. **git-gates split in two.** The same day consent stayed in git-gates, for each person to install, and the team's checks moved to git-tidy, for a project to enable.
+8. **Three mods and git-tidy's push checks went back to text.** On 2026-10-29 issue-first, git-cleanup and playbook-rules were removed, and git-tidy lost landed branch, every commit works, one commit per change and one feature per MR, on the user's call: too many mods to keep track of, the push checks slow and asking, and each rule already sat in the playbook. The text alone has to hold now, though boleiik PRs #205 and #209 showed an MR description drifting without a check. Their code and ledger rows were last in 3aaf1a9.
 
 ## The tests
 
@@ -65,7 +66,7 @@ Every rule lives where people can read it and see what it is for; memory holds o
 1. Name the incident: date, project, what broke, and the text rule it broke. With none, write the rule in the playbook, or in the project's docs when it is that project's alone, and stop.
 2. Pick its kind, operator or project, and with it the plugin.
 3. Check it in code when code can decide; a model judgment only advises or asks.
-4. Head the check's module with the incident, as `git-gates/hooks/landed-branch.ts` does, and add its row to the ledger.
+4. Head the check's module with the incident, as `lean-tests/hooks/static-text.ts` does, and add its row to the ledger.
 
 The rule is done when its module and its ledger row name the same incident. Adding, moving or removing a rule updates the ledger with the reason; fixes and tweaks stay out of this file.
 
@@ -93,40 +94,11 @@ Split from git-gates on 2026-10-20; the origins are from git-gates' history.
 
 | Rule | Kind | Check | Effect | Origin |
 | --- | --- | --- | --- | --- |
-| No push to a branch that already landed | proj | code | deny | 2026-09-21: a follow-up pushed minutes after its MR merged recreated the deleted branch, outside any MR, looking shipped |
 | Fresh base before opening an MR | proj | code | deny | dfd41df |
 | Conventional Commits subject | proj | code | deny | c488005 |
 | No reviewer pre-answers ("no X changed") | proj | regex | note | c488005 |
 | No Claude credit: Co-Authored-By trailer, "Generated with" line | proj | code | deny | a0ab38c |
 | A body only for a subtle cause | proj | Haiku | note | The settings prompt hook, moved verbatim 2026-09-16, 4da7656 |
-| Every commit works | proj | Sonnet | deny | 2026-10-01, a team project: the API dropped endpoints one commit before the admin stopped calling them |
-| One commit per change | proj | code, Sonnet | hold | 2026-10-15, a team project: a teammate's branches grew a commit per fix |
-| One feature per MR | proj | code, Sonnet | hold | 2026-10-15, a team project: a teammate's MRs carried several features, often in one commit |
-
-### git-cleanup
-
-| Rule | Kind | Check | Effect | Origin |
-| --- | --- | --- | --- | --- |
-| Removing a branch needs it merged | op | code | deny | bb1060d |
-| Cleanup and issue edits wait for the pipeline | op | code | deny | 2026-10-05: right after an MR merged, the agent removed its worktree and branch and ticked the issue while the deploy pipeline still ran |
-| Closing an issue is left to the user | op | — | allow | 05cb416 |
-| Merged, clean work gets removed | op | code | auto | 2026-10-05: a merged, checked branch kept its worktree and branches, and nothing came back for them |
-| A local base behind origin is fast-forwarded | op | code | auto | e229dab |
-
-### issue-first
-
-| Rule | Kind | Check | Effect | Origin |
-| --- | --- | --- | --- | --- |
-| A `feat` commit names an issue, at the end of its subject or in its branch | proj | code | deny | 8dc0eee |
-| The subject ends with the issue the user or the branch named | proj | code | note | 53e9700, in git-gates; moved here 2026-10-20 so one mod holds the issue number |
-
-### playbook-rules
-
-| Rule | Kind | Check | Effect | Origin |
-| --- | --- | --- | --- | --- |
-| An MR's description follows the playbook's MR template and credits no tool | proj | code | deny | 2026-10-28, boleiik PR #205: the agent opened a PR with a free-form body, the template held only in MR.md and the skill listed by its bare name. git-gates dropped its own description check in 1.16.0 for the mr-style skill; the text alone did not hold, so the check is back, reading the playbook's template, on the user's call |
-| An MR's description is written as MR.md says: a view in the Summary, output in the Evidence | proj | code, Haiku | deny | 2026-10-28, boleiik PR #205 again: its rewrite passed the template check with a Summary of arrows in an untagged fence and a Before written as a sentence; MR.md's section guidance, read only in part, held as text alone. Haiku denies only a clear miss, and "the description is fine" overrules it, on the user's call |
-| An MR's Before shows a failing run or a screenshot, and its Summary is its views with a short line beside each | proj | code | deny | 2026-10-29, boleiik PR #209: its description passed both checks above with 140 words of prose in the Summary and curl headers as the Before. The branch held a test that failed on the base, and it was never run there. MR.md's "the exact test that now fails and passes" held neither as text nor under Haiku. "The description is fine" overrules it, as it does MR style, on the user's call |
 
 ### lean-docs
 
