@@ -45,9 +45,6 @@ One mod per purpose. Why each one and each of its rules exists: [STORY.md](STORY
 | --- | --- |
 | [git-gates](#git-gates) | Git work happens on the user's word |
 | [git-tidy](#git-tidy) | Git history stays tidy |
-| [git-cleanup](#git-cleanup) | Merged work is cleaned up once it shipped |
-| [issue-first](#issue-first) | Feature work starts from an issue, and each commit names its own |
-| [playbook-rules](#playbook-rules) | The playbook's rules no other mod checks: an MR's description |
 | [lean-docs](#lean-docs) | Docs worth keeping |
 | [lean-comments](#lean-comments) | Comments worth keeping |
 | [lean-scripts](#lean-scripts) | Scripts worth keeping |
@@ -76,58 +73,13 @@ Deleting a branch on origin needs no keyword, merged or not, unless it is an int
 
 ### git-tidy
 
-The rules' text lives in the [playbook](skills/playbook/SKILL.md); the commit-order, follow-up and feature refusals name the part.
+The rules' text lives in the [playbook](skills/playbook/SKILL.md).
 
 | Check | Runs on | Needs | Then |
 | --- | --- | --- | --- |
 | messages | A git commit | Conventional Commits subject, no Co-Authored-By trailer naming Claude or Anthropic (in the message or a `--trailer` flag) and no "Generated with Claude Code" line | Commit denied |
 | message advice | A git commit | No reviewer pre-answers ("no X changed"); then Haiku: a body only when the cause is subtle | Commit runs; the user gets the advice |
 | fresh base | Opening an MR/PR: `gh pr create`, `glab mr create`, a GitLab API POST to `merge_requests` | The source branch, as origin has it, contains the target's latest commit, fetched first; skipped when the message says not to rebase | Call denied |
-| landed branch | A git push | The branch's pushed head already sits in a protected branch, and the message names no new MR | Push denied |
-| every commit works | A git push of 2 to 15 commits no remote has | Sonnet: no commit removes something a later one stops using, or uses something a later one adds; skipped when the message says the order is fine | Push denied |
-| one commit per change | A git push of new commits to a branch whose commits not yet in an integration branch number 2 to 15, pushed or not | No `fixup!`, `squash!` or `amend!` subject; then Sonnet: no later commit spends most of its diff fixing, reworking or extending lines an earlier one added, or matches an earlier one's API contract change in another app; skipped when the message says to keep the commits | Push held: the agent shows the user the reason and asks; any answer lets the same commits through |
-| one feature per MR | A git push of new commits to a branch whose commits not yet in an integration branch number 1 to 15, pushed or not | Its commit messages name at most one issue; then Sonnet: no piece of it could ship alone apart from the rest; skipped when the message says one MR or to keep them together | Push held: the agent shows the user the features, recommends a branch and MR each, and asks; any answer lets the branch through for the session |
-
-Integration branches are found as git-gates finds them.
-
-### git-cleanup
-
-Merged is not shipped: a branch is cleaned up and its issue filled in only once
-the pipeline holding the merge has passed. Closing the issue is left to you.
-
-| Check | Runs on | Needs | Then |
-| --- | --- | --- | --- |
-| merged first | Removing a branch, local or on origin; removing a worktree keeps its branch and is not held | The branch sits in an integration branch, a merged PR/MR has it as source branch, or the current turn's message says it merged (or to abandon it) | Call denied |
-| pipeline first | Removing a worktree or branch, local or on origin; rewriting an issue's body (checklist ticks, How to test) | The work (the branch, the commit a squash merge landed as, or the newest integration commit naming the issue) landed and a pipeline holding it passed; skipped when the message says not to wait | Call denied while it runs or after it failed; a GitLab pipeline parked at manual or skipped holds nothing back |
-| stale work | The end of a turn | A branch the session committed to or pushed that sits in an integration branch, its worktree clean, no pipeline holding it still running or failed | Removes the worktree and the branch, local and on origin, fast-forwards a local integration branch behind origin, and prints one line saying what went; the worktree the session works in stays |
-
-Integration branches are found as git-gates finds them.
-A branch sits in an integration branch when its head does, or when every commit of it has a copy there (a rebase merge).
-Pipelines are read with `gh` on GitHub and, on GitLab, with the `gitlab_token` option: a `read_api` token, asked when the plugin is enabled, kept in the keychain on macOS and in `~/.claude/.credentials.json` elsewhere. With no token or no pipeline holding the work, the pipeline check holds nothing back and a log line says why; merged first still applies, and on GitLab sees a squash merge only with the token.
-
-### issue-first
-
-| Check | Runs on | Needs | Then |
-| --- | --- | --- | --- |
-| feature issue | A `feat` commit | An issue (#107, #BLK-23) at the end of the subject, or in the branch name (`feat/catalog-menu-107`), or "no issue" typed by the user in the current turn | Commit denied; Claude looks for the issue, else drafts one and asks the user before creating it |
-| issue number | A git commit | The issue or ticket your messages or the branch name, at the end of the subject | Commit runs; the user gets the suggestion |
-
-A repo with no remote has no issue tracker: feature issue is skipped, and only a ticket (#BLK-23) counts as an issue.
-Issues you typed bind only commits in the session's repo and its worktrees; a branch ending in its issue number (`perf/mobile-lcp-89`) lets the subject end with that one instead.
-Enabled in a repo's own `.claude/settings.json`, it applies to everyone working there.
-
-### playbook-rules
-
-The [playbook](skills/playbook/SKILL.md) holds the rules; this mod checks the ones no other mod does, and each refusal names the part.
-
-| Check | Runs on | Needs | Then |
-| --- | --- | --- | --- |
-| MR description | Opening a PR/MR (`gh pr create`, `glab mr create`, a GitLab API POST to `merge_requests`) or setting its description (`gh pr edit --body`, `glab mr update -d`, a GitLab API PUT with `description`) | A body with MR.md's `## Summary`, holding a fenced block tagged with its language (`diff`, `text`, `mermaid`, …), `## Evidence` with a `**Before:**` and an `**After:**`, and `## Merge Danger` with a one-way or two-way `**Door:**` and a `**Blast Radius:**`; no template placeholder left, no byline crediting the tool; the template part is skipped when the message says "no template" | Call denied |
-| MR guidance | The same calls, once MR description passes | A `**Before:**` showing a failing run (`✘`, `FAIL`, `failed`, `not ok`, a non-zero exit, an `Error:`, an HTTP 4xx or 5xx) or a screenshot, and a `## Summary` of at most 80 words outside its views; skipped when the message says the description is fine, or "no template" | Call denied |
-| MR style | The same calls, once MR guidance passes | Haiku, reading the body against the playbook's MR.md: the Summary's view is one MR.md lists and shows the change, the Evidence is output, a screenshot or a test run rather than a sentence, and only a clear miss fails; skipped when the message says the description is fine, or "no template" | Call denied; with no MR.md found or no answer from Haiku, the call runs and a log line says why |
-
-The body is read from `--body`, a `"$(cat <<'EOF' … EOF)"` heredoc, `--body-file`, `glab -d`, or the API's `description` field, inline or as `description=<file`. A body it cannot read (`--fill`, `--web`, a shell variable, JSON piped in) is denied with the way to pass it readably. `npm run check:mr-template` fails when the check's copy of the template drifts from MR.md.
-MR style reads MR.md where it is installed beside the mod: this repo's checkout, the `bahaospanov-skills` plugin of the same version, or `~/.claude/skills/playbook`.
 
 ### lean-docs
 
@@ -240,7 +192,6 @@ npm run typecheck                 # tsc over every mod and its tests
 npm run check:shared              # hooks/shared/ copies are identical across mods
 npm run check:continuations       # every mod sending follow-up prompts is named where git-gates reads them
 npm run check:version             # every plugin.json carries package.json's version
-npm run check:mr-template         # playbook-rules checks the template skills/playbook/MR.md holds
 claude plugin validate ./<mod>    # what the engine sees the module hook and call
 claude plugin test ./<mod>        # the mod's tests/
 ```

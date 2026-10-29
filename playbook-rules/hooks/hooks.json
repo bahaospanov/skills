@@ -1,4 +1,0 @@
-{
-  "description": "Checks that a PR or MR description follows the playbook's MR template",
-  "modules": ["./register.ts"]
-}

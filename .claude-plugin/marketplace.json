@@ -13,23 +13,8 @@
     },
     {
       "name": "git-tidy",
-      "description": "Keeps git history tidy: commit messages in Conventional Commits with no Claude credit, then a Haiku review of the body; a push to a branch that already landed is refused; an MR whose branch lacks the target's latest commit is refused; a pushed series must leave the project working at every commit; follow-up commits and MRs carrying several features are held for the user.",
+      "description": "Keeps git history tidy: commit messages in Conventional Commits with no Claude credit, then a Haiku review of the body; an MR whose branch lacks the target's latest commit is refused.",
       "source": "./git-tidy"
-    },
-    {
-      "name": "git-cleanup",
-      "description": "Cleans up after merged work, once it shipped: removing a branch needs git, the forge or the user to say it merged; removing it or filling in its issue waits for the pipeline holding it to pass; merged, clean work is removed at the end of the turn, with one line saying what went.",
-      "source": "./git-cleanup"
-    },
-    {
-      "name": "issue-first",
-      "description": "Feature work starts from an issue, and each commit names its own: a feat commit naming none is refused until Claude finds the issue, drafts one the user agrees to, or the user says it needs none; a commit whose subject does not end with the issue the user or the branch named gets a suggestion.",
-      "source": "./issue-first"
-    },
-    {
-      "name": "playbook-rules",
-      "description": "Holds the agent to the playbook's rules no other mod checks: a PR or MR opens, or has its description changed, only with a body in the playbook's MR template, written as its MR.md says (code checks, then a Haiku review), and no tool credit.",
-      "source": "./playbook-rules"
     },
     {
       "name": "lean-docs",
@@ -66,5 +51,10 @@
       "description": "Every skill in this repo's skills/ folder.",
       "source": "./"
     }
-  ]
+  ],
+  "renames": {
+    "git-cleanup": null,
+    "issue-first": null,
+    "playbook-rules": null
+  }
 }

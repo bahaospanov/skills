@@ -8,7 +8,7 @@ Merged is not shipped: the work is cleaned up once the pipeline holding the merg
    - remove the worktree and the branch, local and on origin;
    - fast-forward the local base: `git merge --ff-only origin/<base>` where it is checked out, else `git fetch origin <base>:<base>`.
 
-   Then tell the user in one line what was removed. In Claude Code, git-cleanup removes it at the end of the turn and prints that line itself.
+   Then tell the user in one line what was removed.
 3. Leave the issue open for the user to close.
 
 A branch is removed only once it has merged, into the base or through an MR naming it as the source, or when the user says to abandon it.
