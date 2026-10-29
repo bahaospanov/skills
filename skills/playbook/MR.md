@@ -164,6 +164,14 @@ Screenshots are S-tier when the change is visual; take and mark them as [Screens
 
 Execution-based evidence is A-tier: test results, console output. Show the exact test that now fails and passes, using pseudocode.
 
+Gather it before writing the body:
+
+1. Pick the test that pins the change: one the branch adds or changes, or a new one.
+2. Run it against the base, from a worktree or a server on `origin/<base>`. Its failure is the Before.
+3. Run it on the branch. Its pass is the After.
+
+A visual change shows its screenshots instead. A change no test or screen can show, such as docs or config, shows the output that differs between the base and the branch.
+
 ### Merge Danger
 
 Describe whether it's a one-way or two-way door. You can walk back through two-way doors, but not one-way doors. An MR that is cheap to roll back is lower risk. Changes that involve destructive actions or hard-to-reverse decisions are one-way doors.
