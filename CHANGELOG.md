@@ -1,5 +1,26 @@
 # bahaospanov
 
+## 1.29.0
+
+### Minor Changes
+
+- 5d2ad15: - **git-cleanup**, **issue-first**: removed; the playbook's CLEANUP and ISSUES parts hold their rules as text. Uninstall them; the marketplace's `renames` drops them from your settings.
+  - **git-tidy**: checks commit messages and an MR's base only. The push checks are gone (landed branch, every commit works, one commit per change, one feature per MR); the playbook's BRANCHES and COMMITS parts hold their rules.
+  - **bahaospanov-skills**: CLEANUP.md no longer leaves cleanup to git-cleanup in Claude Code; BRANCHES.md says a merged branch takes no more pushes.
+- c328248: - **herdr-rules**: mod **close-countdown** renamed **herdr-rules**; install `herdr-rules@bahaospanov` in its place. Its tool is now `mcp__herdr-rules__close_pane_later`.
+  - **bahaospanov-skills**: the playbook's Herdr subtask closes its pane with herdr-rules' `close_pane_later`.
+- 0b30855: - **bahaospanov-skills**: the playbook's MR part becomes its own model-invoked skill, `mr`, which Claude loads when opening an MR or PR or writing its description; the playbook points to it for that step.
+- 6ea78ad: - **bahaospanov-skills**: the playbook's MR.md gathers the Evidence in steps: the test that pins the change runs on the base for the Before, then on the branch for the After. A part is read again when its step comes, so an MR description is written from MR.md just read.
+- dbdccb2: - **bahaospanov-skills**: `presentation` is user-invoked: run it as `/presentation`.
+- 63c4cd4: - **bahaospanov-skills**: `setup-triage-labels` writes the label recipes into `docs/agents/triage-labels.md`, for GitLab REST or GitHub `gh`: the untriaged list (open, no `priority::`, child Tasks left out), the on-dev-waiting-for-release list, the triage relabel and the `shipped::dev` add, and on GitLab the label ids a GraphQL work item takes. Recipes in other docs keep their mechanics and lose their labels: one that sets them takes `$LABELS` and points at the file, one that lists or relabels by a label gives way to the file's. Provisioning ends with the list recipes run read-only against the tracker.
+
+### Patch Changes
+
+- 3aaf1a9: - **git-gates**: deleting a branch on origin needs no keyword, merged or not, including after a rebase or squash merge. An integration branch, a command that also pushes something else, and a "don't push" in the turn still go through consent.
+- 3824a11: - **bahaospanov-skills**: `setup-triage-labels` creates only the base set and the project's labels, and its label file lists no others.
+- 0b04ba7: - **bahaospanov-skills**: `setup-triage-labels`' label file closes an issue only once it carries `shipped::prod`; `shipped::dev` leaves it open.
+- f4ee800: - **bahaospanov-skills**: CLAUDE.md keeps unfinished work off `main` until a release and runs the plugins from a local checkout meanwhile.
+
 ## 1.28.0
 
 ### Minor Changes
