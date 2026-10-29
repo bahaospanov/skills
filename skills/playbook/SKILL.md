@@ -50,4 +50,4 @@ A deviation outranks the part it changes.
 | Opening an MR or PR, and its description | [MR.md](MR.md) |
 | After the merge | [CLEANUP.md](CLEANUP.md) |
 
-A task that spans parts reads each one.
+A task that spans parts reads each one, and reads it again when its step comes, even after an earlier read in the same turn: an MR description is written from MR.md just read, not from memory of it.
