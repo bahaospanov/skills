@@ -95,6 +95,24 @@ describe('register', () => {
     expect(ran).toEqual([open])
   })
 
+  test('a Before with no failing run is denied before Haiku, until the user says the description is fine', async ($, on) => {
+    const { ran, asked } = world(on, { mrMd: MR_MD })
+    const open = `gh pr create --title t --body '${FILLED.replace('1 fail', 'x-vercel-cache: MISS')}'`
+
+    await $.prompt.submit(prompt('ship'))
+    const refused = await $.tool.call(bash(open))
+
+    expect(refused.deny).toContain('no `**Before:**` shows a failing run or a screenshot')
+    expect(refused.deny).toContain('MR.md')
+    expect(ran).toEqual([])
+    expect(asked).toEqual([])
+
+    await $.prompt.submit(prompt('the description is fine, ship'))
+    await $.tool.call(bash(open))
+
+    expect(ran).toEqual([open])
+  })
+
   test('with no MR.md to compare against, the PR opens unreviewed and a log line says why', async ($, on) => {
     const { ran, logs, asked } = world(on)
     const open = `gh pr create --title t --body '${FILLED}'`

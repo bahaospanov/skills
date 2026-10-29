@@ -189,9 +189,9 @@ const FENCE = /^\s*(?:```|~~~)/
 const TAGGED_FENCE = /^\s*(?:```|~~~)\s*[\w+-]/
 
 // `fenced` holds for a fence marker and every line inside one.
-type Line = { line: string; fenced: boolean }
+export type Line = { line: string; fenced: boolean }
 
-const linesOf = (text: string): Line[] => {
+export const linesOf = (text: string): Line[] => {
   let open = false
   return text.split(/\r?\n/).map((line) => {
     if (FENCE.test(line)) {
@@ -207,7 +207,7 @@ const proseLines = (text: string) =>
     .filter((l) => !l.fenced)
     .map((l) => l.line)
 
-const sectionsOf = (lines: Line[]) => {
+export const sectionsOf = (lines: Line[]) => {
   const sections = new Map<string, Line[]>()
   let current: Line[] | undefined
   for (const l of lines) {
@@ -256,7 +256,7 @@ export const creditLines = (text: string): string[] =>
     .filter((line) => CREDIT.some((pattern) => pattern.test(line.replace(TOOL_PATH, ''))))
     .map((line) => line.trim())
 
-const head = (command: string) => {
+export const head = (command: string) => {
   const first = command.split('\n')[0] ?? ''
   return first.length > 80 || command.includes('\n') ? `${first.slice(0, 80)}…` : first
 }

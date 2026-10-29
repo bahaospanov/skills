@@ -9,6 +9,7 @@ import {
   templateGaps,
   unreadableRefused,
 } from './mr-description'
+import { guidanceGaps, guidanceRefused } from './mr-guidance'
 import { MR_STYLE } from './prompts'
 import { CONTINUATION_ORIGINS, CONTINUATION_PLUGINS } from './shared/continuations'
 import { currentTurn } from './shared/git-commands'
@@ -107,6 +108,8 @@ export const register: Register = (on) => {
     const credits = creditLines(text)
     if (gaps.length + credits.length > 0) return { deny: descriptionRefused(e.command, gaps, credits) }
     if (waived || typed.some((p) => acknowledgesStyle(p.text))) return next(e)
+    const shortfalls = guidanceGaps(text)
+    if (shortfalls.length > 0) return { deny: guidanceRefused(e.command, shortfalls) }
     const guide = await mrGuide($)
     if (guide === undefined) {
       $.ui.log(`playbook-rules (${STYLE_REVIEW.name}): no playbook MR.md beside the mod, so the description goes unreviewed`)
