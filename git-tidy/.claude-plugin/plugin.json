@@ -1,6 +1,6 @@
 {
   "name": "git-tidy",
-  "version": "1.29.0",
+  "version": "1.30.0",
   "description": "Keeps git history tidy: commit messages in Conventional Commits with no Claude credit, then a Haiku review of the body; an MR whose branch lacks the target's latest commit is refused.",
   "author": {
     "name": "Bakhtiyar Ospanov"
