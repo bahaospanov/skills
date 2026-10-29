@@ -31,7 +31,8 @@ Reachable only when you type them (Claude Code: `disable-model-invocation: true`
 
 Model- or user-reachable.
 
-- **[playbook](skills/playbook/SKILL.md)**: How a change goes from issue to merged branch, in parts: issues, branches, commits, merge requests, cleanup. A project states its facts (base branch, issue number format, deviations) in a `### Playbook` block of its AGENTS.md. Its MR description is [mattpocock/skills `pr`](https://github.com/mattpocock/skills/tree/main/skills/engineering/pr) (MIT), whose Summary visuals come from Dex Horthy's [HumanLayer `show-me`](https://github.com/humanlayer/skills/tree/main/plugins/show-me/skills/show-me) (MIT).
+- **[mr](skills/mr/SKILL.md)**: Opening an MR or PR and writing its description: Summary, Evidence, Merge Danger and marked screenshots. Its description is [mattpocock/skills `pr`](https://github.com/mattpocock/skills/tree/main/skills/engineering/pr) (MIT), whose Summary visuals come from Dex Horthy's [HumanLayer `show-me`](https://github.com/humanlayer/skills/tree/main/plugins/show-me/skills/show-me) (MIT).
+- **[playbook](skills/playbook/SKILL.md)**: How a change goes from issue to merged branch, in parts: issues, branches, commits, cleanup, with mr for the MR. A project states its facts (base branch, issue number format, deviations) in a `### Playbook` block of its AGENTS.md.
 - **[prototype-stages](skills/prototype-stages/SKILL.md)**: [mattpocock/skills `prototype`](https://github.com/mattpocock/skills/tree/main/skills/engineering/prototype) (MIT), its UI branch reworked: whole flows, options grouped by stage in a one-click panel.
 - **[scheme](skills/scheme/SKILL.md)**: ASCII schematic of a code change: control flow, data flow, before/after, or layers.
 
