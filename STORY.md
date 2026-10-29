@@ -43,7 +43,7 @@ Every other rule is guidance. Its text lives in the playbook, or in the project'
 
 | Kind | Home |
 | --- | --- |
-| Workflow rules: issues, branches, commits, MRs, cleanup | the playbook skill, which a project adopts |
+| Workflow rules: issues, branches, commits, MRs, cleanup | the playbook skill, which a project adopts, and mr for MRs |
 | A project's facts and deviations (base branch, issue number format, tracker) | the project repo's agent docs, changed through an MR |
 | Rules a tool can check | a plugin, its refusals naming the playbook part that holds the rule |
 | How Claude works with its user | the user's `~/.claude/CLAUDE.md` |
