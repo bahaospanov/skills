@@ -1,14 +1,21 @@
 import type { Verb } from './shared/git-commands'
 
 const word = (alternatives: string) => new RegExp(String.raw`(^|[^\p{L}])(${alternatives})(?=[^\p{L}]|$)`, 'giu')
-const AUTH = word('commit|push|ship|deploy|merge|pr|mr|tag|release')
-const PUSH_AUTH = word('push|ship|deploy|pr|mr|tag|release')
+// A Russian spelling counts in any form but the past, as "pushed" does not: "запушь" and "пуш" yes, "запушил" no.
+const ru = (stem: string) => String.raw`(?:${stem})(?![а-яё]*(?:л[аио]?|нн[а-яё]*)(?![а-яё]))[а-яё]*`
+const RU_COMMIT = ru('(за)?комми[тч](?!мент)')
+const RU_PUSH = ru('(за)?пуш(?!к|ист)')
+const RU_SHIP = [ru('(за)?депло[йи]'), ru('(за)?т[еэ]гн'), 'т[еэ]г', ru('(за)?релиз'), 'пр|мр'].join('|')
+const RU_MERGE = String.raw`${ru('(за|[св])?м[её]рд?ж')}(?!\s+реквест)`
+const RU_OPEN = String.raw`пр|мр|пулл?\s+реквест[а-яё]*|м[её]рд?ж\s+реквест[а-яё]*`
+const AUTH = word(`commit|push|ship|deploy|merge|pr|mr|tag|release|${RU_COMMIT}|${RU_PUSH}|${RU_SHIP}|${RU_MERGE}`)
+const PUSH_AUTH = word(`push|ship|deploy|pr|mr|tag|release|${RU_PUSH}|${RU_SHIP}`)
 // "merge request" names the thing to open, not the act of merging it.
-const MERGE_AUTH = word(String.raw`merge(?!\s+requests?)|merging`)
-const OPEN_AUTH = word(String.raw`pr|mr|ship|pull\s+requests?|merge\s+requests?`)
-const VERB_WORDS: Record<Verb, RegExp> = { commit: word('commit'), push: word('push'), merge: MERGE_AUTH }
+const MERGE_AUTH = word(String.raw`merge(?!\s+requests?)|merging|${RU_MERGE}`)
+const OPEN_AUTH = word(String.raw`pr|mr|ship|pull\s+requests?|merge\s+requests?|${RU_OPEN}`)
+const VERB_WORDS: Record<Verb, RegExp> = { commit: word(`commit|${RU_COMMIT}`), push: word(`push|${RU_PUSH}`), merge: MERGE_AUTH }
 // A keyword at most two words after one of these, in the same clause, is the user saying no.
-const NEGATED = /(^|[^\p{L}'])(don't|dont|do not|doesn't|never|no|not|without|stop|avoid)(\s+[^\s.,;!?]+){0,2}\s+$/iu
+const NEGATED = /(^|[^\p{L}'])(don't|dont|do not|doesn't|never|no|not|without|stop|avoid|не|нет|нельзя|без|никогда)(\s+[^\s.,;!?]+){0,2}\s+$/iu
 const CLAUSE = /[.,;!?\n]/g
 
 const mentions = (text: string, words: RegExp): boolean[] => {
@@ -28,11 +35,13 @@ export const GRANT_SESSION_USES = 10
 
 const COUNTS = [
   /.*[Cc]ommits?\s*[xX*]\s*([0-9]+)/u,
+  /.*[Кк]оммит[а-яА-Я]*\s*[xXхХ*]\s*([0-9]+)/u,
   /.*[^0-9]([0-9]+)\s+(?:separate\s+)?[Cc]ommits/u,
+  /.*[^0-9]([0-9]+)\s+(?:отдельны[хм]\s+)?[Кк]оммит[а-яА-Я]*/u,
 ]
-const SESSION_WIDE = /(rest of (the |this )?session|until I (say|tell)|keep committing)/iu
+const SESSION_WIDE = /(rest of (the |this )?session|until I (say|tell)|keep committing|до конца сесси)/iu
 const PER_TASK =
-  /(auto-?commit|commit (after|between|per|each|every|as you go|along the way)|(after|between) each (task|step|part|item|fix)[^.]{0,40}commit|one commit per|separate commits|commit them separately)/iu
+  /(auto-?commit|commit (after|between|per|each|every|as you go|along the way)|(after|between) each (task|step|part|item|fix)[^.]{0,40}commit|one commit per|separate commits|commit them separately|коммит[а-я]* (после|на) кажд|коммить по ходу|отдельны[емх]и? коммит)/iu
 
 export const authorizes = (text: string) => says(text, AUTH)
 
@@ -64,7 +73,7 @@ export const protectedHit = (targets: string[], policy: string[]) =>
 export const namesBranch = (text: string, branch: string) => {
   const escaped = branch.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&')
   return new RegExp(
-    `(push|ship|deploy|merge)[^.!?]{0,40}(^|[^a-z0-9_/-])${escaped}([^a-z0-9_/-]|$)`,
+    `(push|ship|deploy|merge|пуш|депло|м[её]рд?ж)[^.!?]{0,40}(^|[^a-z0-9_/-])${escaped}([^a-z0-9_/-]|$)`,
     'imu',
   ).test(text)
 }
