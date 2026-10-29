@@ -90,13 +90,7 @@ const currentBranch = async ($: EngineInterface, cwd?: string) => {
   return branch && branch !== 'HEAD' ? branch : undefined
 }
 
-// `git()` swallows a non-zero exit, and that exit is the answer here.
-const isAncestor = async ($: EngineInterface, commit: string, of: string, cwd?: string) => {
-  const run = await $.process.run(['git', 'merge-base', '--is-ancestor', commit, of], cwd === undefined ? undefined : { cwd })
-  return run.exitCode === 0
-}
-
-// A repo without a push policy still merges somewhere; only the landed-delete exemption relies on this guess.
+// A repo without a push policy still merges somewhere; only the delete exemption relies on this guess.
 const integrationBases = async ($: EngineInterface, cwd?: string) => {
   const policy = await protectedBranches($, cwd)
   if (policy.length > 0) return policy
@@ -108,27 +102,19 @@ const integrationBases = async ($: EngineInterface, cwd?: string) => {
   return bases
 }
 
-const landedBase = async ($: EngineInterface, commit: string, bases: string[], cwd?: string) => {
-  for (const base of bases) if (await isAncestor($, commit, `refs/remotes/origin/${base}`, cwd)) return base
-  return undefined
-}
-
-// Asks origin itself: a stale remote-tracking ref could hide commits pushed since, and the delete would drop them.
-const deletesOnlyLanded = async ($: EngineInterface, branches: string[], cwd?: string) => {
+const deletesBase = async ($: EngineInterface, branches: string[], cwd?: string) => {
   const bases = await integrationBases($, cwd)
-  for (const branch of branches) {
-    if (bases.includes(branch)) return false
-    const listed = await git($, ['ls-remote', 'origin', `refs/heads/${branch}`], cwd)
-    const head = listed?.split(/\s/)[0]
-    if (!head || (await landedBase($, head, bases, cwd)) === undefined) return false
-  }
-  return true
+  return branches.some((branch) => bases.includes(branch))
 }
 
 const consent = async ($: EngineInterface, command: string, verb: Verb | 'open'): Promise<Verdict> => {
   const now = await $.clock.now()
   const typed = await typedThisTurn($)
   if (verb !== 'open' && typed !== undefined && forbids(typed, verb)) return { reason: forbiddenRefused(command, verb) }
+
+  // Deleting a branch on origin ships nothing, merged or not; an integration branch still needs the user's word.
+  const deleted = verb === 'push' ? deletedBranches(command) : undefined
+  if (deleted !== undefined && !(await deletesBase($, deleted, await repoOf($, command)))) return { note: deletionNote(deleted) }
 
   if (verb === 'commit' && isLive(grant, now)) {
     grant = spend(grant)
@@ -156,9 +142,6 @@ const consent = async ($: EngineInterface, command: string, verb: Verb | 'open')
           : { reason: protectedPushRefused(command, hit) }
       }
     }
-    // Deleting a branch whose head already sits in an integration branch ships nothing.
-    const deleted = deletedBranches(command)
-    if (deleted !== undefined && (await deletesOnlyLanded($, deleted, cwd))) return { note: deletionNote(deleted) }
   }
 
   if (!typed.some(authorizes)) return { reason: noKeyword(command, grantTool) }

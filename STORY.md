@@ -84,6 +84,7 @@ Kind: **op** operator, **proj** project. Effect: **deny**; **hold**, the agent a
 | A failed consent check blocks | op | code | deny | c488005 |
 | Grants: a commit per task, asked once | op | regex | allow | c488005 |
 | Consent outlives follow-ups, task reports and messages typed mid-turn | op | code | allow | 65a287a, ee5d625, 3a9bda1: each a denial after the user had said yes |
+| Deleting a branch on origin needs no word, unless it is an integration branch | op | code | allow | 2026-10-29, skills PR #11: removing its merged branch was refused as a push. GitHub's rebase merge had rewritten the commits, so the branch's head never sat in main and the earlier landed-only exemption did not apply. A delete ships nothing, on the user's call |
 | A protected branch is named to be pushed to | op | code | deny | c488005 |
 
 ### git-tidy

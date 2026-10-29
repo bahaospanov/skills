@@ -86,7 +86,7 @@ of. Push if that was asked, report that the branch is ready, and let the user
 say when to open it.`
 
 export const deletionNote = (branches: string[]) =>
-  `git-gates: deleting ${branches.map((b) => `'${b}'`).join(', ')} — already landed, so no keyword needed`
+  `git-gates: deleting ${branches.map((b) => `'${b}'`).join(', ')} — a branch delete needs no keyword`
 
 export const mergeRefused = (command: string) => `git-gates: blocking '${command}' — merging needs the user to say "merge" in
 their most recent message. "ship", "push", "commit", "deploy" and "pr" do NOT

@@ -72,7 +72,7 @@ the call is blocked.
 | grants | Later commits in the session | A message asking for a commit per task, or the grant tool after an authorizing message | Commits spend the grant; pushes never |
 Protected branches come from a repo's own push policy file.
 Integration branches are the protected ones; with no policy, the remote's default branch and any of dev, develop, main, master that exist.
-Deleting a branch on origin needs no keyword when origin's head of it already sits in an integration branch.
+Deleting a branch on origin needs no keyword, merged or not, unless it is an integration branch or the same command pushes something else. A "don't push" in the turn still refuses it. Worktree removal and local branch deletes are never gated.
 
 ### git-tidy
 
