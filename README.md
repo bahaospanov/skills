@@ -35,6 +35,7 @@ Model- or user-reachable.
 - **[playbook](skills/playbook/SKILL.md)**: How a change goes from issue to merged branch, in parts: issues, branches, commits, cleanup, with mr for the MR. A project states its facts (base branch, issue number format, deviations) in a `### Playbook` block of its AGENTS.md.
 - **[prototype-stages](skills/prototype-stages/SKILL.md)**: [mattpocock/skills `prototype`](https://github.com/mattpocock/skills/tree/main/skills/engineering/prototype) (MIT), its UI branch reworked: whole flows, options grouped by stage in a one-click panel.
 - **[scheme](skills/scheme/SKILL.md)**: ASCII schematic of a code change: control flow, data flow, before/after, or layers.
+- **[story-to-canvas](skills/story-to-canvas/SKILL.md)**: A feature's story as a canvas board in the repo, `docs/stories/<slug>/story.canvas`: idea, flow, each prototype round's screenshots with a verdict per variant, and the decision log. People open it in VS Code with [Canvas Design](https://marketplace.visualstudio.com/items?itemName=EvenSo.canvas-design); agents write its JSON.
 
 ## Mods
 
