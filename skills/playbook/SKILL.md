@@ -38,7 +38,7 @@ A deviation outranks the part it changes.
 | Starting a change: its issue, found or created | [ISSUES.md](ISSUES.md) |
 | Its branch and worktree | [BRANCHES.md](BRANCHES.md) |
 | Commit messages, and how commits divide the work | [COMMITS.md](COMMITS.md) |
-| Opening an MR or PR, and its description | call the Skill tool with "mr" |
+| Gathering an MR's or PR's evidence, opening it, and its description | call the Skill tool with "mr" |
 | After the merge | [CLEANUP.md](CLEANUP.md) |
 
-A task that spans parts reads each one, and reads it again when its step comes, even after an earlier read in the same turn: an MR description is written from the mr skill loaded at that step, not from memory of it.
+A task that spans parts reads each one, and reads it again when its step comes, even after an earlier read in the same turn: an MR's evidence and description come from the mr skill loaded at that step, not from memory of it.

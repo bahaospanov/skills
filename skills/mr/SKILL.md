@@ -1,6 +1,6 @@
 ---
 name: mr
-description: Opening an MR or PR and writing its description, from the rebase before pushing to the Summary, Evidence, Merge Danger and marked screenshots. Use when opening an MR or PR, or writing or changing its description.
+description: Opening an MR or PR and writing its description, from the rebase before pushing to the Summary, Evidence, Merge Danger and marked screenshots. Use when gathering an MR's or PR's evidence, opening one, or writing or changing its description.
 metadata:
   credits:
     - skill: pr
