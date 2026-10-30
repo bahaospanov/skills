@@ -27,6 +27,7 @@ type World = {
   printed: string
   head: string
   pushedAt: string
+  landed: string
   isFresh: boolean
 }
 
@@ -62,6 +63,7 @@ function reply(world: World, argv: readonly string[]) {
   if (line.includes('log -g')) return ok(`origin/${world.branch}@{${world.pushedAt}}\n`)
   if (line.includes('log -1')) return ok(`${world.head}000 ${world.head}\n`)
   if (line.includes('remote get-url origin')) return ok('git@github.com:o/r.git\n')
+  if (line.includes('for-each-ref --contains HEAD')) return ok(world.landed)
   if (line.startsWith('gh pr view')) {
     return world.pr === null ? fail(`no pull requests found for branch "${world.branch}"`) : ok(JSON.stringify(world.pr))
   }
@@ -82,6 +84,7 @@ async function start($: Engine, on: On, world: Partial<World>) {
     printed: '',
     head: 'abc1234',
     pushedAt: '2026-10-25T10:00:00Z',
+    landed: '',
     isFresh: false,
     ...world,
   }
@@ -265,6 +268,22 @@ test('an edit after a pushed head was green waits for the next push', async ($, 
 
   world.head = 'def5678'
   expect(await light($)).toBe('🟢 safe to leave · def5678 pushed to main, deploy-dev passed')
+})
+
+test('a feature branch with no PR, its head pushed straight to dev, is judged by that push', async ($, on) => {
+  const world = await start($, on, { branch: 'fix/invite-url-fit', runs: [run('in_progress', null)] })
+  await $.tool.call({ tool: 'Bash', command: 'git add a.ts && git commit -q -m "fix: a" && git log --oneline -1' })
+  expect(await light($)).toBe('🔴 working · no PR yet')
+
+  world.landed = 'dev\n'
+  await $.tool.call({
+    tool: 'Bash',
+    command: 'git fetch -q origin && git rebase -q origin/dev && git push origin HEAD:dev 2>&1 | tail -3',
+  })
+  expect(await light($)).toBe('🟡 waiting on pipeline · abc1234 pushed to dev, deploy-dev running')
+
+  world.runs = [run('completed', 'success')]
+  expect(await light($)).toBe('🟢 safe to leave · abc1234 pushed to dev, deploy-dev passed')
 })
 
 test('a permission prompt turns it red until the next prompt', async ($, on) => {

@@ -171,10 +171,18 @@ async function unlessSpent($: Engine, verdict: Light, work: string, since: strin
   return { ...verdict, done: work }
 }
 
-// The reflog of the upstream branch dates when its head reached the remote, the push the pipeline runs for.
+// The integration branch whose head on origin contains HEAD, as after `git push origin HEAD:dev` from another branch.
+async function pushedTo($: Engine, root: string) {
+  const refs = INTEGRATION.map(name => `refs/remotes/origin/${name}`)
+  const out = await run($, ['git', '-C', root, 'for-each-ref', '--contains', 'HEAD', '--format=%(refname:lstrip=3)', ...refs])
+  return out?.exitCode === 0 ? out.stdout.split('\n').find(name => name !== '') : undefined
+}
+
+// The reflog of origin's branch dates when its head reached the remote, the push the pipeline runs for.
 async function pushedLight($: Engine, root: string, branch: string): Promise<Verdict> {
   const head = await run($, ['git', '-C', root, 'log', '-1', '--format=%H %h'])
-  const pushed = await run($, ['git', '-C', root, 'log', '-g', '-1', '--date=iso-strict', '--format=%gd', '@{upstream}'])
+  const ref = `refs/remotes/origin/${branch}`
+  const pushed = await run($, ['git', '-C', root, 'log', '-g', '-1', '--date=iso-strict', '--format=%gd', ref])
   const remote = await run($, ['git', '-C', root, 'remote', 'get-url', 'origin'])
   const [sha, short] = head?.exitCode === 0 ? head.stdout.trim().split(' ') : []
   const pushedAt = pushed?.exitCode === 0 ? /@\{(.+)\}/.exec(pushed.stdout)?.[1] : undefined
@@ -200,7 +208,10 @@ async function judge($: Engine): Promise<Verdict> {
   const found =
     feature !== undefined ? await viewPr($, feature, root) : tracked !== null ? await viewPr($, tracked) : 'none'
   if (found === 'error') return lit('red', "can't reach GitHub (gh)")
-  if (found === 'none') return lit('red', 'no PR yet')
+  if (found === 'none') {
+    const pushed = root === undefined ? undefined : await pushedTo($, root)
+    return root === undefined || pushed === undefined ? lit('red', 'no PR yet') : pushedLight($, root, pushed)
+  }
   return unlessSpent($, await prLight($, found), found.url, `#${found.number} merged`)
 }
 
