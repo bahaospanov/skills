@@ -174,7 +174,7 @@ One visual may be enough, several may be needed; all of them rarely are. Use you
 
 Concrete evidence that the change works. Show a before and after.
 
-Screenshots are S-tier when the change is visual; take and mark them as [Screenshots](#screenshots) says.
+Screenshots are S-tier: work touching a frontend carries them, taken and marked as [Screenshots](#screenshots) says.
 
 Execution-based evidence is A-tier: test results, console output. Show the exact test that now fails and passes, using pseudocode.
 
@@ -184,7 +184,7 @@ Gather it before writing the body:
 2. Run it against the base, from a worktree or a server on `origin/<base>`. Its failure is the Before.
 3. Run it on the branch. Its pass is the After.
 
-A visual change shows its screenshots instead. A change no test or screen can show, such as docs or config, shows the output that differs between the base and the branch.
+A change only a screen can show carries its screenshots in place of the test run. A change no test or screen can show, such as docs or config, shows the output that differs between the base and the branch.
 
 ### Merge Danger
 
