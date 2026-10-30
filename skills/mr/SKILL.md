@@ -204,6 +204,18 @@ Every shot marks what changed, so the reviewer finds it at a glance instead of c
 
 Done when each mark sits on a change and every change the page shows has one.
 
+## Before posting
+
+A body with a Mermaid view is rendered first: the forge draws the diagram in the reviewer's browser, and a block that doesn't parse shows an error in its place. mermaid-cli renders every block of the body file and exits non-zero on one that fails; its first run downloads a headless Chrome.
+
+```sh
+npx -y -p @mermaid-js/mermaid-cli mmdc -q -i <body.md> -o <scratch>/rendered.md
+```
+
+Its `Parse error on line N` counts from the block's first line. In message and note text, `;` ends the statement: write `,` or `<br/>`.
+
+Done when it exits 0.
+
 ## After the merge
 
 The playbook's CLEANUP part.
