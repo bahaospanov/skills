@@ -1,5 +1,16 @@
 # bahaospanov
 
+## 1.30.1
+
+### Patch Changes
+
+- 4c7b6cf: - **bahaospanov-skills**: the mr skill, and the playbook's row pointing to it, fire when an MR's evidence is gathered, not only when it is opened, since the before-run and the screenshots come before the body.
+- 9c7527b: - **bahaospanov-skills**: the mr skill renders a body's Mermaid views with mermaid-cli before posting, so a block that doesn't parse never reaches the reviewer.
+- 6306f8e: - **bahaospanov-skills**: the mr skill's Evidence asks for screenshots on the same condition as its Screenshots section, work touching a frontend, where it said "when the change is visual".
+- eeb6643: - **traffic-light**: a merged PR with no pipeline run yet turns green as soon as cleanup has removed its branch from the checkout and from origin, instead of staying yellow on "pipeline not started yet" for three minutes.
+- 418d631: - **traffic-light**: a feature branch with no PR whose head was pushed straight to an integration branch (`git push origin HEAD:dev` from a worktree) is judged by that push's pipeline, so it turns green instead of staying red on "no PR yet".
+- 6d8a09d: - **traffic-light**: a session that edited no file is judged by its last push to an integration branch, as `git push` reported it, so a history rewrite force-pushed from a scratch worktree turns green once its pipeline passes, instead of staying red on another session's uncommitted changes in the checkout.
+
 ## 1.30.0
 
 ### Minor Changes
