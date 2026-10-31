@@ -1,7 +1,7 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, ProcessRunResult, Register } from 'claude-code'
 
-import type { Color, Light } from '../types'
+import type { Color, Light, Push } from '../types'
 
 type Engine = EngineInterface
 
@@ -13,6 +13,9 @@ const GIT_COMMAND = /\b(git|gh)\s/
 const CHANGE_COMMAND =
   /\b(git\s+(-C\s+\S+\s+)?(commit|revert|cherry-pick|worktree\s+add|checkout\s+-[bB]|switch\s+(-[cC]|--create))|gh\s+(pr|issue)\s+create)\b/
 const PUSH_COMMAND = /\bgit\s+(-C\s+\S+\s+)?push\b/
+const PUSH_REMOTE = /^To\s+(\S+)/m
+// A ref `git push` updated: ` + a067441...b4135b7 reword -> main`, `   f6f58fb..9e417dc  main -> main`, ` * [new branch] dev -> dev`.
+const PUSHED_REF = /^\s*[+*]?\s*(?:\[[^\]]*\]|[0-9a-f]+\.\.\.?([0-9a-f]+))\s+\S+\s+->\s+(?:refs\/heads\/)?(\S+)/gm
 const POLL_MS = 30_000
 const PIPELINE_START_MS = 3 * 60_000
 const DEMO_STEP_MS = 4_000
@@ -20,6 +23,7 @@ const DEMO_STEP_MS = 4_000
 const light = atom({ plugin: 'traffic-light', key: 'light' } as const, null)
 const pr = atom({ plugin: 'traffic-light', key: 'pr' } as const, null)
 const workDir = atom({ plugin: 'traffic-light', key: 'workDir' } as const, null)
+const lastPush = atom({ plugin: 'traffic-light', key: 'lastPush' } as const, null)
 const spent = atom({ plugin: 'traffic-light', key: 'spent' } as const, [])
 const started = atom({ plugin: 'traffic-light', key: 'started' } as const, false)
 
@@ -188,16 +192,36 @@ async function pushedLight($: Engine, root: string, branch: string): Promise<Ver
   const pushedAt = pushed?.exitCode === 0 ? /@\{(.+)\}/.exec(pushed.stdout)?.[1] : undefined
   const repo = GITHUB_REMOTE.exec(remote?.exitCode === 0 ? remote.stdout.trim() : '')
   if (sha === undefined || short === undefined || pushedAt === undefined || repo === null) return lit('red', 'no PR yet')
-  const slug = `${repo[1]}/${repo[2]}`
-  const after = await pipeline($, slug, branch, sha, pushedAt)
-  const verdict = lit(after.color, `${short} pushed to ${branch}, ${after.reason}`)
+  return pushVerdict($, { repo: `${repo[1]}/${repo[2]}`, branch, sha, at: pushedAt }, short)
+}
+
+async function pushVerdict($: Engine, push: Push, short: string): Promise<Verdict> {
+  const after = await pipeline($, push.repo, push.branch, push.sha, push.at)
+  const verdict = lit(after.color, `${short} pushed to ${push.branch}, ${after.reason}`)
   if (after.color === 'yellow') return { ...verdict, headline: 'waiting on pipeline' }
-  return unlessSpent($, verdict, `${slug}@${sha}`, `${short} was pushed`)
+  return unlessSpent($, verdict, `${push.repo}@${push.sha}`, `${short} was pushed`)
+}
+
+// What the push itself reported, so a ref pushed from a scratch worktree, not the checkout's HEAD, is the work.
+async function recordPush($: Engine, printed: string) {
+  const repo = GITHUB_REMOTE.exec(PUSH_REMOTE.exec(printed)?.[1] ?? '')
+  const ref = [...printed.matchAll(PUSHED_REF)].filter(line => INTEGRATION.includes(line[2] ?? '')).pop()
+  const branch = ref?.[2]
+  if (repo === null || branch === undefined) return
+  const slug = `${repo[1]}/${repo[2]}`
+  const commit = await run($, ['gh', 'api', `repos/${slug}/commits/${ref?.[1] ?? branch}`])
+  if (commit?.exitCode !== 0) return
+  const { sha } = JSON.parse(commit.stdout) as { sha: string }
+  const at = new Date(await $.clock.now()).toISOString()
+  await update($, lastPush, () => ({ repo: slug, branch, sha, at }))
 }
 
 async function judge($: Engine): Promise<Verdict> {
   if (!(await read($, started))) return lit('green', 'no work started')
-  const dir = (await read($, workDir)) ?? (await $.session.cwd())
+  const edited = await read($, workDir)
+  const push = await read($, lastPush)
+  if (edited === null && push !== null) return pushVerdict($, push, push.sha.slice(0, 7))
+  const dir = edited ?? (await $.session.cwd())
   const root = await gitRoot($, dir)
   const left = root === undefined ? undefined : await unfinished($, root)
   if (left !== undefined) return lit('red', left)
@@ -360,7 +384,11 @@ export const register: Register = on => {
       if (e.tool === 'Edit' || e.tool === 'Write') await edited($, e.file_path)
       if (e.tool === 'NotebookEdit') await edited($, e.notebook_path)
       if (e.tool === 'Bash') {
-        if (CHANGE_COMMAND.test(e.command)) await spend($)
+        if (CHANGE_COMMAND.test(e.command)) {
+          await spend($)
+          await update($, lastPush, () => null)
+        }
+        if (PUSH_COMMAND.test(e.command)) await recordPush($, ran.text ?? '')
         const url = PR_COMMAND.test(e.command) ? PR_URL.exec(ran.text ?? '')?.[0] : undefined
         if (url !== undefined) await update($, pr, () => url)
         if (CHANGE_COMMAND.test(e.command) || PUSH_COMMAND.test(e.command) || url !== undefined) await startWork($)

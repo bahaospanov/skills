@@ -67,6 +67,7 @@ function reply(world: World, argv: readonly string[]) {
   if (line.startsWith('gh pr view')) {
     return world.pr === null ? fail(`no pull requests found for branch "${world.branch}"`) : ok(JSON.stringify(world.pr))
   }
+  if (line.includes('/commits/')) return ok(JSON.stringify({ sha: `${world.head}000` }))
   if (line.includes('/actions/workflows/')) return ok(JSON.stringify({ workflow_runs: world.newest }))
   if (line.includes('/actions/runs?')) return ok(JSON.stringify({ workflow_runs: world.runs }))
   return fail('unexpected command')
@@ -284,6 +285,45 @@ test('a feature branch with no PR, its head pushed straight to dev, is judged by
 
   world.runs = [run('completed', 'success')]
   expect(await light($)).toBe('🟢 safe to leave · abc1234 pushed to dev, deploy-dev passed')
+})
+
+const REJECTED = 'To https://github.com/o/r.git\n ! [rejected]        reword/initial-prompt -> main (stale info)\n'
+const FORCED = 'To https://github.com/o/r.git\n + a067441...abc1234 reword/initial-prompt -> main (forced update)\n'
+const FORCE_PUSH = 'git push --force-with-lease=main:a067441 origin reword/initial-prompt:main 2>&1 | tail -4'
+
+test('a session that edited no file is judged by its push to an integration branch, not its dirty checkout', async ($, on) => {
+  const world = await start($, on, {
+    isFresh: true,
+    branch: '',
+    status: ' M App/AppModel.swift\n',
+    runs: [run('in_progress', null)],
+  })
+  await $.tool.call({ tool: 'Bash', command: 'git worktree add --detach /tmp/wt-reword a067441' })
+  expect(await light($)).toBe('🔴 working · uncommitted changes')
+
+  world.printed = REJECTED
+  await $.tool.call({ tool: 'Bash', command: FORCE_PUSH })
+  expect(await light($)).toBe('🔴 working · uncommitted changes')
+
+  world.printed = FORCED
+  await $.tool.call({ tool: 'Bash', command: FORCE_PUSH })
+  expect(await light($)).toBe('🟡 waiting on pipeline · abc1234 pushed to main, deploy-dev running')
+
+  world.runs = [run('completed', 'success')]
+  expect(await light($)).toBe('🟢 safe to leave · abc1234 pushed to main, deploy-dev passed')
+})
+
+test('a branch made after that push hands the light back to the checkout', async ($, on) => {
+  const world = await start($, on, { isFresh: true, branch: '', status: ' M App/AppModel.swift\n', printed: FORCED })
+  world.runs = [run('completed', 'success')]
+  await $.tool.call({ tool: 'Bash', command: FORCE_PUSH })
+  expect(await light($)).toBe('🟢 safe to leave · abc1234 pushed to main, deploy-dev passed')
+
+  world.printed = ''
+  await $.turn.start({ text: 'now the photo viewer', turnId: 't1' })
+  await $.tool.call({ tool: 'Bash', command: 'git worktree add -b feat/viewer .worktrees/viewer origin/main' })
+  await $.turn.complete(ENDED)
+  expect(await light($)).toBe('🔴 working · uncommitted changes')
 })
 
 test('a permission prompt turns it red until the next prompt', async ($, on) => {
