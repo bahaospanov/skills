@@ -45,6 +45,7 @@ type Pr = {
   url: string
   state: 'OPEN' | 'CLOSED' | 'MERGED'
   baseRefName: string
+  headRefName: string
   mergedAt: string | null
   mergeCommit: { oid: string } | null
   statusCheckRollup: Check[] | null
@@ -107,7 +108,7 @@ async function currentBranch($: Engine, root: string) {
 }
 
 async function viewPr($: Engine, target: string, cwd?: string): Promise<Pr | 'none' | 'error'> {
-  const fields = 'number,url,state,baseRefName,mergedAt,mergeCommit,statusCheckRollup'
+  const fields = 'number,url,state,baseRefName,headRefName,mergedAt,mergeCommit,statusCheckRollup'
   const out = await run($, ['gh', 'pr', 'view', target, '--json', fields], cwd)
   if (out === undefined) return 'error'
   if (out.exitCode !== 0) return /no (open )?pull requests? found/i.test(out.stderr) ? 'none' : 'error'
@@ -138,12 +139,21 @@ async function settle($: Engine, repo: string, base: string, one: Run) {
   return newest !== undefined && newest.created_at > one.created_at ? newest : one
 }
 
-async function pipeline($: Engine, repo: string, base: string, sha: string, landedAt: string): Promise<Light> {
+async function pipeline(
+  $: Engine,
+  repo: string,
+  base: string,
+  sha: string,
+  landedAt: string,
+  isCleanedUp?: () => Promise<boolean>,
+): Promise<Light> {
   const runs = await listRuns($, `repos/${repo}/actions/runs?head_sha=${sha}&event=push`)
   if (runs === undefined) return lit('red', "can't read the pipeline")
   if (runs.length === 0) {
     const age = (await $.clock.now()) - Date.parse(landedAt)
-    return age < PIPELINE_START_MS ? lit('yellow', 'pipeline not started yet') : lit('green', 'no pipeline ran')
+    if (age >= PIPELINE_START_MS) return lit('green', 'no pipeline ran')
+    if (await isCleanedUp?.()) return lit('green', 'no pipeline started, cleaned up')
+    return lit('yellow', 'pipeline not started yet')
   }
   const settled = await Promise.all(runs.map(one => settle($, repo, base, one)))
   const names = (list: Run[]) => [...new Set(list.map(one => one.name))].join(', ')
@@ -154,7 +164,18 @@ async function pipeline($: Engine, repo: string, base: string, sha: string, land
   return lit('green', `${names(settled)} passed`)
 }
 
-async function prLight($: Engine, found: Pr): Promise<Light> {
+// The playbook removes a PR's branch, from the checkout and from origin, only once its pipeline passed, so a branch
+// gone with no run yet means none is coming. `root` is undefined once the worktree holding the branch is removed.
+async function cleanedUp($: Engine, repo: string, head: string, root: string | undefined) {
+  if (root !== undefined) {
+    const local = await run($, ['git', '-C', root, 'rev-parse', '--verify', '--quiet', `refs/heads/${head}`])
+    if (local?.exitCode !== 1) return false
+  }
+  const remote = await run($, ['gh', 'api', `repos/${repo}/branches/${head}`])
+  return remote !== undefined && remote.exitCode !== 0 && /\b404\b/.test(remote.stderr)
+}
+
+async function prLight($: Engine, found: Pr, root: string | undefined): Promise<Light> {
   const label = `#${found.number}`
   if (found.state === 'OPEN') return lit('yellow', `${label} open, ${checksText(found.statusCheckRollup)}`)
   if (found.state === 'CLOSED') return lit('red', `${label} closed without merging`)
@@ -165,7 +186,10 @@ async function prLight($: Engine, found: Pr): Promise<Light> {
   if (repo === null || found.mergeCommit === null || found.mergedAt === null) {
     return lit('green', `${label} merged into ${found.baseRefName}`)
   }
-  const after = await pipeline($, `${repo[1]}/${repo[2]}`, found.baseRefName, found.mergeCommit.oid, found.mergedAt)
+  const slug = `${repo[1]}/${repo[2]}`
+  const after = await pipeline($, slug, found.baseRefName, found.mergeCommit.oid, found.mergedAt, () =>
+    cleanedUp($, slug, found.headRefName, root),
+  )
   return lit(after.color, `${label} merged into ${found.baseRefName}, ${after.reason}`)
 }
 
@@ -236,7 +260,7 @@ async function judge($: Engine): Promise<Verdict> {
     const pushed = root === undefined ? undefined : await pushedTo($, root)
     return root === undefined || pushed === undefined ? lit('red', 'no PR yet') : pushedLight($, root, pushed)
   }
-  return unlessSpent($, await prLight($, found), found.url, `#${found.number} merged`)
+  return unlessSpent($, await prLight($, found, root), found.url, `#${found.number} merged`)
 }
 
 async function show($: Engine, next: Light) {

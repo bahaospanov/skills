@@ -29,6 +29,9 @@ type World = {
   pushedAt: string
   landed: string
   isFresh: boolean
+  hasCheckout: boolean
+  localBranches: string[]
+  originBranches: string[]
 }
 
 const run = (status: string, conclusion: string | null, created_at = '2026-10-25T10:00:05Z'): Run => ({
@@ -45,6 +48,7 @@ const pull = (state: string, extra: Record<string, unknown> = {}) => ({
   url: URL,
   state,
   baseRefName: 'dev',
+  headRefName: 'feat/x',
   mergedAt: '2026-10-25T10:00:00Z',
   mergeCommit: { oid: 'abc123' },
   statusCheckRollup: [],
@@ -55,7 +59,15 @@ function reply(world: World, argv: readonly string[]) {
   const ok = (stdout: string) => ({ exitCode: 0, stdout, stderr: '', isStdoutTruncated: false, isStderrTruncated: false })
   const fail = (stderr: string) => ({ ...ok(''), exitCode: 1, stderr })
   const line = argv.join(' ')
-  if (line.includes('rev-parse --show-toplevel')) return ok('/repo\n')
+  if (line.includes('rev-parse --show-toplevel')) return world.hasCheckout ? ok('/repo\n') : fail('not a git repository')
+  if (line.includes('rev-parse --verify --quiet refs/heads/')) {
+    return world.localBranches.some(name => line.endsWith(`refs/heads/${name}`)) ? ok('abc1234000\n') : fail('')
+  }
+  if (line.includes('/branches/')) {
+    return world.originBranches.some(name => line.endsWith(`/branches/${name}`))
+      ? ok('{}')
+      : fail('gh: Branch not found (HTTP 404)')
+  }
   if (line.includes('status --porcelain')) return ok(world.status)
   if (line.includes('rev-list --count')) return ok('0\n')
   if (line.includes('branch --show-current')) return ok(`${world.branch}\n`)
@@ -87,6 +99,9 @@ async function start($: Engine, on: On, world: Partial<World>) {
     pushedAt: '2026-10-25T10:00:00Z',
     landed: '',
     isFresh: false,
+    hasCheckout: true,
+    localBranches: ['feat/x'],
+    originBranches: ['feat/x'],
     ...world,
   }
   const clock = mock.clock(on, { now: Date.parse('2026-10-25T10:01:00Z') })
@@ -198,6 +213,34 @@ test('the PR a gh command printed is followed once the branch is gone', async ($
   world.pr = pull('MERGED')
   world.runs = [run('completed', 'success')]
   expect(await light($)).toBe('🟢 safe to leave · #7 merged into dev, deploy-dev passed')
+})
+
+const NOT_STARTED = '🟡 waiting on PR · #7 merged into dev, pipeline not started yet'
+const CLEANED_UP = '🟢 safe to leave · #7 merged into dev, no pipeline started, cleaned up'
+
+test('a merged PR no pipeline picked up is green once cleanup removed its branch, without the three-minute wait', async ($, on) => {
+  const world = await start($, on, { pr: pull('MERGED'), printed: `${URL}\n` })
+  await $.tool.call({ tool: 'Bash', command: 'gh pr create --base dev --fill' })
+  expect(await light($)).toBe(NOT_STARTED)
+
+  world.originBranches = []
+  expect(await light($)).toBe(NOT_STARTED)
+
+  world.branch = 'dev'
+  world.localBranches = []
+  expect(await light($)).toBe(CLEANED_UP)
+})
+
+test('a merged PR no pipeline picked up is green once its worktree and branch are gone', async ($, on) => {
+  const world = await start($, on, { pr: pull('MERGED'), printed: `${URL}\n` })
+  await $.tool.call({ tool: 'Bash', command: 'gh pr create --base dev --fill' })
+  expect(await light($)).toBe(NOT_STARTED)
+
+  world.hasCheckout = false
+  expect(await light($)).toBe(NOT_STARTED)
+
+  world.originBranches = []
+  expect(await light($)).toBe(CLEANED_UP)
 })
 
 const GREEN = '🟢 safe to leave · #7 merged into dev, deploy-dev passed'
