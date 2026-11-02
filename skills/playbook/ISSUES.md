@@ -1,14 +1,14 @@
 # Issues
 
-Feature work starts from an issue.
+Feature work belongs to an issue.
 
 ## Find or create
 
 1. Search the tracker's open issues for the one the work belongs to.
 2. Found: its number ends the branch name ([BRANCHES.md](BRANCHES.md)) and every commit's subject ([COMMITS.md](COMMITS.md)).
-3. None: draft one from what the work does, a title and what and why, and show it to the user. Create it once they agree.
+3. None: the work starts without one. Draft one from what the work does, a title and what and why, and offer it in the message that ends your turn, beside the work's report. Create it once the user agrees, then, before the first push, rename the branch and end its commit subjects with the new number.
 
-The user saying "no issue" lets the work go on without one.
+Declined or unanswered, the branch and its commits go without a number.
 
 ## Writing one
 
