@@ -196,6 +196,8 @@ The blast radius is the potential impact or scope of the changes introduced by t
 
 Work touching a frontend carries screenshots in its Evidence: the real app running locally with seeded data, not component mocks, each with its viewport named. The reviewer sees the change before merging; a diff is not a look at the thing. The same shots later go in the issue's How to test, the playbook's ISSUES part. Backend-only work skips them.
 
+A shot is linked by the commit that holds it (`…/raw/<sha>/<path>`), so the link keeps loading after the playbook's cleanup removes the branch it was pushed on.
+
 Every shot marks what changed, so the reviewer finds it at a glance instead of comparing two pictures:
 
 - an outline on the changed element: dashed red on the before, solid in an accent colour on the after

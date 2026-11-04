@@ -5,13 +5,13 @@ Merged is not shipped: the work is cleaned up once the pipeline holding the merg
 1. Wait for that pipeline. While it runs, or after it failed, the worktree, the branch and the issue stay as they are; a failure goes to the user.
 2. Once it passed, without asking:
    - add the issue's How to test ([ISSUES.md](ISSUES.md));
-   - remove the worktree and the branch, local and on origin;
+   - remove the worktree and every branch the work pushed, local and on origin: its own, and the one holding its MR's screenshots;
    - fast-forward the local base: `git merge --ff-only origin/<base>` where it is checked out, else `git fetch origin <base>:<base>`.
 
    Then tell the user in one line what was removed.
 3. Leave the issue open for the user to close.
 
-A branch is removed only once it has merged, into the base or through an MR naming it as the source, or when the user says to abandon it.
+A branch is removed only once it has merged, into the base or through an MR naming it as the source, or when the user says to abandon it. A screenshots branch never merges: it goes with its MR's branch.
 
 ## Herdr subtask
 
