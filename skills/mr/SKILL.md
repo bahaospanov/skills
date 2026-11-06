@@ -175,6 +175,7 @@ One visual may be enough, several may be needed; all of them rarely are. Use you
 Concrete evidence that the change works. Show a before and after.
 
 Screenshots are S-tier: work touching a frontend carries them, taken and marked as [Screenshots](#screenshots) says.
+A change that lives in motion, such as a gesture, an animation or a new kind of modal, shows a GIF of it running, before and after.
 
 Execution-based evidence is A-tier: test results, console output. Show the exact test that now fails and passes, using pseudocode.
 
