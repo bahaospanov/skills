@@ -1,17 +1,25 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, ProcessRunResult, Register } from 'claude-code'
 
-import type { Color, Light, Push } from '../types'
+import type { Color, Light, Push, Repo } from '../types'
 
 type Engine = EngineInterface
 
 const INTEGRATION = ['dev', 'develop', 'main', 'master']
-const PR_URL = /https:\/\/github\.com\/([\w.-]+)\/([\w.-]+)\/pull\/(\d+)/
-const GITHUB_REMOTE = /github\.com[:/]([\w.-]+?)\/([\w.-]+?)(?:\.git)?$/
+// `git@host:o/r.git`, `ssh://git@host:2222/group/sub/r.git`, `https://user:token@host/o/r`.
+const REMOTE = /^(?:[a-z+]+:\/\/)?(?:[^@/\s]+@)?(\w[\w.-]*)(?::\d+(?=\/))?[:/]((?:[\w.-]+\/)+[\w.-]+?)(?:\.git)?\/?$/i
+const PR_URL = /https:\/\/([\w.-]+)\/([\w.-]+\/[\w.-]+)\/pull\/(\d+)/
+const MR_URL = /https?:\/\/([\w.-]+)(?::\d+)?\/((?:[\w.-]+\/)+[\w.-]+)\/-\/merge_requests\/(\d+)/
+const MR_URLS = new RegExp(MR_URL.source, 'g')
+const WEB_URL = /"web_url"\s*:\s*"([^"]+)"/g
 const PR_COMMAND = /\bgh\s+pr\s+(create|view|merge|ready|checks|edit)\b/
-const GIT_COMMAND = /\b(git|gh)\s/
+const MR_COMMAND = /\bglab\s+mr\s+(create|view|merge|update|approve|rebase)\b|\/merge_requests\b/
+const FORGE_COMMAND = /\b(git|gh|glab)\s|\/api\/v4\//
 const CHANGE_COMMAND =
-  /\b(git\s+(-C\s+\S+\s+)?(commit|revert|cherry-pick|worktree\s+add|checkout\s+-[bB]|switch\s+(-[cC]|--create))|gh\s+(pr|issue)\s+create)\b/
+  /\b(git\s+(-C\s+\S+\s+)?(commit|revert|cherry-pick|worktree\s+add|checkout\s+-[bB]|switch\s+(-[cC]|--create))|(gh\s+(pr|issue)|glab\s+(mr|issue))\s+create)\b/
+// A curl POST creating a GitLab MR or issue; a POST to a path past one (a note, a merge) creates no work.
+const REST_CREATE =
+  /^(?=[^]*\bcurl\b)(?=[^]*(?:-X\s*POST|--request\s+POST|\s(?:-d|--data\S*|-F|--form|--json)\s))(?=[^]*\/(?:merge_requests|issues)(?![\w/]))/
 const PUSH_COMMAND = /\bgit\s+(-C\s+\S+\s+)?push\b/
 const PUSH_REMOTE = /^To\s+(\S+)/m
 // A ref `git push` updated: ` + a067441...b4135b7 reword -> main`, `   f6f58fb..9e417dc  main -> main`, ` * [new branch] dev -> dev`.
@@ -19,6 +27,7 @@ const PUSHED_REF = /^\s*[+*]?\s*(?:\[[^\]]*\]|[0-9a-f]+\.\.\.?([0-9a-f]+))\s+\S+
 const POLL_MS = 30_000
 const PIPELINE_START_MS = 3 * 60_000
 const DEMO_STEP_MS = 4_000
+const NO_GITLAB_ACCESS = "can't read GitLab: set GITLAB_TOKEN or sign in glab"
 
 const light = atom({ plugin: 'traffic-light', key: 'light' } as const, null)
 const pr = atom({ plugin: 'traffic-light', key: 'pr' } as const, null)
@@ -38,6 +47,9 @@ const THEME = { green: 'success', yellow: 'warning', red: 'error' } as const
 const PENDING_CHECK = new Set(['QUEUED', 'IN_PROGRESS', 'PENDING', 'EXPECTED', 'WAITING', 'REQUESTED'])
 const FAILED_CHECK = new Set(['FAILURE', 'ERROR', 'TIMED_OUT', 'CANCELLED', 'ACTION_REQUIRED', 'STARTUP_FAILURE'])
 const PASSED_RUN = new Set(['success', 'skipped', 'neutral'])
+const GITLAB_RUNNING = new Set(['created', 'waiting_for_resource', 'preparing', 'pending', 'running', 'scheduled'])
+const GITLAB_PASSED = new Set(['success', 'skipped'])
+const GITLAB_FAILED = new Set(['failed', 'canceled'])
 
 type Check = { status?: string; conclusion?: string; state?: string }
 type Pr = {
@@ -50,7 +62,7 @@ type Pr = {
   mergeCommit: { oid: string } | null
   statusCheckRollup: Check[] | null
 }
-type Run = {
+type ActionsRun = {
   id: number
   workflow_id: number
   name: string
@@ -58,9 +70,38 @@ type Run = {
   conclusion: string | null
   created_at: string
 }
+type Mr = {
+  iid: number
+  web_url: string
+  state: 'opened' | 'closed' | 'locked' | 'merged'
+  target_branch: string
+  source_branch: string
+  merged_at: string | null
+  merge_commit_sha: string | null
+  squash_commit_sha: string | null
+  sha: string
+  head_pipeline?: { status: string } | null
+}
+type Pipeline = { id: number; status: string; name?: string | null }
+
+type Change = {
+  repo: Repo
+  label: string
+  url: string
+  state: 'open' | 'closed' | 'merged'
+  base: string
+  head: string
+  mergedAt: string | null
+  landed: string | null
+  checks: string
+}
+type Run = { name: string; state: 'running' | 'passed' | 'failed'; word: string }
+type Vars = { url?: string | undefined; token?: string | undefined }
 
 // A green verdict's `done` names the work it stands for: the merged PR's URL, or the pushed commit.
 type Verdict = Light & { done?: string }
+
+class Blind extends Error {}
 
 const lit = (color: Color, reason: string): Light => ({ color, reason })
 const ASKING = lit('red', 'Claude is asking you')
@@ -107,12 +148,74 @@ async function currentBranch($: Engine, root: string) {
   return out?.exitCode === 0 ? out.stdout.trim() : ''
 }
 
-async function viewPr($: Engine, target: string, cwd?: string): Promise<Pr | 'none' | 'error'> {
-  const fields = 'number,url,state,baseRefName,headRefName,mergedAt,mergeCommit,statusCheckRollup'
-  const out = await run($, ['gh', 'pr', 'view', target, '--json', fields], cwd)
-  if (out === undefined) return 'error'
-  if (out.exitCode !== 0) return /no (open )?pull requests? found/i.test(out.stderr) ? 'none' : 'error'
-  return JSON.parse(out.stdout) as Pr
+const hostOf = (url: string) => /^https?:\/\/([^/:?#]+)/i.exec(url)?.[1]?.toLowerCase()
+const noun = (repo: Repo | undefined) => (repo?.forge === 'gitlab' ? 'MR' : 'PR')
+
+// Only its GITLAB_URL and GITLAB_TOKEN lines are read: the file is never run.
+async function envFile($: Engine, dir: string | undefined): Promise<Vars> {
+  if (dir === undefined) return {}
+  const named = await run($, ['git', '-C', dir, 'config', '--type=path', '--get', 'traffic-light.envFile'])
+  const file = named?.exitCode === 0 ? named.stdout.trim() : ''
+  if (file === '') return {}
+  const common = await run($, ['git', '-C', dir, 'rev-parse', '--path-format=absolute', '--git-common-dir'])
+  const main = common?.exitCode === 0 ? common.stdout.trim().replace(/\/\.git$/, '') : dir
+  const text = await $.fs.read(file.startsWith('/') ? file : `${main}/${file}`).catch(() => '')
+  const value = (key: string) =>
+    new RegExp(`^\\s*(?:export\\s+)?${key}\\s*=\\s*(.*?)\\s*$`, 'm').exec(text)?.[1]?.replace(/^(["'])(.*)\1$/, '$2')
+  return { url: value('GITLAB_URL'), token: value('GITLAB_TOKEN') }
+}
+
+// A token goes only to the host its GITLAB_URL names, or, with none, to the remote's host over https.
+function accessFor(repo: Repo, { url, token }: Vars) {
+  const base = (url || `https://${repo.host}`).replace(/\/+$/, '').replace(/\/api\/v4$/, '')
+  return token && hostOf(base) === repo.host ? { base, token } : undefined
+}
+
+async function gitlabAccess($: Engine, repo: Repo) {
+  const env = { url: await $.env.get('GITLAB_URL'), token: await $.env.get('GITLAB_TOKEN') }
+  return accessFor(repo, env) ?? accessFor(repo, await envFile($, repo.dir))
+}
+
+async function forgeOf($: Engine, host: string, dir: string | undefined) {
+  if (host.includes('github')) return 'github'
+  if (host.includes('gitlab')) return 'gitlab'
+  const named = [await $.env.get('GITLAB_URL'), (await envFile($, dir)).url]
+  return named.some(url => url !== undefined && hostOf(url) === host) ? 'gitlab' : undefined
+}
+
+async function repoAt($: Engine, remote: string, dir: string | undefined): Promise<Repo | undefined> {
+  const [, host, path] = REMOTE.exec(remote) ?? []
+  if (host === undefined || path === undefined) return undefined
+  const name = host.toLowerCase()
+  return { forge: await forgeOf($, name, dir), host: name, path, dir }
+}
+
+async function origin($: Engine, root: string) {
+  const out = await run($, ['git', '-C', root, 'remote', 'get-url', 'origin'])
+  return out?.exitCode === 0 ? repoAt($, out.stdout.trim(), root) : undefined
+}
+
+const unknownForge = (repo: Repo) => new Blind(`can't read ${repo.host}: not GitHub or GitLab`)
+
+async function gitlab($: Engine, repo: Repo, path: string) {
+  const api = `projects/${encodeURIComponent(repo.path)}/${path}`
+  const access = await gitlabAccess($, repo)
+  if (access !== undefined) {
+    const headers = { 'PRIVATE-TOKEN': access.token }
+    const reply = await $.http.fetch(`${access.base}/api/v4/${api}`, { headers }).catch(() => undefined)
+    if (reply === undefined) throw new Blind(`can't reach ${repo.host}`)
+    return { status: reply.status, text: reply.text }
+  }
+  const out = await run($, ['glab', 'api', '--hostname', repo.host, api])
+  if (out === undefined) throw new Blind(NO_GITLAB_ACCESS)
+  if (out.exitCode === 0) return { status: 200, text: out.stdout }
+  return { status: Number(/HTTP (\d{3})/.exec(out.stderr)?.[1] ?? 0), text: `${out.stdout}\n${out.stderr}` }
+}
+
+async function gitlabRead<T>($: Engine, repo: Repo, path: string): Promise<T> {
+  const reply = await gitlab($, repo, path)
+  if (reply.status === 200) return JSON.parse(reply.text) as T
+  throw new Blind(`can't read GitLab at ${repo.host}${reply.status === 0 ? '' : ` (HTTP ${reply.status})`}`)
 }
 
 function checksText(rollup: Check[] | null) {
@@ -125,72 +228,165 @@ function checksText(rollup: Check[] | null) {
   return 'waiting for merge'
 }
 
-async function listRuns($: Engine, path: string) {
-  const out = await run($, ['gh', 'api', path])
-  return out?.exitCode === 0 ? (JSON.parse(out.stdout) as { workflow_runs: Run[] }).workflow_runs : undefined
+async function viewPr($: Engine, target: string, cwd?: string): Promise<Change | 'none'> {
+  const fields = 'number,url,state,baseRefName,headRefName,mergedAt,mergeCommit,statusCheckRollup'
+  const out = await run($, ['gh', 'pr', 'view', target, '--json', fields], cwd)
+  if (out?.exitCode !== 0) {
+    if (out !== undefined && /no (open )?pull requests? found/i.test(out.stderr)) return 'none'
+    throw new Blind("can't reach GitHub (gh)")
+  }
+  const found = JSON.parse(out.stdout) as Pr
+  const [, host, path] = PR_URL.exec(found.url) ?? []
+  return {
+    repo: { forge: 'github', host: host ?? 'github.com', path: path ?? '', dir: cwd },
+    label: `#${found.number}`,
+    url: found.url,
+    state: found.state === 'OPEN' ? 'open' : found.state === 'MERGED' ? 'merged' : 'closed',
+    base: found.baseRefName,
+    head: found.headRefName,
+    mergedAt: found.mergedAt,
+    landed: path === undefined ? null : (found.mergeCommit?.oid ?? null),
+    checks: checksText(found.statusCheckRollup),
+  }
+}
+
+function fromMr(repo: Repo, found: Mr): Change {
+  const pipeline = found.head_pipeline?.status ?? ''
+  return {
+    repo,
+    label: `!${found.iid}`,
+    url: found.web_url,
+    state: found.state === 'merged' ? 'merged' : found.state === 'closed' ? 'closed' : 'open',
+    base: found.target_branch,
+    head: found.source_branch,
+    mergedAt: found.merged_at,
+    // A fast-forward merge makes no commit of its own: the source's head is what landed.
+    landed: found.merge_commit_sha ?? found.squash_commit_sha ?? found.sha,
+    checks: GITLAB_RUNNING.has(pipeline)
+      ? 'pipeline running'
+      : GITLAB_FAILED.has(pipeline)
+        ? 'pipeline failing'
+        : 'waiting for merge',
+  }
+}
+
+async function changeFor($: Engine, repo: Repo, branch: string, root: string): Promise<Change | 'none'> {
+  if (repo.forge === 'github') return viewPr($, branch, root)
+  if (repo.forge === undefined) throw unknownForge(repo)
+  const list = await gitlabRead<Mr[]>($, repo, `merge_requests?source_branch=${encodeURIComponent(branch)}&state=all`)
+  const mine = list.find(one => one.state === 'opened' || one.state === 'locked') ?? list[0]
+  return mine === undefined ? 'none' : fromMr(repo, await gitlabRead<Mr>($, repo, `merge_requests/${mine.iid}`))
+}
+
+async function changeAt($: Engine, url: string, root: string | undefined): Promise<Change | 'none'> {
+  const [, host, path, iid] = MR_URL.exec(url) ?? []
+  if (host === undefined || path === undefined) return viewPr($, url)
+  const dir = root ?? (await gitRoot($, await $.session.cwd()))
+  const repo: Repo = { forge: 'gitlab', host: host.toLowerCase(), path, dir }
+  return fromMr(repo, await gitlabRead<Mr>($, repo, `merge_requests/${iid}`))
+}
+
+async function listRuns($: Engine, repo: Repo, path: string) {
+  const out = await run($, ['gh', 'api', '--hostname', repo.host, path])
+  return out?.exitCode === 0 ? (JSON.parse(out.stdout) as { workflow_runs: ActionsRun[] }).workflow_runs : undefined
 }
 
 // A run cancelled by a newer push to the same branch (concurrency
 // cancel-in-progress) is settled by that newer run, which carries this commit.
-async function settle($: Engine, repo: string, base: string, one: Run) {
+async function settle($: Engine, repo: Repo, base: string, one: ActionsRun) {
   if (one.conclusion !== 'cancelled') return one
-  const runs = await listRuns($, `repos/${repo}/actions/workflows/${one.workflow_id}/runs?branch=${base}&event=push&per_page=1`)
-  const newest = runs?.[0]
+  const path = `repos/${repo.path}/actions/workflows/${one.workflow_id}/runs?branch=${base}&event=push&per_page=1`
+  const newest = (await listRuns($, repo, path))?.[0]
   return newest !== undefined && newest.created_at > one.created_at ? newest : one
+}
+
+async function githubRuns($: Engine, repo: Repo, base: string, sha: string) {
+  const runs = await listRuns($, repo, `repos/${repo.path}/actions/runs?head_sha=${sha}&event=push`)
+  if (runs === undefined) throw new Blind("can't read the pipeline")
+  const settled = await Promise.all(runs.map(one => settle($, repo, base, one)))
+  return settled.map((one): Run => {
+    if (one.status !== 'completed') return { name: one.name, state: 'running', word: 'running' }
+    const state = PASSED_RUN.has(one.conclusion ?? '') ? 'passed' : 'failed'
+    return { name: one.name, state, word: one.conclusion ?? 'failed' }
+  })
+}
+
+// A pipeline auto-cancelled by a newer push to the branch is settled by the newer one, as `settle` does.
+async function gitlabRuns($: Engine, repo: Repo, base: string, sha: string): Promise<Run[]> {
+  const ref = encodeURIComponent(base)
+  const [first] = await gitlabRead<Pipeline[]>($, repo, `pipelines?sha=${sha}&ref=${ref}&per_page=1`)
+  if (first === undefined) return []
+  const [newest] = first.status === 'canceled' ? await gitlabRead<Pipeline[]>($, repo, `pipelines?ref=${ref}&per_page=1`) : []
+  const one = newest !== undefined && newest.id > first.id ? newest : first
+  const name = one.name ?? `pipeline #${one.id}`
+  if (GITLAB_PASSED.has(one.status)) return [{ name, state: 'passed', word: 'passed' }]
+  if (GITLAB_FAILED.has(one.status)) return [{ name, state: 'failed', word: one.status }]
+  return [{ name, state: 'running', word: one.status === 'manual' ? 'waiting on a manual job' : 'running' }]
+}
+
+async function runsOf($: Engine, repo: Repo, base: string, sha: string) {
+  if (repo.forge === undefined) throw unknownForge(repo)
+  return repo.forge === 'github' ? githubRuns($, repo, base, sha) : gitlabRuns($, repo, base, sha)
+}
+
+const blinded = (error: unknown): Light => {
+  if (error instanceof Blind) return lit('red', error.message)
+  throw error
 }
 
 async function pipeline(
   $: Engine,
-  repo: string,
+  repo: Repo,
   base: string,
   sha: string,
   landedAt: string,
   isCleanedUp?: () => Promise<boolean>,
 ): Promise<Light> {
-  const runs = await listRuns($, `repos/${repo}/actions/runs?head_sha=${sha}&event=push`)
-  if (runs === undefined) return lit('red', "can't read the pipeline")
+  const runs = await runsOf($, repo, base, sha).catch(blinded)
+  if (!Array.isArray(runs)) return runs
   if (runs.length === 0) {
     const age = (await $.clock.now()) - Date.parse(landedAt)
     if (age >= PIPELINE_START_MS) return lit('green', 'no pipeline ran')
     if (await isCleanedUp?.()) return lit('green', 'no pipeline started, cleaned up')
     return lit('yellow', 'pipeline not started yet')
   }
-  const settled = await Promise.all(runs.map(one => settle($, repo, base, one)))
   const names = (list: Run[]) => [...new Set(list.map(one => one.name))].join(', ')
-  const running = settled.filter(one => one.status !== 'completed')
-  if (running.length > 0) return lit('yellow', `${names(running)} running`)
-  const failed = settled.filter(one => !PASSED_RUN.has(one.conclusion ?? ''))
-  if (failed.length > 0) return lit('red', `${names(failed)} ${failed[0]?.conclusion ?? 'failed'}`)
-  return lit('green', `${names(settled)} passed`)
+  const running = runs.filter(one => one.state === 'running')
+  if (running.length > 0) return lit('yellow', `${names(running)} ${running[0]?.word}`)
+  const failed = runs.filter(one => one.state === 'failed')
+  if (failed.length > 0) return lit('red', `${names(failed)} ${failed[0]?.word}`)
+  return lit('green', `${names(runs)} passed`)
 }
 
 // The playbook removes a PR's branch, from the checkout and from origin, only once its pipeline passed, so a branch
 // gone with no run yet means none is coming. `root` is undefined once the worktree holding the branch is removed.
-async function cleanedUp($: Engine, repo: string, head: string, root: string | undefined) {
+async function cleanedUp($: Engine, repo: Repo, head: string, root: string | undefined) {
   if (root !== undefined) {
     const local = await run($, ['git', '-C', root, 'rev-parse', '--verify', '--quiet', `refs/heads/${head}`])
     if (local?.exitCode !== 1) return false
   }
-  const remote = await run($, ['gh', 'api', `repos/${repo}/branches/${head}`])
+  if (repo.forge === 'gitlab') {
+    // An unauthenticated read of a private project is a 404 too: only the branch's own 404 counts.
+    const reply = await gitlab($, repo, `repository/branches/${encodeURIComponent(head)}`).catch(() => undefined)
+    return reply?.status === 404 && /Branch Not Found/.test(reply.text)
+  }
+  const remote = await run($, ['gh', 'api', '--hostname', repo.host, `repos/${repo.path}/branches/${head}`])
   return remote !== undefined && remote.exitCode !== 0 && /\b404\b/.test(remote.stderr)
 }
 
-async function prLight($: Engine, found: Pr, root: string | undefined): Promise<Light> {
-  const label = `#${found.number}`
-  if (found.state === 'OPEN') return lit('yellow', `${label} open, ${checksText(found.statusCheckRollup)}`)
-  if (found.state === 'CLOSED') return lit('red', `${label} closed without merging`)
-  if (!INTEGRATION.includes(found.baseRefName)) {
-    return lit('red', `${label} merged into ${found.baseRefName}, not dev or main`)
-  }
-  const repo = PR_URL.exec(found.url)
-  if (repo === null || found.mergeCommit === null || found.mergedAt === null) {
-    return lit('green', `${label} merged into ${found.baseRefName}`)
-  }
-  const slug = `${repo[1]}/${repo[2]}`
-  const after = await pipeline($, slug, found.baseRefName, found.mergeCommit.oid, found.mergedAt, () =>
-    cleanedUp($, slug, found.headRefName, root),
+const waiting = (repo: Repo, verdict: Light): Light =>
+  repo.forge === 'gitlab' && verdict.color === 'yellow' ? { ...verdict, headline: 'waiting on MR' } : verdict
+
+async function changeLight($: Engine, found: Change, root: string | undefined): Promise<Light> {
+  const { label, base } = found
+  if (found.state === 'open') return waiting(found.repo, lit('yellow', `${label} open, ${found.checks}`))
+  if (found.state === 'closed') return lit('red', `${label} closed without merging`)
+  if (!INTEGRATION.includes(base)) return lit('red', `${label} merged into ${base}, not dev or main`)
+  if (found.landed === null || found.mergedAt === null) return lit('green', `${label} merged into ${base}`)
+  const after = await pipeline($, found.repo, base, found.landed, found.mergedAt, () =>
+    cleanedUp($, found.repo, found.head, root),
   )
-  return lit(after.color, `${label} merged into ${found.baseRefName}, ${after.reason}`)
+  return waiting(found.repo, lit(after.color, `${label} merged into ${base}, ${after.reason}`))
 }
 
 async function unlessSpent($: Engine, verdict: Light, work: string, since: string): Promise<Verdict> {
@@ -207,37 +403,54 @@ async function pushedTo($: Engine, root: string) {
 }
 
 // The reflog of origin's branch dates when its head reached the remote, the push the pipeline runs for.
-async function pushedLight($: Engine, root: string, branch: string): Promise<Verdict> {
+async function pushedLight($: Engine, root: string, branch: string, repo: Repo | undefined): Promise<Verdict> {
   const head = await run($, ['git', '-C', root, 'log', '-1', '--format=%H %h'])
   const ref = `refs/remotes/origin/${branch}`
   const pushed = await run($, ['git', '-C', root, 'log', '-g', '-1', '--date=iso-strict', '--format=%gd', ref])
-  const remote = await run($, ['git', '-C', root, 'remote', 'get-url', 'origin'])
   const [sha, short] = head?.exitCode === 0 ? head.stdout.trim().split(' ') : []
   const pushedAt = pushed?.exitCode === 0 ? /@\{(.+)\}/.exec(pushed.stdout)?.[1] : undefined
-  const repo = GITHUB_REMOTE.exec(remote?.exitCode === 0 ? remote.stdout.trim() : '')
-  if (sha === undefined || short === undefined || pushedAt === undefined || repo === null) return lit('red', 'no PR yet')
-  return pushVerdict($, { repo: `${repo[1]}/${repo[2]}`, branch, sha, at: pushedAt }, short)
+  if (sha === undefined || short === undefined || pushedAt === undefined || repo === undefined) {
+    return lit('red', `no ${noun(repo)} yet`)
+  }
+  return pushVerdict($, { repo, branch, sha, at: pushedAt }, short)
 }
 
 async function pushVerdict($: Engine, push: Push, short: string): Promise<Verdict> {
   const after = await pipeline($, push.repo, push.branch, push.sha, push.at)
   const verdict = lit(after.color, `${short} pushed to ${push.branch}, ${after.reason}`)
   if (after.color === 'yellow') return { ...verdict, headline: 'waiting on pipeline' }
-  return unlessSpent($, verdict, `${push.repo}@${push.sha}`, `${short} was pushed`)
+  return unlessSpent($, verdict, `${push.repo.host}/${push.repo.path}@${push.sha}`, `${short} was pushed`)
+}
+
+async function commitSha($: Engine, repo: Repo, ref: string) {
+  if (repo.forge === 'gitlab') {
+    return (await gitlabRead<{ id: string }>($, repo, `repository/commits/${encodeURIComponent(ref)}`)).id
+  }
+  if (repo.forge === undefined) return undefined
+  const out = await run($, ['gh', 'api', '--hostname', repo.host, `repos/${repo.path}/commits/${ref}`])
+  return out?.exitCode === 0 ? (JSON.parse(out.stdout) as { sha: string }).sha : undefined
 }
 
 // What the push itself reported, so a ref pushed from a scratch worktree, not the checkout's HEAD, is the work.
 async function recordPush($: Engine, printed: string) {
-  const repo = GITHUB_REMOTE.exec(PUSH_REMOTE.exec(printed)?.[1] ?? '')
+  const remote = PUSH_REMOTE.exec(printed)?.[1]
   const ref = [...printed.matchAll(PUSHED_REF)].filter(line => INTEGRATION.includes(line[2] ?? '')).pop()
   const branch = ref?.[2]
-  if (repo === null || branch === undefined) return
-  const slug = `${repo[1]}/${repo[2]}`
-  const commit = await run($, ['gh', 'api', `repos/${slug}/commits/${ref?.[1] ?? branch}`])
-  if (commit?.exitCode !== 0) return
-  const { sha } = JSON.parse(commit.stdout) as { sha: string }
+  if (remote === undefined || branch === undefined) return
+  const repo = await repoAt($, remote, await gitRoot($, await $.session.cwd()))
+  const sha = repo === undefined ? undefined : await commitSha($, repo, ref?.[1] ?? branch).catch(() => undefined)
+  if (repo === undefined || sha === undefined) return
   const at = new Date(await $.clock.now()).toISOString()
-  await update($, lastPush, () => ({ repo: slug, branch, sha, at }))
+  await update($, lastPush, () => ({ repo, branch, sha, at }))
+}
+
+// A listing names several MRs and follows none; an MR's JSON may link others in its text, its own URL is `web_url`.
+function changeUrl(command: string, printed: string) {
+  if (PR_COMMAND.test(command)) return PR_URL.exec(printed)?.[0]
+  if (!MR_COMMAND.test(command)) return undefined
+  const own = [...printed.matchAll(WEB_URL)].map(found => found[1] ?? '').filter(url => MR_URL.test(url))
+  const urls = new Set(own.length > 0 ? own : [...printed.matchAll(MR_URLS)].map(found => found[0]))
+  return urls.size === 1 ? [...urls][0] : undefined
 }
 
 async function judge($: Engine): Promise<Verdict> {
@@ -250,17 +463,23 @@ async function judge($: Engine): Promise<Verdict> {
   const left = root === undefined ? undefined : await unfinished($, root)
   if (left !== undefined) return lit('red', left)
   const branch = root === undefined ? '' : await currentBranch($, root)
+  const repo = root === undefined ? undefined : await origin($, root)
   const tracked = await read($, pr)
-  if (root !== undefined && INTEGRATION.includes(branch) && tracked === null) return pushedLight($, root, branch)
-  const feature = branch !== '' && !INTEGRATION.includes(branch) ? branch : undefined
+  if (root !== undefined && INTEGRATION.includes(branch) && tracked === null) return pushedLight($, root, branch, repo)
+  const feature = root !== undefined && branch !== '' && !INTEGRATION.includes(branch) ? branch : undefined
   const found =
-    feature !== undefined ? await viewPr($, feature, root) : tracked !== null ? await viewPr($, tracked) : 'none'
-  if (found === 'error') return lit('red', "can't reach GitHub (gh)")
+    feature !== undefined && root !== undefined
+      ? repo === undefined
+        ? 'none'
+        : await changeFor($, repo, feature, root)
+      : tracked !== null
+        ? await changeAt($, tracked, root)
+        : 'none'
   if (found === 'none') {
     const pushed = root === undefined ? undefined : await pushedTo($, root)
-    return root === undefined || pushed === undefined ? lit('red', 'no PR yet') : pushedLight($, root, pushed)
+    return root === undefined || pushed === undefined ? lit('red', `no ${noun(repo)} yet`) : pushedLight($, root, pushed, repo)
   }
-  return unlessSpent($, await prLight($, found, root), found.url, `#${found.number} merged`)
+  return unlessSpent($, await changeLight($, found, root), found.url, `${found.label} merged`)
 }
 
 async function show($: Engine, next: Light) {
@@ -281,7 +500,9 @@ function refresh($: Engine): Promise<void> {
   refreshing = (async () => {
     do {
       isStale = false
-      const { done, ...next } = await judge($).catch((): Verdict => lit('red', "couldn't read the work state"))
+      const { done, ...next } = await judge($).catch(
+        (error: unknown): Verdict => lit('red', error instanceof Blind ? error.message : "couldn't read the work state"),
+      )
       greenWork = done
       if (!isDemo) await show($, face(next))
     } while (isStale)
@@ -408,15 +629,16 @@ export const register: Register = on => {
       if (e.tool === 'Edit' || e.tool === 'Write') await edited($, e.file_path)
       if (e.tool === 'NotebookEdit') await edited($, e.notebook_path)
       if (e.tool === 'Bash') {
-        if (CHANGE_COMMAND.test(e.command)) {
+        const isChange = CHANGE_COMMAND.test(e.command) || REST_CREATE.test(e.command)
+        if (isChange) {
           await spend($)
           await update($, lastPush, () => null)
         }
         if (PUSH_COMMAND.test(e.command)) await recordPush($, ran.text ?? '')
-        const url = PR_COMMAND.test(e.command) ? PR_URL.exec(ran.text ?? '')?.[0] : undefined
+        const url = changeUrl(e.command, ran.text ?? '')
         if (url !== undefined) await update($, pr, () => url)
-        if (CHANGE_COMMAND.test(e.command) || PUSH_COMMAND.test(e.command) || url !== undefined) await startWork($)
-        if (GIT_COMMAND.test(e.command)) soon($)
+        if (isChange || PUSH_COMMAND.test(e.command) || url !== undefined) await startWork($)
+        if (FORGE_COMMAND.test(e.command)) soon($)
       }
     } catch {}
 

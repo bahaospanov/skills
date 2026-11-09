@@ -16,8 +16,13 @@ const BAND = {
 } as const
 
 const URL = 'https://github.com/o/r/pull/7'
+const MR = 'https://gitlab.example.com/team/app/-/merge_requests/360'
+const TOKEN = 'glpat-secret'
+const GITLAB = { remote: 'git@gitlab.example.com:team/app.git', env: { GITLAB_TOKEN: TOKEN } }
 
 type Run = { id: number; workflow_id: number; name: string; status: string; conclusion: string | null; created_at: string }
+type Pipeline = { id: number; status: string; ref: string; sha: string; name: null; created_at: string }
+type Merge = { iid: number; source_branch: string }
 type World = {
   branch: string
   status: string
@@ -32,6 +37,15 @@ type World = {
   hasCheckout: boolean
   localBranches: string[]
   originBranches: string[]
+  remote: string
+  env: Record<string, string>
+  envFile: string | null
+  files: Record<string, string>
+  hasGlab: boolean
+  mrs: Merge[]
+  pipelines: Pipeline[]
+  fetched: string[]
+  calls: string[]
 }
 
 const run = (status: string, conclusion: string | null, created_at = '2026-10-25T10:00:05Z'): Run => ({
@@ -55,10 +69,62 @@ const pull = (state: string, extra: Record<string, unknown> = {}) => ({
   ...extra,
 })
 
+const pipeline = (id: number, status: string, sha = 'abc1234000'): Pipeline => ({
+  id,
+  status,
+  ref: 'dev',
+  sha,
+  name: null,
+  created_at: '2026-10-25T10:00:05Z',
+})
+
+const merge = (state: string, extra: Record<string, unknown> = {}) => ({
+  iid: 360,
+  web_url: MR,
+  state,
+  target_branch: 'dev',
+  source_branch: 'feat/x',
+  merged_at: '2026-10-25T10:00:00Z',
+  merge_commit_sha: null,
+  squash_commit_sha: null,
+  sha: 'abc1234000',
+  head_pipeline: null,
+  ...extra,
+})
+
+// GitLab's REST API over `world`, as GITLAB_TOKEN or glab reach it; `path` follows `projects/team%2Fapp/`.
+function gitlab(world: World, path: string) {
+  const [route = '', query = ''] = path.split('?')
+  const params: Record<string, string> = Object.fromEntries(query.split('&').map(pair => pair.split('=').map(decodeURIComponent)))
+  const found = (body: unknown) => ({ status: 200, body })
+  const missing = (what: string) => ({ status: 404, body: { message: `404 ${what} Not Found` } })
+  if (route === 'merge_requests') return found(world.mrs.filter(one => one.source_branch === params.source_branch))
+  const iid = /^merge_requests\/(\d+)$/.exec(route)?.[1]
+  const one = world.mrs.find(mr => mr.iid === Number(iid))
+  if (iid !== undefined) return one === undefined ? missing('Merge Request') : found(one)
+  if (route === 'pipelines') {
+    const list = world.pipelines.filter(one => one.ref === params.ref && (params.sha ?? one.sha) === one.sha)
+    return found(list.sort((a, b) => b.id - a.id).slice(0, Number(params.per_page ?? 20)))
+  }
+  const branch = /^repository\/branches\/(.+)$/.exec(route)?.[1]
+  if (branch !== undefined) return world.originBranches.includes(decodeURIComponent(branch)) ? found({}) : missing('Branch')
+  if (route.startsWith('repository/commits/')) return found({ id: `${world.head}000` })
+  return missing('Route')
+}
+
 function reply(world: World, argv: readonly string[]) {
   const ok = (stdout: string) => ({ exitCode: 0, stdout, stderr: '', isStdoutTruncated: false, isStderrTruncated: false })
   const fail = (stderr: string) => ({ ...ok(''), exitCode: 1, stderr })
   const line = argv.join(' ')
+  world.calls.push(line)
+  if (argv[0] === 'glab') {
+    const { status, body } = gitlab(world, (argv.at(-1) ?? '').replace('projects/team%2Fapp/', ''))
+    return status === 200 ? ok(JSON.stringify(body)) : fail(`glab: ${JSON.stringify(body)} (HTTP ${status})`)
+  }
+  if (line.includes('config --type=path --get traffic-light.envFile')) {
+    return world.envFile === null ? fail('') : ok(`${world.envFile}\n`)
+  }
+  if (line.includes('rev-parse --path-format=absolute --git-common-dir')) return ok('/main/.git\n')
   if (line.includes('rev-parse --show-toplevel')) return world.hasCheckout ? ok('/repo\n') : fail('not a git repository')
   if (line.includes('rev-parse --verify --quiet refs/heads/')) {
     return world.localBranches.some(name => line.endsWith(`refs/heads/${name}`)) ? ok('abc1234000\n') : fail('')
@@ -74,7 +140,7 @@ function reply(world: World, argv: readonly string[]) {
   if (line.includes('check-ignore')) return fail('')
   if (line.includes('log -g')) return ok(`origin/${world.branch}@{${world.pushedAt}}\n`)
   if (line.includes('log -1')) return ok(`${world.head}000 ${world.head}\n`)
-  if (line.includes('remote get-url origin')) return ok('git@github.com:o/r.git\n')
+  if (line.includes('remote get-url origin')) return ok(`${world.remote}\n`)
   if (line.includes('for-each-ref --contains HEAD')) return ok(world.landed)
   if (line.startsWith('gh pr view')) {
     return world.pr === null ? fail(`no pull requests found for branch "${world.branch}"`) : ok(JSON.stringify(world.pr))
@@ -85,8 +151,8 @@ function reply(world: World, argv: readonly string[]) {
   return fail('unexpected command')
 }
 
-// Stands for the engine beneath the mod: git, gh and the Bash tool answer from `world`. Unless fresh, the session has
-// started work with an edit.
+// Stands for the engine beneath the mod: git, gh, glab, GitLab's API and the Bash tool answer from `world`. Unless
+// fresh, the session has started work with an edit.
 async function start($: Engine, on: On, world: Partial<World>) {
   const full: World = {
     branch: 'feat/x',
@@ -102,12 +168,39 @@ async function start($: Engine, on: On, world: Partial<World>) {
     hasCheckout: true,
     localBranches: ['feat/x'],
     originBranches: ['feat/x'],
+    remote: 'git@github.com:o/r.git',
+    env: {},
+    envFile: null,
+    files: {},
+    hasGlab: false,
+    mrs: [],
+    pipelines: [],
+    fetched: [],
+    calls: [],
     ...world,
   }
   const clock = mock.clock(on, { now: Date.parse('2026-10-25T10:01:00Z') })
   on('command.register', () => ({ value: { command: 'traffic-light' } }))
   on('session.cwd', () => ({ value: '/repo' }))
-  on('process.run', (_, e) => ({ value: reply(full, e.argv) }))
+  on('env.get', (_, e) => ({ value: full.env[e.name] }))
+  on('fs.read', (_, e) => {
+    const text = full.files[e.path]
+    return text === undefined ? { deny: `ENOENT: ${e.path}` } : { value: text }
+  })
+  on('process.run', (_, e) =>
+    e.argv[0] === 'glab' && !full.hasGlab ? { deny: 'glab: command not found' } : { value: reply(full, e.argv) },
+  )
+  on('http.fetch', (_, e) => {
+    full.fetched.push(e.url)
+    const path = /^https:\/\/[^/]+\/api\/v4\/projects\/team%2Fapp\/(.*)$/.exec(e.url)?.[1]
+    const { status, body } =
+      e.init?.headers?.['PRIVATE-TOKEN'] !== TOKEN
+        ? { status: 401, body: { message: '401 Unauthorized' } }
+        : path === undefined
+          ? { status: 404, body: { message: '404 Project Not Found' } }
+          : gitlab(full, path)
+    return { value: { status, ok: status < 300, headers: {}, text: JSON.stringify(body) } }
+  })
   on('tool.call', () => ({ result: {}, text: full.printed }))
   on('session.start', (_, e) => ({ cwd: e.cwd }))
   on('prompt.submit', (_, e) => ({ text: e.text }))
@@ -378,4 +471,140 @@ test('a permission prompt turns it red until the next prompt', async ($, on) => 
 
   await $.prompt.submit({ text: 'yes, push it', wait: false, origin: { kind: 'composer' } })
   expect(await light($)).toBe('🟡 waiting on PR · #7 open, waiting for merge')
+})
+
+test('a GitHub Enterprise origin is read with gh on its own host', async ($, on) => {
+  const world = await start($, on, {
+    remote: 'git@github.example.com:o/r.git',
+    pr: pull('MERGED', { url: 'https://github.example.com/o/r/pull/7' }),
+    runs: [run('completed', 'success')],
+  })
+
+  expect(await light($)).toBe(GREEN)
+  expect(world.calls.some(line => line.startsWith('gh api --hostname github.example.com repos/o/r/actions/runs?'))).toBe(true)
+})
+
+test('an open MR on a self-hosted GitLab is yellow, read with GITLAB_TOKEN in a header, never the URL', async ($, on) => {
+  const world = await start($, on, { ...GITLAB, mrs: [merge('opened', { head_pipeline: { status: 'running' } })] })
+  expect(await light($)).toBe('🟡 waiting on MR · !360 open, pipeline running')
+
+  world.mrs = [merge('opened', { head_pipeline: { status: 'failed' } })]
+  expect(await light($)).toBe('🟡 waiting on MR · !360 open, pipeline failing')
+
+  world.mrs = [merge('opened', { head_pipeline: { status: 'success' } })]
+  expect(await light($)).toBe('🟡 waiting on MR · !360 open, waiting for merge')
+  expect(world.fetched.length > 0 && world.fetched.every(url => !url.includes(TOKEN))).toBe(true)
+})
+
+test('a merged MR is judged by the pipeline of the commit it landed, fast-forward or merge commit', async ($, on) => {
+  const world = await start($, on, { ...GITLAB, mrs: [merge('merged')], pipelines: [pipeline(446, 'running')] })
+  expect(await light($)).toBe('🟡 waiting on MR · !360 merged into dev, pipeline #446 running')
+
+  world.pipelines = [pipeline(446, 'success')]
+  expect(await light($)).toBe('🟢 safe to leave · !360 merged into dev, pipeline #446 passed')
+
+  world.mrs = [merge('merged', { merge_commit_sha: 'fed9876000' })]
+  world.pipelines = [pipeline(446, 'success'), pipeline(450, 'failed', 'fed9876000')]
+  expect(await light($)).toBe('🔴 working · !360 merged into dev, pipeline #450 failed')
+})
+
+test('a GitLab pipeline the next push cancelled is settled by the newer one', async ($, on) => {
+  await start($, on, {
+    ...GITLAB,
+    mrs: [merge('merged')],
+    pipelines: [pipeline(447, 'canceled'), pipeline(448, 'success', 'def5678000')],
+  })
+
+  expect(await light($)).toBe('🟢 safe to leave · !360 merged into dev, pipeline #448 passed')
+})
+
+test('a GitLab branch with no MR, or an MR closed unmerged or merged elsewhere, is red', async ($, on) => {
+  const world = await start($, on, { ...GITLAB })
+  expect(await light($)).toBe('🔴 working · no MR yet')
+
+  world.mrs = [merge('closed')]
+  expect(await light($)).toBe('🔴 working · !360 closed without merging')
+
+  world.mrs = [merge('merged', { target_branch: 'feat/base' })]
+  expect(await light($)).toBe('🔴 working · !360 merged into feat/base, not dev or main')
+})
+
+const CREATED = JSON.stringify({
+  iid: 360,
+  web_url: MR,
+  description: 'After https://gitlab.example.com/team/app/-/merge_requests/359',
+  author: { web_url: 'https://gitlab.example.com/me' },
+})
+const LISTED = JSON.stringify([
+  { iid: 361, web_url: MR.replace('360', '361') },
+  { iid: 360, web_url: MR },
+])
+
+test('the MR a REST call printed is followed once its worktree and branch are gone, a listing is not', async ($, on) => {
+  const world = await start($, on, { ...GITLAB, mrs: [merge('merged')], printed: CREATED })
+  await $.tool.call({
+    tool: 'Bash',
+    command: 'curl -sS -X POST -H "PRIVATE-TOKEN: $GITLAB_TOKEN" "$GITLAB_URL/api/v4/projects/3/merge_requests" -d title=x',
+  })
+  expect(await light($)).toBe('🟡 waiting on MR · !360 merged into dev, pipeline not started yet')
+
+  world.printed = LISTED
+  await $.tool.call({ tool: 'Bash', command: 'curl -sS "$GITLAB_URL/api/v4/projects/3/merge_requests?state=opened"' })
+  world.hasCheckout = false
+  world.originBranches = []
+  expect(await light($)).toBe('🟢 safe to leave · !360 merged into dev, no pipeline started, cleaned up')
+})
+
+test('glab reads GitLab when no token is set, and the MR a glab mr command printed is followed', async ($, on) => {
+  const world = await start($, on, { remote: GITLAB.remote, hasGlab: true, mrs: [merge('opened')], printed: `${MR}\n` })
+  await $.tool.call({ tool: 'Bash', command: 'glab mr create --target-branch dev --fill --yes' })
+
+  world.branch = 'dev'
+  expect(await light($)).toBe('🟡 waiting on MR · !360 open, waiting for merge')
+})
+
+const BLIND = "🔴 working · can't read GitLab: set GITLAB_TOKEN or sign in glab"
+
+test('a GitLab it holds no token for, and no glab, reads as unreadable, and a token for another host is never sent', async ($, on) => {
+  const world = await start($, on, { remote: GITLAB.remote, mrs: [merge('merged')], pipelines: [pipeline(446, 'success')] })
+  expect(await light($)).toBe(BLIND)
+
+  world.env = { GITLAB_URL: 'https://gitlab.other.com', GITLAB_TOKEN: TOKEN }
+  expect(await light($)).toBe(BLIND)
+  expect(world.fetched).toEqual([])
+})
+
+test('the env file git config names gives the token, read and never run', async ($, on) => {
+  const world = await start($, on, { remote: GITLAB.remote, mrs: [merge('merged')], pipelines: [pipeline(446, 'success')] })
+  expect(await light($)).toBe(BLIND)
+
+  world.envFile = '.env.infra'
+  world.files = { '/main/.env.infra': `# operator tokens\nGITLAB_URL=https://gitlab.example.com\nexport GITLAB_TOKEN="${TOKEN}"\n` }
+  expect(await light($)).toBe('🟢 safe to leave · !360 merged into dev, pipeline #446 passed')
+})
+
+const GITLAB_PUSH = 'To gitlab.example.com:team/app.git\n   f6f58fb..abc1234  HEAD -> dev\n'
+
+test('a commit pushed straight to a GitLab integration branch is judged by its pipeline', async ($, on) => {
+  const world = await start($, on, {
+    ...GITLAB,
+    isFresh: true,
+    branch: '',
+    status: ' M a.ts\n',
+    printed: GITLAB_PUSH,
+    pipelines: [pipeline(449, 'running')],
+  })
+  await $.tool.call({ tool: 'Bash', command: 'git push origin HEAD:dev 2>&1 | tail -3' })
+  expect(await light($)).toBe('🟡 waiting on pipeline · abc1234 pushed to dev, pipeline #449 running')
+
+  world.pipelines = [pipeline(449, 'success')]
+  expect(await light($)).toBe('🟢 safe to leave · abc1234 pushed to dev, pipeline #449 passed')
+})
+
+test('an origin on neither GitHub nor GitLab cannot be read, unless GITLAB_URL names its host', async ($, on) => {
+  const world = await start($, on, { remote: 'ssh://git@git.example.org:2222/team/app.git', mrs: [merge('opened')] })
+  expect(await light($)).toBe("🔴 working · can't read git.example.org: not GitHub or GitLab")
+
+  world.env = { GITLAB_URL: 'https://git.example.org/', GITLAB_TOKEN: TOKEN }
+  expect(await light($)).toBe('🟡 waiting on MR · !360 open, waiting for merge')
 })
