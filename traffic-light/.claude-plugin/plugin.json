@@ -1,6 +1,6 @@
 {
   "name": "traffic-light",
-  "version": "1.30.1",
+  "version": "1.31.0",
   "description": "A band above the prompt says whether the session's work is done: green before any work starts, and once its GitHub PR or GitLab MR is merged into an integration branch, or its commit pushed straight to one, and that push's pipeline passed; yellow while it waits on the PR, MR or pipeline, red when it needs you or can't read the forge.",
   "author": {
     "name": "Bakhtiyar Ospanov"
