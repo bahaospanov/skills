@@ -1,5 +1,13 @@
 # bahaospanov
 
+## 1.31.1
+
+### Patch Changes
+
+- 490272c: - **bahaospanov-skills**: playbook: with no issue found, the work starts right away and the drafted issue is offered at the end of the turn; on the user's yes it is created and its number added to the branch and unpushed commits.
+- e823fcc: - **bahaospanov-skills**: mr: a change that lives in motion, such as a gesture, an animation or a new kind of modal, shows a GIF of it running, before and after.
+- df66ec2: - **bahaospanov-skills**: playbook: cleanup also removes the branch holding the MR's screenshots; mr: shots are linked by commit, so they keep loading once that branch is gone.
+
 ## 1.31.0
 
 ### Minor Changes
