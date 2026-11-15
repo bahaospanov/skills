@@ -1,6 +1,6 @@
 ---
 name: playbook
-description: How a change goes from issue to merged branch. Use when work needs an issue, a branch, a commit, an MR or PR, or cleanup after a merge.
+description: How a change goes from issue to merged branch. Use when the user says ship, or work needs an issue, a branch, a commit, an MR or PR, or cleanup after a merge.
 ---
 
 # Playbook
@@ -42,3 +42,7 @@ A deviation outranks the part it changes.
 | After the merge | [CLEANUP.md](CLEANUP.md) |
 
 A task that spans parts reads each one, and reads it again when its step comes, even after an earlier read in the same turn: an MR's evidence and description come from the mr skill loaded at that step, not from memory of it.
+
+## Ship
+
+The user's "ship" is commit, push the branch and open its MR or PR, each as its part says. A merge or a release waits for the user to name it.
