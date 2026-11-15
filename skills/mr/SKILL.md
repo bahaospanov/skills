@@ -176,6 +176,7 @@ Concrete evidence that the change works. Show a before and after.
 
 Screenshots are S-tier: work touching a frontend carries them, taken and marked as [Screenshots](#screenshots) says.
 A change that lives in motion, such as a gesture, an animation or a new kind of modal, shows a GIF of it running, before and after.
+A screenshot, GIF or video of the bug that the user handed over opens the Evidence, as [Reported](#reported) says.
 
 Execution-based evidence is A-tier: test results, console output. Show the exact test that now fails and passes, using pseudocode.
 
@@ -206,6 +207,14 @@ Every shot marks what changed, so the reviewer finds it at a glance instead of c
 - the shot cropped to the marks, with enough page around them to place them
 
 Done when each mark sits on a change and every change the page shows has one.
+
+## Reported
+
+A screenshot, GIF or video of the bug that the user handed over is their report. It goes in the issue's description and opens the Evidence as **Reported:**, above the Before and After. It goes as sent, with the user's own marks or none: marking is for the shots the work takes.
+
+It goes up with `--attach` on `gh pr create|edit` and `gh issue create|edit` rather than by a commit link, so a video plays in the page and the file stays out of git history. The body file references it where it belongs, `![reported](./<file>)`; a video plays only from a reference alone in its paragraph, blank lines around it, and is a plain link anywhere else. On GitLab, the project uploads API (`POST /projects/:id/uploads`) returns the Markdown to place.
+
+A public repo shows it to anyone: before the upload, ask the user whether it goes as sent, cropped or blurred, or stays out. A private repo takes it as sent.
 
 ## Before posting
 

@@ -12,7 +12,7 @@ Declined or unanswered, the branch and its commits go without a number.
 
 ## Writing one
 
-- Something visible carries a screenshot of the problem in the description. A shot taken later goes in as soon as it exists.
+- Something visible carries a screenshot of the problem in the description. A screenshot, GIF or video the user handed over goes in as the mr skill's Reported part says; a shot taken later goes in as soon as it exists.
 - Steps toward one goal are one issue, the steps a `- [ ]` checklist in its description.
 - Sub-goals of a larger initiative, each from a different area, are child issues under it. The test: if closing the piece alone is a real "done", it is a sub-goal; otherwise it is a step.
 
