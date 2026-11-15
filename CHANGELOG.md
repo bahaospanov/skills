@@ -1,5 +1,11 @@
 # bahaospanov
 
+## 1.31.2
+
+### Patch Changes
+
+- 2244cde: - **bahaospanov-skills**: mr: a screenshot, GIF or video of the bug that the user handed over goes in the issue and opens the MR's Evidence as Reported, as sent, uploaded with `gh --attach`; a public repo asks the user first.
+
 ## 1.31.1
 
 ### Patch Changes
