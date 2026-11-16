@@ -1,14 +1,6 @@
 ---
 name: test-design
 description: How a test earns its place — one story told through one seam, nothing too thin or too tangled to keep. Use when writing, changing or reviewing tests.
-paths:
-  - "**/tests/**"
-  - "**/__tests__/**"
-  - "**/test_*.py"
-  - "**/*_test.py"
-  - "**/conftest.py"
-  - "**/*.test.*"
-  - "**/*.spec.*"
 ---
 
 # Test design
