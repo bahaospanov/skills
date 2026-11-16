@@ -5,17 +5,17 @@ Merged is not shipped: the work is cleaned up once the pipeline holding the merg
 1. Wait for that pipeline. While it runs, or after it failed, the worktree, the branch and the issue stay as they are; a failure goes to the user.
 2. Once it passed, without asking:
    - add the issue's How to test ([ISSUES.md](ISSUES.md));
+   - move the issue to Merged ([LIFECYCLE.md](LIFECYCLE.md)): its assignee, its start date, and `shipped::dev`, or on the direct path on to Shipped and its Verify;
    - remove the worktree and every branch the work pushed, local and on origin: its own, and the one holding its MR's screenshots;
    - fast-forward the local base: `git merge --ff-only origin/<base>` where it is checked out, else `git fetch origin <base>:<base>`.
 
-   Then tell the user in one line what was removed.
-3. Leave the issue open for the user to close.
+   Then tell the user in one line what was removed and where the issue moved.
 
 A branch is removed only once it has merged, into the base or through an MR naming it as the source, or when the user says to abandon it. A screenshots branch never merges: it goes with its MR's branch.
 
 ## Herdr subtask
 
-A subtask is an agent that another agent, its parent, started in a Herdr pane (`HERDR_ENV=1`) with a brief. The brief names the parent; else `herdr agent list` shows it. After step 3, the subtask hands back and closes:
+A subtask is an agent that another agent, its parent, started in a Herdr pane (`HERDR_ENV=1`) with a brief. The brief names the parent; else `herdr agent list` shows it. After step 2, the subtask hands back and closes:
 
 1. Write a report beside the brief, or in the temp dir when the brief came inline; never in the worktree, which cleanup removes. It holds the status (merged, pipeline result, what was removed, what is left for the parent or the user, the subtasks it started that still run and now report to the parent) and the path of the subtask's transcript, where the parent or the user looks up anything the report leaves out. Claude Code keeps it at `~/.claude/projects/<project>/<session-id>.jsonl`; `herdr agent get "$HERDR_PANE_ID"` gives the id under `agent_session`.
 2. Send the parent one line pointing at the report. A parent in `blocked` takes typed text as its answer, so wait that out first with `herdr agent wait <parent> --until idle --until done`.

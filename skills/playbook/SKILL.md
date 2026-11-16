@@ -1,11 +1,11 @@
 ---
 name: playbook
-description: How a change goes from issue to merged branch. Use when the user says ship, or work needs an issue, a branch, a commit, an MR or PR, or cleanup after a merge.
+description: How a change goes from issue to merged branch and closed issue. Use when the user says ship, or work needs an issue, a branch, a commit, an MR or PR, cleanup after a merge, or an issue labelled, assigned, dated or closed.
 ---
 
 # Playbook
 
-How a change goes from its issue to a merged, cleaned-up branch, in every project. Read the project's facts, then the part for the task.
+How a change goes from its issue to a merged, cleaned-up branch and a closed issue, in every project. Read the project's facts, then the part for the task.
 
 ## Project facts
 
@@ -40,6 +40,7 @@ A deviation outranks the part it changes.
 | Commit messages, and how commits divide the work | [COMMITS.md](COMMITS.md) |
 | Gathering an MR's or PR's evidence, opening it, and its description | call the Skill tool with "mr" |
 | After the merge | [CLEANUP.md](CLEANUP.md) |
+| An issue's states, created to closed: labels, assignee, dates, closing | [LIFECYCLE.md](LIFECYCLE.md) |
 
 A task that spans parts reads each one, and reads it again when its step comes, even after an earlier read in the same turn: an MR's evidence and description come from the mr skill loaded at that step, not from memory of it.
 

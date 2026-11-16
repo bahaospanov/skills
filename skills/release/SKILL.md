@@ -1,6 +1,6 @@
 ---
 name: release
-description: Promote what the integration branch holds to production — fold fixup commits into their parent, cut the work into waves, ship wave by wave with a runbook issue, then tag a SemVer release, note the shipped issues for the user to close, and build a phone-sized release album.
+description: Promote what the integration branch holds to production — fold fixup commits into their parent, cut the work into waves, ship wave by wave with a runbook issue, then tag a SemVer release, move the shipped issues to production and close the ones their checks verify, and build a phone-sized release album.
 disable-model-invocation: true
 ---
 
@@ -34,7 +34,7 @@ Read CLAUDE.md / AGENTS.md, the docs they point to on CI, deploys, the tracker a
 - the check commands that gate a push, per app, with the install each needs in a fresh worktree
 - read-only probes CI or docs use to confirm a deploy (health URLs, smoke jobs, read-only APIs) — the only channels the run probes production through
 - the user's account on the tracker, as the docs or the user name it. A recipe that reads the current user returns the token's owner, often a bot.
-- version tags on the target (`v<major>.<minor>.<patch>`), and the tracker's labels for work shipped to production (`shipped::prod`) and for a release's runbook (`type::release`): the existing ones, else those names
+- version tags on the target (`v<major>.<minor>.<patch>`), and the tracker's labels for work shipped to production (`shipped::prod`) and for a release's runbook (`type::release`), from the project's `docs/agents/triage-labels.md`; without that file, the run sets none
 - a live view, when the docs, the agent's memory or the user name one: its URL and its contract ([`LIVEVIEW.md`](LIVEVIEW.md)). None named → the run goes without one.
 
 Done when each item has a value or is recorded as unknown with the reason. Ask the user only for what the repo cannot answer. An unreachable tracker is not a stop: the run continues without tickets, says so in the plan, and prints the runbook in the terminal.
@@ -189,10 +189,10 @@ A red pipeline or a failed probe stops the run: report the failing job and the d
 Once the user confirms production works after the last shipped wave (or after the waves that shipped, when the run stopped), ask for their "release". Then, in order, ticking the runbook's close-out items:
 
 1. **Version.** `scripts/next-version.sh <shipped tip>` prints the previous tag and the next SemVer from the commits since it: a breaking `!` or `BREAKING CHANGE:` → major, any `feat` → minor, else patch; no previous tag → `v1.0.0`, unless the user names another. `git tag -a <v> -m <v> <full sha>`, `git push origin <v>`, then a release entry named `<v>` whose notes list the shipped issues (`- #N title`) and the runbook ([`TRACKERS.md`](TRACKERS.md)).
-2. **Issues.** `scripts/issue-note.sh` per issue a shipped commit references: note `Shipped to production in <v> (runbook #R)` and the production label. An issue with work left — a held commit, an open MR — gets `Partly shipped in <v>: <shas>`, no label. Every issue stays open for the user to close.
+2. **Issues.** Per issue a shipped commit references, the playbook's Shipped state ([`../playbook/LIFECYCLE.md`](../playbook/LIFECYCLE.md)): `scripts/issue-note.sh --dates <start> <today> <issue> "Shipped to production in <v> (runbook #R)" <production label>`, its start date as the lifecycle finds it, then the lifecycle's Verify, which closes the issues whose checks run and pass. An issue with work left — a held commit, an open MR — gets `Partly shipped in <v>: <shas>`, no label and no dates.
 3. **Report.** Call the Skill tool with "presentation", handing it the changes — the shipped tickets' how-to-test items (step 4), a flag-gated one only when its flag is on in production — `<v>` as the label, production as the site, and step 10's `shots.json` and before shots. Append a `## Release album` section to the runbook's description, the caption then the images, with the image script ([`TRACKERS.md`](TRACKERS.md)), so the album stays with the release record. A run with no user-visible change says so and has no album.
 4. **Runbook.** `scripts/issue-note.sh --dates <first day of the run> <today> <runbook> "Released as <v>: <release link>" <release label>`, with the runbook label step 1 found.
 
-Done when the tag and its release entry exist, every shipped issue is noted, the presentation skill's build is done and the album is in the runbook's description, and the runbook is noted and dated.
+Done when the tag and its release entry exist, every shipped issue is noted, dated and verified, the presentation skill's build is done and the album is in the runbook's description, and the runbook is noted and dated.
 
 A later run starts over at step 1: the target already holds what shipped, so it plans only the remaining waves.
