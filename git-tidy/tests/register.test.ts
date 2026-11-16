@@ -165,7 +165,7 @@ describe('register', () => {
     expect(asked[0]?.prompt.startsWith('Reviewer for a commit message. {"hook_event_name":"PreToolUse"')).toBe(true)
     expect(advised.deny).toBeUndefined()
     expect(advised.context?.at(-1)).toContain('git-tidy (commit message review): body restates the diff\nThe commit ran.')
-    expect(logs).toEqual(['git-tidy (commit message review): body restates the diff'])
+    expect(logs).toEqual(['commit message review: body restates the diff'])
     expect(ran).toEqual(['git commit -m "fix: a" -m "Changed a.py"'])
   })
 
@@ -176,7 +176,7 @@ describe('register', () => {
     const advised = await $.tool.call(bash('git commit -m "fix: a" -m "Nothing else changed."'))
 
     expect(advised.deny).toBeUndefined()
-    expect(logs).toEqual(['git-tidy (commit message): pre-answers a reviewer instead of saying why:\n      Nothing else changed.'])
+    expect(logs).toEqual(['commit message: pre-answers a reviewer instead of saying why:\n      Nothing else changed.'])
     expect(ran).toEqual(['git commit -m "fix: a" -m "Nothing else changed."'])
   })
 
@@ -187,7 +187,7 @@ describe('register', () => {
     const result = await $.tool.call(bash('git commit -m "fix: a"'))
 
     expect(result.deny).toBeUndefined()
-    expect(logs).toEqual(['git-tidy (commit message review): no verdict: (empty-reply)'])
+    expect(logs).toEqual(['commit message review: no verdict: (empty-reply)'])
     expect(ran).toEqual(['git commit -m "fix: a"'])
   })
 

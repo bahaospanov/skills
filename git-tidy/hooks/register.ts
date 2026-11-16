@@ -81,7 +81,7 @@ const judge = async ($: EngineInterface, review: Review, input: object): Promise
     const result = await $.model.complete({ model: MODEL, system: SYSTEM, prompt: promptFor(review, input) })
     const reply = result.isAnswered ? result.text : `(${result.reason})`
     const verdict = verdictOf(reply)
-    if (verdict === undefined) $.ui.log(`git-tidy (${review.name}): no verdict: ${reply.slice(0, 120)}`)
+    if (verdict === undefined) $.ui.log(`${review.name}: no verdict: ${reply.slice(0, 120)}`)
     return verdict
   } finally {
     $.ui.status(undefined)
@@ -118,7 +118,7 @@ export const register: Register = (on) => {
     if (advice === undefined) return next(e)
     const result = await next(e)
     if (result.deny !== undefined) return result
-    $.ui.log(`git-tidy (commit message): ${advice}`)
+    $.ui.log(`commit message: ${advice}`)
     return { ...result, context: [...(result.context ?? []), relayed(`git-tidy (commit message): ${advice}`)] }
   })
 
@@ -134,7 +134,7 @@ export const register: Register = (on) => {
     // A model judgment advises: someone new to the rules cannot argue with a model's block.
     const result = await next(e)
     if (result.deny !== undefined) return result
-    $.ui.log(`git-tidy (${COMMIT_REVIEW.name}): ${review.reason}`)
+    $.ui.log(`${COMMIT_REVIEW.name}: ${review.reason}`)
     return { ...result, context: [...(result.context ?? []), relayed(`git-tidy (${COMMIT_REVIEW.name}): ${review.reason}`)] }
   })
 }

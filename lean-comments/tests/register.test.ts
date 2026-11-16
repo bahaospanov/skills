@@ -123,7 +123,7 @@ describe('register', () => {
     const answered = await $.tool.call({ tool: 'Edit', file_path: '/repo/app.py', old_string: 'v19 = 19', new_string: added })
 
     expect(answered.context?.[0]?.startsWith('lean-comments/limit-edits on app.py:\n- This edit adds 4 comment-only lines (soft limit 3).')).toBe(true)
-    expect(logs).toEqual(['lean-comments/limit-edits: 1 signal(s) on app.py'])
+    expect(logs).toEqual(['limit-edits: 1 signal(s) on app.py'])
   })
 
   test('media work: a file the checkout ignores or under a .lean-skip folder skips limit-edits', async ($, on) => {
@@ -189,7 +189,7 @@ describe('register', () => {
     expect(submitted.length).toBe(1)
     expect(submitted[0]).toContain("lean-comments/limit-turns: this turn's diff adds more comment lines than the budget of 3 per file.")
     expect(submitted[0]).toContain('app.py - 5 added comment lines:')
-    expect(logs).toEqual(['lean-comments: this turn added more comments than the budget; say "trim comments" to review them'])
+    expect(logs).toEqual(['this turn added more comments than the budget; say "trim comments" to review them'])
   })
 
   test('installed files in a checkout at home are left out of the turn report', async ($, on) => {

@@ -138,7 +138,7 @@ describe('register', () => {
     expect(asked[0]?.model).toBe('claude-haiku-4-5-20251001')
     expect(asked[0]?.prompt.startsWith('Reviewer for NEW OR GROWN DOCUMENTATION. {"hook_event_name":"PostToolUse"')).toBe(true)
     expect(answered.context).toEqual(['lean-docs/docs-review: one-time procedure'])
-    expect(logs).toEqual(['lean-docs/docs-review: one-time procedure'])
+    expect(logs).toEqual(['docs-review: one-time procedure'])
   })
 
   test('docs-review: trims, code files, and docs outside a checkout, in a dotfile tree or in temp cost no model call', async ($, on) => {
@@ -162,7 +162,7 @@ describe('register', () => {
     const answered = await $.tool.call({ tool: 'Write', file_path: '/repo/docs/recovery.md', content: 'restore steps' })
 
     expect(answered.context).toBeUndefined()
-    expect(logs).toEqual(['lean-docs/docs-review: no verdict: Sorry, I cannot help with that.'])
+    expect(logs).toEqual(['docs-review: no verdict: Sorry, I cannot help with that.'])
   })
 
   test('docs-no-repeat-code: a doc line repeating identifiers stated in code is written, and Claude gets the hint', async ($, on) => {
@@ -298,7 +298,7 @@ describe('register', () => {
 
     expect(submitted.length).toBe(1)
     expect(submitted[0]).toContain('lean-docs/limit-docs: prose outweighs the change.\n  NEW document docs/plan.md (45 lines)')
-    expect(logs).toContain('lean-docs: this turn added a lot of prose; say "trim docs" to review it')
+    expect(logs).toContain('this turn added a lot of prose; say "trim docs" to review it')
   })
 
   test('limit-docs: a fast-forward by another agent re-anchors the base instead of landing in this turn', async ($, on) => {

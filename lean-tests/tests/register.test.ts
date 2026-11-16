@@ -78,7 +78,7 @@ describe('register', () => {
       subject_source: 'export default () => <p>Welcome</p>',
     })
     expect(answered.context).toEqual(['lean-tests/static-text: static copy'])
-    expect(logs).toEqual(['lean-tests/static-text: static copy'])
+    expect(logs).toEqual(['static-text: static copy'])
   })
 
   test('an edit retyping a string is judged on its new line alone; an approval adds nothing', async ($, on) => {

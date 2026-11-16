@@ -119,7 +119,7 @@ const consent = async ($: EngineInterface, command: string, verb: Verb | 'open')
   if (verb === 'commit' && isLive(grant, now)) {
     grant = spend(grant)
     return {
-      note: `git-gates: allowed by standing commit grant — ${grant.usesRemaining} use(s) left${grant.goal ? `, goal: ${grant.goal}` : ''}`,
+      note: `allowed by standing commit grant — ${grant.usesRemaining} use(s) left${grant.goal ? `, goal: ${grant.goal}` : ''}`,
     }
   }
 
@@ -138,7 +138,7 @@ const consent = async ($: EngineInterface, command: string, verb: Verb | 'open')
       const hit = protectedHit(targets, policy)
       if (hit !== undefined) {
         return typed.some((text) => namesBranch(text, hit))
-          ? { note: `git-gates: direct push to '${hit}' — authorized by name in the user's message` }
+          ? { note: `direct push to '${hit}' — authorized by name in the user's message` }
           : { reason: protectedPushRefused(command, hit) }
       }
     }
@@ -152,7 +152,7 @@ const consent = async ($: EngineInterface, command: string, verb: Verb | 'open')
   if (asking !== undefined && uses !== undefined && !(grant?.promptText === asking && grant.expiresAt > now)) {
     grant = spend(openGrant(uses, GRANT_DEFAULT_TTL_S, '', now, asking))
     return {
-      note: `git-gates: user message opens a commit grant — ${grant.usesRemaining} further commit(s) allowed for ${GRANT_DEFAULT_TTL_S / 60}m`,
+      note: `user message opens a commit grant — ${grant.usesRemaining} further commit(s) allowed for ${GRANT_DEFAULT_TTL_S / 60}m`,
     }
   }
   return {}

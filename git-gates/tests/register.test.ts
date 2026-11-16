@@ -343,7 +343,7 @@ describe('register', () => {
     expect(toDev.deny).toContain("'dev' is a protected branch")
     expect(tracked.deny).toContain("'main' is a protected branch")
     expect(ran).toEqual(['git push -u origin feat/a', 'git push origin dev'])
-    expect(logs).toEqual(["git-gates: direct push to 'dev' — authorized by name in the user's message"])
+    expect(logs).toEqual(["direct push to 'dev' — authorized by name in the user's message"])
   })
 
   test('a message asking for a commit per task opens a grant that later prompts spend', async ($, on) => {
@@ -356,8 +356,8 @@ describe('register', () => {
     const sixth = await $.tool.call(bash('git commit -m "feat: 6"'))
 
     expect(ran.length).toBe(5)
-    expect(logs[0]).toBe('git-gates: user message opens a commit grant — 4 further commit(s) allowed for 120m')
-    expect(logs[4]).toBe('git-gates: allowed by standing commit grant — 0 use(s) left')
+    expect(logs[0]).toBe('user message opens a commit grant — 4 further commit(s) allowed for 120m')
+    expect(logs[4]).toBe('allowed by standing commit grant — 0 use(s) left')
     expect(sixth.deny).toBeDefined()
   })
 

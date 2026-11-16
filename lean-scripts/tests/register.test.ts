@@ -59,7 +59,7 @@ describe('register', () => {
 
     expect(asked[0]?.prompt.startsWith('Reviewer for a SCRIPT FILE. {"hook_event_name":"PostToolUse"')).toBe(true)
     expect(answered.context).toEqual(['lean-scripts/scripts-review: writable on demand'])
-    expect(logs).toEqual(['lean-scripts/scripts-review: writable on demand'])
+    expect(logs).toEqual(['scripts-review: writable on demand'])
   })
 
   test('an extensionless file that starts with a shebang is a script', async ($, on) => {

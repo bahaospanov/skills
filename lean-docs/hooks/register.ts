@@ -118,7 +118,7 @@ const judge = async ($: EngineInterface, review: Review, input: object): Promise
     const result = await $.model.complete({ model: MODEL, system: SYSTEM, prompt: promptFor(review, input) })
     const reply = result.isAnswered ? result.text : `(${result.reason})`
     const verdict = verdictOf(reply)
-    if (verdict === undefined) $.ui.log(`lean-docs/${review.name}: no verdict: ${reply.slice(0, 120)}`)
+    if (verdict === undefined) $.ui.log(`${review.name}: no verdict: ${reply.slice(0, 120)}`)
     return verdict
   } finally {
     $.ui.status(undefined)
@@ -216,7 +216,7 @@ export const register: Register = (on) => {
       cwd: await $.session.cwd(),
     })
     if (verdict?.ok !== false) return result
-    $.ui.log(`lean-docs/docs-review: ${verdict.reason}`)
+    $.ui.log(`docs-review: ${verdict.reason}`)
     return { ...result, context: [...(result.context ?? []), `lean-docs/docs-review: ${verdict.reason}`] }
   })
 
@@ -226,7 +226,7 @@ export const register: Register = (on) => {
     await settle($)
     const report = await overBudget($)
     if (report !== undefined) {
-      $.ui.log('lean-docs: this turn added a lot of prose; say "trim docs" to review it')
+      $.ui.log('this turn added a lot of prose; say "trim docs" to review it')
       pendingReport = report
     }
     return result

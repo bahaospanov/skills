@@ -30,7 +30,7 @@ const judge = async ($: EngineInterface, review: Review, input: object): Promise
     const result = await $.model.complete({ model: MODEL, system: SYSTEM, prompt: promptFor(review, input) })
     const reply = result.isAnswered ? result.text : `(${result.reason})`
     const verdict = verdictOf(reply)
-    if (verdict === undefined) $.ui.log(`lean-tests/${review.name}: no verdict: ${reply.slice(0, 120)}`)
+    if (verdict === undefined) $.ui.log(`${review.name}: no verdict: ${reply.slice(0, 120)}`)
     return verdict
   } finally {
     $.ui.status(undefined)
@@ -62,7 +62,7 @@ export const register: Register = (on) => {
       ...(await subjectOf($, path)),
     })
     if (verdict?.ok !== false) return result
-    $.ui.log(`lean-tests/static-text: ${verdict.reason}`)
+    $.ui.log(`static-text: ${verdict.reason}`)
     return { ...result, context: [...(result.context ?? []), `lean-tests/static-text: ${verdict.reason}`] }
   })
 }

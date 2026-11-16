@@ -162,7 +162,7 @@ export const register: Register = (on) => {
     )
     if (findings.length === 0) return result
     const name = baseName(path)
-    $.ui.log(`lean-comments/limit-edits: ${findings.length} signal(s) on ${name}`)
+    $.ui.log(`limit-edits: ${findings.length} signal(s) on ${name}`)
     return { ...result, context: [...(result.context ?? []), editGuidance(name, findings)] }
   })
 
@@ -173,7 +173,7 @@ export const register: Register = (on) => {
     await settle($)
     const report = await overBudget($)
     if (report !== undefined) {
-      $.ui.log('lean-comments: this turn added more comments than the budget; say "trim comments" to review them')
+      $.ui.log('this turn added more comments than the budget; say "trim comments" to review them')
       pendingReport = report
     }
     return result
