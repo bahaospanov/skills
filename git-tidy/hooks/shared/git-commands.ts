@@ -31,6 +31,9 @@ const pushAt = (tokens: string[], at: number): number | undefined => {
   return tokens[i] === 'push' ? i : undefined
 }
 
+// A shell redirection is no git argument: `2>&1` and `>/dev/null` are one word, a bare `>` takes the next.
+const redirectWords = (token: string) => (!/^\d*(?:&>|>|<)/.test(token) ? 0 : /^\d*(?:&>|>|<)[>&|]?$/.test(token) ? 2 : 1)
+
 // A prompt typed over a running turn joins the one that opened that turn, so a quick follow-up cannot withdraw its word.
 export const currentTurn = <P extends { turnId?: string | undefined }>(prompts: P[]): P[] => {
   const last = prompts.at(-1)
@@ -73,7 +76,8 @@ export const pushTargets = (command: string, current: string | undefined): strin
     for (; i < tokens.length; i++) {
       const token = tokens[i] ?? ''
       if (['&&', '||', ';', '|'].includes(token)) break
-      if (token === '--all' || token === '--mirror') all = true
+      if (redirectWords(token) > 0) i += redirectWords(token) - 1
+      else if (token === '--all' || token === '--mirror') all = true
       else if (['--repo', '--push-option', '--receive-pack', '--exec', '-o'].includes(token)) i++
       else if (token.startsWith('-')) continue
       else if (!remoteSeen) remoteSeen = true
@@ -118,7 +122,8 @@ export const deletedBranches = (command: string): string[] | undefined => {
     for (; i < tokens.length; i++) {
       const token = tokens[i] ?? ''
       if (['&&', '||', ';', '|'].includes(token)) break
-      if (token === '--delete' || token === '-d') deleting = true
+      if (redirectWords(token) > 0) i += redirectWords(token) - 1
+      else if (token === '--delete' || token === '-d') deleting = true
       else if (['--repo', '--push-option', '--receive-pack', '--exec', '-o'].includes(token)) i++
       else if (token.startsWith('-')) continue
       else if (!remoteSeen) remoteSeen = true

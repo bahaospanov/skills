@@ -9,7 +9,7 @@ import {
   namesBranch,
   protectedHit,
 } from '../hooks/consent'
-import { branchesOf, currentTurn, pushTargets, verbOf } from '../hooks/shared/git-commands'
+import { branchesOf, currentTurn, deletedBranches, pushTargets, verbOf } from '../hooks/shared/git-commands'
 
 describe('consent', () => {
   test('prompts typed over a running turn join the prompt that opened it; an idle prompt stands alone', () => {
@@ -152,6 +152,16 @@ describe('consent', () => {
     expect(pushTargets('git push --all origin', 'feat/a')).toEqual(['*'])
     expect(pushTargets('git push -o ci.skip origin a && git push origin dev', 'x')).toEqual(['a', 'dev'])
     expect(pushTargets('git push origin', undefined)).toBeUndefined()
+  })
+
+  test("a shell redirection after a push names no branch: the push still targets the current one, a delete only its branch", () => {
+    const rows: [string, () => string[] | undefined, string[]][] = [
+      ['stderr into stdout, current branch', () => pushTargets('git push origin 2>&1', 'main'), ['main']],
+      ['output to a file, set apart', () => pushTargets('git push origin dev > push.log', 'x'), ['dev']],
+      ['output to /dev/null, joined', () => pushTargets('git push origin dev >/dev/null', 'x'), ['dev']],
+      ['a delete, stderr into stdout', () => deletedBranches('git push origin --delete fix/a 2>&1'), ['fix/a']],
+    ]
+    for (const [id, parse, branches] of rows) expect([id, parse()]).toEqual([id, branches])
   })
 
   test('a protected branch is hit by name or by --all', () => {
