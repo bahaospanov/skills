@@ -3,10 +3,16 @@ set -euo pipefail
 
 # Adapted from mattpocock/skills scripts/link-skills.sh (MIT).
 # Use this or the bahaospanov-skills plugin, not both: each skill would load twice.
+# Beside the plugin, --in-progress links only skills/in-progress, which the plugin leaves out.
 
 # An exported CDPATH makes cd print the directory, doubling it in REPO.
 REPO="$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)"
 DESTS=("$HOME/.claude/skills" "$HOME/.agents/skills")
+
+ROOT="$REPO/skills"
+if [ "${1:-}" = "--in-progress" ]; then
+  ROOT="$REPO/skills/in-progress"
+fi
 
 names=()
 srcs=()
@@ -14,7 +20,7 @@ while IFS= read -r -d '' skill_md; do
   src="$(dirname "$skill_md")"
   names+=("$(basename "$src")")
   srcs+=("$src")
-done < <(find "$REPO/skills" -name SKILL.md -not -path '*/node_modules/*' -print0)
+done < <(find "$ROOT" -name SKILL.md -not -path '*/node_modules/*' -print0)
 
 for DEST in "${DESTS[@]}"; do
   # A destination that is itself a symlink into this repo would make the
