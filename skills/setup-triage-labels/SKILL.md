@@ -1,6 +1,6 @@
 ---
 name: setup-triage-labels
-description: Set up a repo's issue labels from the base set and when each changes as work ships; replaces the label instructions other setups left, and brings the tracker's labels in line.
+description: Set up a repo's issue labels from the base set, the ones the playbook's issue lifecycle sets as work ships; replaces the label instructions other setups left, and brings the tracker's labels in line.
 disable-model-invocation: true
 metadata:
   credits:
@@ -11,7 +11,7 @@ metadata:
 
 # Setup triage labels
 
-Write the project's label vocabulary, `docs/agents/triage-labels.md`: the base set, when each label changes as work ships to dev and production, and the recipes that list and relabel by them, from [TRIAGE-LABELS.md](TRIAGE-LABELS.md), with the project's own labels under it. That file becomes the one source: the label instructions other documents or skills left, such as `setup-matt-pocock-skills`' five triage roles and the recipes using them, are replaced or removed.
+Write the project's label vocabulary, `docs/agents/triage-labels.md`: the base set, a pointer to the playbook's issue lifecycle that sets them, and the recipes that list and relabel by them, from [TRIAGE-LABELS.md](TRIAGE-LABELS.md), with the project's own labels under it. That file becomes the one source: the label instructions other documents or skills left, such as `setup-matt-pocock-skills`' five triage roles and the recipes using them, are replaced or removed.
 
 Adapted from Matt Pocock's [`setup-matt-pocock-skills`](https://github.com/mattpocock/skills/blob/main/skills/engineering/setup-matt-pocock-skills/SKILL.md) (MIT): explore, present, confirm, then write.
 

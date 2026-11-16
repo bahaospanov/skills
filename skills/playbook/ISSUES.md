@@ -6,7 +6,7 @@ Feature work belongs to an issue.
 
 1. Search the tracker's open issues for the one the work belongs to.
 2. Found: its number ends the branch name ([BRANCHES.md](BRANCHES.md)) and every commit's subject ([COMMITS.md](COMMITS.md)).
-3. None: the work starts without one. Draft one from what the work does, a title and what and why, and offer it in the message that ends your turn, beside the work's report. Create it once the user agrees, then, before the first push, rename the branch and end its commit subjects with the new number.
+3. None: the work starts without one. Draft one from what the work does, a title, what and why, and its labels ([LIFECYCLE.md](LIFECYCLE.md), Created), and offer it in the message that ends your turn, beside the work's report. Create it once the user agrees, then, before the first push, rename the branch and end its commit subjects with the new number.
 
 Declined or unanswered, the branch and its commits go without a number.
 
@@ -30,8 +30,4 @@ Once the work's last merge is deployed ([CLEANUP.md](CLEANUP.md)), a `## How to 
 ![catalog menu, 390px](<upload>)
 ```
 
-Visible work shows the expected screen with the shots its MR carried. Backend and infra work shows the command and its expected output. The section is done when someone who never read the code can confirm the work.
-
-## Closing
-
-The user closes the issue by hand, after checking How to test.
+Visible work shows the expected screen with the shots its MR carried. Backend and infra work shows the command and its expected output. A step a check can run, a command, request or page check that only reads, lets the issue close itself once it reaches production ([LIFECYCLE.md](LIFECYCLE.md), Verify). The section is done when someone who never read the code can confirm the work.

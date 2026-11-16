@@ -22,15 +22,9 @@ An issue carries one `type::` and one `priority::`: changing either removes the 
 
 ## When labels change
 
-The base is the playbook's Base fact.
+An issue's states set them, from created to closed, with its assignee and dates: the playbook skill's `LIFECYCLE.md`. The release skill labels its runbook `type::release`.
 
-1. **Created.** The issue draft the user agrees to carries one `type::` and every project label that fits. A `priority::` goes on only when the user named one. A child Task takes its own type and its parent's project labels.
-2. **Triaged.** An open issue with no `priority::` is untriaged. Triage is the user's: they set the priority and correct the type, and an agent relabels on their word.
-3. **Shipped to dev.** Once the pipeline holding the work's last merge into the base has passed, the moment the playbook's cleanup adds How to test, the issue gets `shipped::dev`. Work still to merge, another MR or an open step, holds it back. A revert on the base takes it off. The issue stays open.
-4. **Released.** The release skill notes each shipped issue with `shipped::prod` and labels its runbook `type::release`; a release by hand does the same. A partly shipped issue waits for its last piece.
-5. **Closed.** Only an issue with `shipped::prod` closes, by the user's hand or on their word; `shipped::dev` alone never closes one.
-
-Labels change by adding and removing; sending the whole set replaces it and drops what someone else just added. Every label comes from this file. The tracker turns any other string into a new label on first use, so a label the work needs gets its row under Project labels first, on the user's yes.
+Labels change by adding and removing; sending the whole set replaces it and drops what someone else just added. Every label comes from this file. The tracker turns any other string into a new label on first use, so an issue goes without the labels this file lacks; a new one is the user's to add, as a row under Project labels.
 
 ## Recipes
 
