@@ -1,6 +1,6 @@
 ---
 name: mr
-description: Opening an MR or PR and writing its description, from the rebase before pushing to the Summary, Evidence, Merge Danger and marked screenshots. Use when gathering an MR's or PR's evidence, opening one, or writing or changing its description.
+description: Opening an MR or PR and writing its description, from the rebase before pushing to the Summary, Evidence, Merge Danger and annotated screenshots. Use when gathering an MR's or PR's evidence, opening one, or writing or changing its description.
 metadata:
   credits:
     - skill: pr
@@ -200,13 +200,17 @@ Work touching a frontend carries screenshots in its Evidence: the real app runni
 
 A shot is linked by the commit that holds it (`…/raw/<sha>/<path>`), so the link keeps loading after the playbook's cleanup removes the branch it was pushed on.
 
-Every shot marks what changed, so the reviewer finds it at a glance instead of comparing two pictures:
+Every shot marks and explains what changed, so the reviewer reads it at a glance instead of comparing two pictures:
 
-- an outline on the changed element: dashed red on the before, solid in an accent colour on the after
+- an outline on the changed area: dashed red on the before, solid in an accent colour on the after
+- a numbered marker, in the outline's colour, beside each element a note names, never over a label the reviewer must read
+- a band above the shot: a title in the outline's colour naming the side and where it ran (`BEFORE · main`, `AFTER · this branch`), then the numbered notes, one sentence each, saying what is wrong on the before and what changed on the after, in the project's domain words, quoting the page's own words where its language differs
 - a label on the shot with the old or new value, for a change with no look of its own (an alt text, a heading's text or level)
 - the shot cropped to the marks, with enough page around them to place them
 
-Done when each mark sits on a change and every change the page shows has one.
+[ANNOTATING.md](ANNOTATING.md) does all of it in one ImageMagick call per shot.
+
+Done when each mark sits on a change, every change the page shows has one, and the notes tell the change to someone who reads nothing else.
 
 ## Reported
 
