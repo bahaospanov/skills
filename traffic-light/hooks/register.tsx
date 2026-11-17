@@ -122,7 +122,9 @@ let isDemo = false
 let refreshing: Promise<void> | undefined
 let isStale = false
 
-async function run($: Engine, argv: string[], cwd?: string): Promise<ProcessRunResult | undefined> {
+// Never the session's folder by default: cleanup removes the worktree a session often runs in, and nothing starts in a
+// folder that is gone. Every command names its checkout with `-C` or needs none.
+async function run($: Engine, argv: string[], cwd = '/'): Promise<ProcessRunResult | undefined> {
   try {
     return await $.process.run(argv, { cwd, timeoutMs: 20_000 })
   } catch {

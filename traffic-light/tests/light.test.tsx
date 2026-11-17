@@ -35,6 +35,7 @@ type World = {
   landed: string
   isFresh: boolean
   hasCheckout: boolean
+  isSessionInCheckout: boolean
   localBranches: string[]
   originBranches: string[]
   remote: string
@@ -152,7 +153,7 @@ function reply(world: World, argv: readonly string[]) {
 }
 
 // Stands for the engine beneath the mod: git, gh, glab, GitLab's API and the Bash tool answer from `world`. Unless
-// fresh, the session has started work with an edit.
+// fresh, the session has started work with an edit. A session in the checkout starts no process there once it is gone.
 async function start($: Engine, on: On, world: Partial<World>) {
   const full: World = {
     branch: 'feat/x',
@@ -166,6 +167,7 @@ async function start($: Engine, on: On, world: Partial<World>) {
     landed: '',
     isFresh: false,
     hasCheckout: true,
+    isSessionInCheckout: false,
     localBranches: ['feat/x'],
     originBranches: ['feat/x'],
     remote: 'git@github.com:o/r.git',
@@ -187,9 +189,12 @@ async function start($: Engine, on: On, world: Partial<World>) {
     const text = full.files[e.path]
     return text === undefined ? { deny: `ENOENT: ${e.path}` } : { value: text }
   })
-  on('process.run', (_, e) =>
-    e.argv[0] === 'glab' && !full.hasGlab ? { deny: 'glab: command not found' } : { value: reply(full, e.argv) },
-  )
+  on('process.run', (_, e) => {
+    if (full.isSessionInCheckout && !full.hasCheckout && (e.init?.cwd ?? '/repo') === '/repo') {
+      return { deny: `spawn ${e.argv[0]} ENOENT` }
+    }
+    return e.argv[0] === 'glab' && !full.hasGlab ? { deny: 'glab: command not found' } : { value: reply(full, e.argv) }
+  })
   on('http.fetch', (_, e) => {
     full.fetched.push(e.url)
     const path = /^https:\/\/[^/]+\/api\/v4\/projects\/team%2Fapp\/(.*)$/.exec(e.url)?.[1]
@@ -336,7 +341,17 @@ test('a merged PR no pipeline picked up is green once its worktree and branch ar
   expect(await light($)).toBe(CLEANED_UP)
 })
 
-const GREEN = '🟢 safe to leave · #7 merged into dev, deploy-dev passed'
+test('a merged PR is green once cleanup removed the worktree the session runs in', async ($, on) => {
+  const world = await start($, on, { pr: pull('MERGED'), printed: `${URL}\n`, isSessionInCheckout: true })
+  await $.tool.call({ tool: 'Bash', command: 'gh pr create --base dev --fill' })
+  expect(await light($)).toBe(NOT_STARTED)
+
+  world.hasCheckout = false
+  world.originBranches = []
+  expect(await light($)).toBe(CLEANED_UP)
+})
+
+const GREEN ='🟢 safe to leave · #7 merged into dev, deploy-dev passed'
 const ENDED = { turnId: 't1', answer: 'done', durationMs: 1_000, isAborted: false, reason: 'answer' } as const
 
 test('a turn after green is red while it runs, and green again when it changed nothing', async ($, on) => {
