@@ -174,7 +174,7 @@ One visual may be enough, several may be needed; all of them rarely are. Use you
 
 Concrete evidence that the change works. Show a before and after.
 
-Screenshots are S-tier: work touching a frontend carries them, taken and marked as [Screenshots](#screenshots) says.
+Screenshots are S-tier: work that changes what a screen shows carries them, taken and marked as [Screenshots](#screenshots) says.
 A change that lives in motion, such as a gesture, an animation or a new kind of modal, shows a GIF of it running, before and after.
 A screenshot, GIF or video of the bug that the user handed over opens the Evidence, as [Reported](#reported) says.
 
@@ -188,6 +188,8 @@ Gather it before writing the body:
 
 A change only a screen can show carries its screenshots in place of the test run. A change no test or screen can show, such as docs or config, shows the output that differs between the base and the branch.
 
+A refactor that leaves every screen as it was argues from reasoning. Its Summary says in a few plain lines what moved and why. Its Evidence is the tests that now reach the moved code, and a benchmark of the path it touches, base against branch, where the project has one. That the screens still match is one line of text.
+
 ### Merge Danger
 
 Describe whether it's a one-way or two-way door. You can walk back through two-way doors, but not one-way doors. An MR that is cheap to roll back is lower risk. Changes that involve destructive actions or hard-to-reverse decisions are one-way doors.
@@ -196,7 +198,7 @@ The blast radius is the potential impact or scope of the changes introduced by t
 
 ## Screenshots
 
-Work touching a frontend carries screenshots in its Evidence: the real app running locally with seeded data, not component mocks, each with its viewport named. The reviewer sees the change before merging; a diff is not a look at the thing. The same shots later go in the issue's How to test, the playbook's ISSUES part. Backend-only work skips them.
+Work that changes what a screen shows carries screenshots in its Evidence: the real app running locally with seeded data, not component mocks, each with its viewport named. The reviewer sees the change before merging; a diff is not a look at the thing. The same shots later go in the issue's How to test, the playbook's ISSUES part.
 
 A shot is linked by the commit that holds it (`…/raw/<sha>/<path>`), so the link keeps loading after the playbook's cleanup removes the branch it was pushed on.
 
