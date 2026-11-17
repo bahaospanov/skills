@@ -1,15 +1,19 @@
 ---
 name: test-design
-description: How a test earns its place — one story told through one seam, nothing too thin or too tangled to keep. Use when writing, changing or reviewing tests.
+description: How a test earns its place — a business rule told as one story through one seam, interaction checked by worked example, nothing too thin or too tangled to keep. Use when writing, changing or reviewing tests.
 ---
 
 # Test design
 
-A test is a **story** told through one **seam**: who acts, what they start
-with, what they do, what they get back. A reader who never opened the code
-learns from it how the unit is used and what it promises. A test earns its
-place by telling such a story: a **thin** test tells none, a **tangled** one
-cannot be retold after one read.
+A business rule is told as a **story** through one **seam**: what the caller
+starts with, what they do, what they get back. A reader who never opened the
+code learns from it what the product promises. The rules are what the stories
+are for: what a sale costs, who may see a record, how two people are related.
+The interaction around them — a gesture, a scroll, a zoom, layout, motion —
+holds no rule and gets no story: it is checked by **worked example**
+([Interaction](#interaction)). A test earns its place by telling a story or
+working an example: a **thin** test does neither, a **tangled** one cannot be
+retold after one read.
 
 ## Seams
 
@@ -24,17 +28,19 @@ that interface.
 | **Client** | our wrapper over an outside service the product depends on: payments, mail, a sign-in provider | a fake at the wire — a stub transport, a local double of the service — so our wrapper runs for real |
 | **Module** | exported functions of a self-contained piece: pricing, parsing, formatting, a store; a component's props, events and what a user does to it | its exports |
 
-Pick the seam closest to the user that keeps the story short. A rule a caller
-meets over the API is told there; a rule several APIs share is told once
-through its use case; arithmetic, parsing and formatting go through their
-module. A helper with one caller is reached through that caller, exported or
-not: its cases become rows of the caller's story. A component earns a test
-only for a user action that changes what is shown — layout and copy get none.
+Tell each rule at the seam that decides it, the nearest to its caller that
+keeps the story short. A rule a caller meets over the API is told there; a rule
+several APIs share is told once through its use case; arithmetic, parsing and
+formatting go through their module. A helper with one caller is reached through
+that caller, exported or not: its cases become rows of the caller's story. A
+component earns a story only for a rule it decides about what is shown — layout
+and copy get none, its gestures and motion a worked example.
 
 ## Which stories
 
-- **A feature**: its happy path, then one story per business rule, each told
-  by contrast. Input permutations are rows of a table test, not new stories.
+- **A feature**: one story per business rule it brings, its main outcome
+  first, each told by contrast; its interaction, by worked example. Input
+  permutations are rows of a table test, not new stories.
 - **A bug fix**: its own story, named for the case, seen red on the bug before
   the fix lands — never an extra line slipped into another story's setup.
 - **A one-off** — a data move, a backfill — that cannot be undone: stories
@@ -57,10 +63,12 @@ test('a member who cancels keeps access until the paid period ends', async () =>
 })
 ```
 
-- **Name**: the story in one sentence — actor, action, outcome — in the
-  project's domain words, reading alone in a failure report. The group
-  around it (`describe`, class, file) names the seam. The name is the whole
-  explanation: no docstring, and history belongs to the commit or the issue.
+- **Name**: the rule the story proves, said the way a person would say it, in
+  the project's domain words, reading alone in a failure report: "a member who
+  cancels keeps access until the paid period ends". A name that strings the
+  steps or every check together with _and_ and _but_ is a transcript of the
+  code: name what holds. The group around it (`describe`, class, file) names
+  the seam. Why the test exists — the bug, the issue — belongs to the commit.
 - **Given**: state built the way production builds it — factories that call
   real use cases, calls through public seams; never a row or object written
   by hand into a shape the code would reach on its own. Input from outside the
@@ -91,7 +99,9 @@ test('a member who cancels keeps access until the paid period ends', async () =>
 - **Expected values**: literals from the spec or a worked example, written by
   hand — never recomputed the way the code computes them, never recorded from
   its output by a snapshot. An outside standard's formula (an RFC's hash)
-  counts as a spec.
+  counts as a spec. Where a reader cannot see how a literal follows from the
+  input, a comment above the test works the example: the one comment a test
+  carries.
 - **Table**: rows of one rule. Each row has an id naming its case and carries
   everything that differs — input, expected value, even the function called —
   so the body runs the same lines for every row. A row that needs its own
@@ -106,6 +116,9 @@ Tell the story behind it instead, or leave it unwritten:
   component rendered with nothing varied, the fixed copy inside an
   otherwise computed result or picked by a kind (assert only what the inputs
   decide);
+- a visual component's behaviour anyone confirms by looking at the running
+  app — a sheet slides up, a tab highlights, a picked row shows its check: the
+  page title again, only moving;
 - a constant, enum or schema field compared with its own definition;
 - the framework, language or library doing its job — a router 404s an
   unknown path, a validator rejects a wrong type, a prop reaches the template;
@@ -120,8 +133,8 @@ keep it, as one row of a table test when it has siblings.
 
 A tangled test cannot be retold after one read:
 
-- setup longer than the story, or comments explaining why a step or a number
-  is there;
+- setup longer than the story, or comments explaining why a setup step is
+  there;
 - several actions that are not one user's flow;
 - a mock or patch of our own code — a private function, our own client's
   wrapper — or an assertion on which internal function ran with what and how
@@ -132,6 +145,33 @@ Amend a tangled test you touch: one test per story, setup moved into a factory
 named for the state (`paidMember`, `draftOrder`), connections and cleanup into
 a fixture that owns them, the check moved to the seam's own read. A story that needs our own code mocked to be told means the
 unit has no real seam: raise it as a design issue.
+
+## Interaction
+
+A gesture, a scroll, a zoom, a drag, layout and motion carry no business rule,
+and what a look at the running app confirms gets no test ([Too thin](#too-thin)).
+What a look cannot catch — a case too rare to set up by hand (a ring crowded
+past its room, a face on the seam), an error a few points off — sits in
+arithmetic in a module (a viewport, a layout pass, a gesture's tracker) and is
+checked there by worked example: a scene with numbers a reader can follow, one
+per thing a user would notice going wrong (the spot under the fingers drifts,
+a caption covers a face, two lines cross).
+
+```ts
+// Fingers 100 apart around (150, 100) spread to 200 apart: scale 2 around
+// (150, 100) puts the corner at (-150, -100). The finger left at (250, 100)
+// then moves by (30, 40), and the corner moves with it to (-120, -60).
+test('lifting a finger mid-pinch keeps the view, then pans with the other', () => {
+  const pinch = pinchPan({ scale: 1, offset: [0, 0] })
+  pinch.track([[100, 100], [200, 100]])
+  const pinched = pinch.track([[50, 100], [250, 100]])
+  expect(pinch.track([[250, 100]])).toEqual(pinched)
+  expect(pinch.track([[280, 140]])).toEqual({ scale: 2, offset: [-120, -60] })
+})
+```
+
+The name says the behaviour in a few words; the comment carries the scene and
+its arithmetic, which no name can.
 
 ## Guards
 
@@ -176,5 +216,5 @@ session — is a module, not infrastructure.
 ## Reviewing
 
 Give every test in the change a verdict: the story it tells and its seam, the
-invariant it guards, or thin, tangled or out of scope with the fix. Done when
-no test is left without one.
+example it works, the invariant it guards, or thin, tangled or out of scope
+with the fix. Done when no test is left without one.
