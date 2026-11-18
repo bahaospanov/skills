@@ -84,12 +84,15 @@ test('a member who cancels keeps access until the paid period ends', async () =>
   every answer the service gives it: a mock named for the service, one route
   per call, each answer a literal or a named constant. A reader follows one
   program, ours, with the service as plain data; a fake with logic of its own
-  is a second program to learn beside it. The mock becomes the client's
-  transport, undone with the test:
+  is a second program to learn beside it. Above each route, a comment says
+  which of our steps makes the call and what for. The mock becomes the
+  client's transport, undone with the test:
 
   ```python
   paypal_mock = respx.Router()
+  # Auth: the access token our client fetches before calling PayPal.
   paypal_mock.post("/v1/oauth2/token").respond(json=_TOKEN)
+  # Buying credits: PayPal creates order ORDER-1 with its approval link.
   paypal_mock.post("/v2/checkout/orders").respond(201, json=_ORDER_1)
   monkeypatch.setattr(paypal_client, "transport", MockTransport(paypal_mock.handler))
   ```
@@ -119,8 +122,8 @@ test('a member who cancels keeps access until the paid period ends', async () =>
   hand — never recomputed the way the code computes them, never recorded from
   its output by a snapshot. An outside standard's formula (an RFC's hash)
   counts as a spec. Where a reader cannot see how a literal follows from the
-  input, a comment above the test works the example: the one comment a test
-  carries.
+  input, a comment above the test works the example: beside the notes on its
+  outside services' routes, the one comment a test carries.
 - **Table**: rows of one rule. Each row has an id naming its case and carries
   everything that differs — input, expected value, even the function called —
   so the body runs the same lines for every row. A row that needs its own
