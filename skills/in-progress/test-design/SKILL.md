@@ -80,13 +80,26 @@ test('a member who cancels keeps access until the paid period ends', async () =>
   instant — a clock setting or a time-freezing library — and asserts literals
   for it (10 unused days, not 9 to 10). Random input comes from a seeded
   generator; a random id appears only where its value is never asserted.
-- **Outside services**: a story that reaches one plays it in its own body, as
-  its first lines: a fake set as the client's transport, undone with the test
-  (`monkeypatch.setattr(paypal_client, "transport", MockTransport(paypal.answer))`),
-  so a reader sees what is played and the story reads what the service
-  received from the fake. A guard over every client fails a request no story
-  declared, naming the service, so a forgotten line fails the test instead of
-  reaching the network.
+- **Outside services**: a story that reaches one declares, in its own body,
+  every answer the service gives it: a mock named for the service, one route
+  per call, each answer a literal or a named constant, and above each route a
+  comment saying which of our steps makes the call and what for. The mock then
+  becomes the client's transport, undone with the test:
+
+  ```python
+  paypal_mock = respx.Router()
+  # Auth: the access token our client fetches before calling PayPal.
+  paypal_mock.post("/v1/oauth2/token").respond(json=_TOKEN)
+  # Buying credits: PayPal creates order ORDER-1 with its approval link.
+  paypal_mock.post("/v2/checkout/orders").respond(201, json=_ORDER_1)
+  monkeypatch.setattr(paypal_client, "transport", MockTransport(paypal_mock.handler))
+  ```
+
+  Helpers run our own code — a use case, a request to our route — and leave
+  declaring and patching to the story. The story reads what the service
+  received from its routes' calls. A guard over every client fails a request
+  no story declared, naming the service, so a forgotten route fails the test
+  instead of reaching the network.
 - **When**: one action through the seam. A **flow** — one user's steps in
   order: sign up, confirm, buy — chains several, each followed by what the
   user sees after it. Each step reads as the user's action (`stop`, `resume`,
@@ -107,8 +120,8 @@ test('a member who cancels keeps access until the paid period ends', async () =>
   hand — never recomputed the way the code computes them, never recorded from
   its output by a snapshot. An outside standard's formula (an RFC's hash)
   counts as a spec. Where a reader cannot see how a literal follows from the
-  input, a comment above the test works the example: the one comment a test
-  carries.
+  input, a comment above the test works the example: beside the notes on its
+  outside services' routes, the one comment a test carries.
 - **Table**: rows of one rule. Each row has an id naming its case and carries
   everything that differs — input, expected value, even the function called —
   so the body runs the same lines for every row. A row that needs its own
