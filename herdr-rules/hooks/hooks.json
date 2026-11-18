@@ -1,4 +1,0 @@
-{
-  "description": "Closes a Herdr pane after a countdown drawn above the prompt, with Keep open and Close now buttons",
-  "modules": ["./register.tsx"]
-}
