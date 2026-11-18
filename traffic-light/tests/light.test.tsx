@@ -1,5 +1,5 @@
 import { expect, mock, test } from 'claude-code/testing'
-import type { Engine } from 'claude-code/testing'
+import type { Engine, Mounted } from 'claude-code/testing'
 import type { On } from 'claude-code'
 
 const BAND = {
@@ -47,6 +47,7 @@ type World = {
   pipelines: Pipeline[]
   fetched: string[]
   calls: string[]
+  agentName: string | null
 }
 
 const run = (status: string, conclusion: string | null, created_at = '2026-10-25T10:00:05Z'): Run => ({
@@ -122,6 +123,8 @@ function reply(world: World, argv: readonly string[]) {
     const { status, body } = gitlab(world, (argv.at(-1) ?? '').replace('projects/team%2Fapp/', ''))
     return status === 200 ? ok(JSON.stringify(body)) : fail(`glab: ${JSON.stringify(body)} (HTTP ${status})`)
   }
+  if (line.startsWith('herdr agent get')) return ok(JSON.stringify({ result: { agent: { name: world.agentName } } }))
+  if (line.startsWith('herdr pane close')) return ok('')
   if (line.includes('config --type=path --get traffic-light.envFile')) {
     return world.envFile === null ? fail('') : ok(`${world.envFile}\n`)
   }
@@ -179,6 +182,7 @@ async function start($: Engine, on: On, world: Partial<World>) {
     pipelines: [],
     fetched: [],
     calls: [],
+    agentName: null,
     ...world,
   }
   const clock = mock.clock(on, { now: Date.parse('2026-10-25T10:01:00Z') })
@@ -212,6 +216,7 @@ async function start($: Engine, on: On, world: Partial<World>) {
   on('turn.start', (_, e) => ({ turnId: e.turnId }))
   on('turn.complete', () => ({ text: '' }))
   on('classic.PermissionRequest', () => ({}))
+  on('ui.toast', () => ({ value: undefined }))
   on('ui.render', ($, e) => {
     const { Text } = $.ui.resolve(e)
     return <Text>engine</Text>
@@ -486,6 +491,112 @@ test('a permission prompt turns it red until the next prompt', async ($, on) => 
 
   await $.prompt.submit({ text: 'yes, push it', wait: false, origin: { kind: 'composer' } })
   expect(await light($)).toBe('🟡 waiting on PR · #7 open, waiting for merge')
+})
+
+const SUBTASK = {
+  pr: pull('MERGED'),
+  runs: [run('completed', 'success')],
+  env: { HERDR_PANE_ID: 'w1:p6A' },
+  agentName: 'retry',
+}
+const CLOSE = 'herdr pane close w1:p6A'
+
+type Band = Mounted<'terminal', 'AbovePrompt'>
+
+async function closingIn(ui: Band) {
+  return (await ui.find({ type: 'Text', text: /Pane closes in/ }))?.text
+}
+
+test("a subtask's pane closes a minute after its work turns green, the band counting down", async ($, on) => {
+  const world = await start($, on, SUBTASK)
+  expect(await light($)).toBe(GREEN)
+  const ui = await $.ui.mount({ ...BAND, surface: 'terminal' })
+  expect(await closingIn(ui)).toMatch(/in 60s/)
+
+  await world.clock.advance(45_000)
+  expect(await closingIn(ui)).toMatch(/in 15s/)
+  expect(world.calls).not.toContain(CLOSE)
+
+  await world.clock.advance(15_000)
+  expect(world.calls).toContain(CLOSE)
+  await ui.unmount()
+})
+
+test('a Herdr session no agent started stays open once its work is green', async ($, on) => {
+  const world = await start($, on, { ...SUBTASK, agentName: null })
+  expect(await light($)).toBe(GREEN)
+
+  await world.clock.advance(120_000)
+  const ui = await $.ui.mount({ ...BAND, surface: 'terminal' })
+  expect(await closingIn(ui)).toBeUndefined()
+  expect(world.calls).not.toContain(CLOSE)
+  await ui.unmount()
+})
+
+const PRESENTATION = { isFullscreen: false, columns: 120 }
+const KEEPERS = [
+  { id: '✋ Keep open', keep: async (_: Engine, ui: Band) => void (await ui.press({ key: 'keep-open' })) },
+  {
+    id: 'a typed message',
+    keep: async ($: Engine) =>
+      void (await $.prompt.submit({ text: 'wait, one more thing', wait: false, origin: { kind: 'composer' } })),
+  },
+  {
+    id: '/traffic-light keep-open',
+    keep: async ($: Engine) =>
+      void (await $.command.run({
+        command: 'traffic-light',
+        args: 'keep-open',
+        origin: { kind: 'composer' },
+        presentation: PRESENTATION,
+      })),
+  },
+]
+
+for (const { id, keep } of KEEPERS) {
+  test(`${id} keeps the pane open, also once a later turn ends green on the same work`, async ($, on) => {
+    const world = await start($, on, SUBTASK)
+    expect(await light($)).toBe(GREEN)
+    const ui = await $.ui.mount({ ...BAND, surface: 'terminal' })
+
+    await keep($, ui)
+    await world.clock.advance(120_000)
+    expect(await closingIn(ui)).toBeUndefined()
+
+    await $.turn.start({ text: 'what did the pipeline run?', turnId: 't1' })
+    await $.turn.complete(ENDED)
+    expect(await light($)).toBe(GREEN)
+    await world.clock.advance(120_000)
+    expect(world.calls).not.toContain(CLOSE)
+    await ui.unmount()
+  })
+}
+
+test('a turn that starts stops the close, and it counts from a minute again once the turn ends green', async ($, on) => {
+  const world = await start($, on, SUBTASK)
+  expect(await light($)).toBe(GREEN)
+  const ui = await $.ui.mount({ ...BAND, surface: 'terminal' })
+  await world.clock.advance(50_000)
+
+  await $.turn.start({ text: 'the pipeline finished', turnId: 't1' })
+  await world.clock.advance(30_000)
+  expect(await closingIn(ui)).toBeUndefined()
+  expect(world.calls).not.toContain(CLOSE)
+
+  await $.turn.complete(ENDED)
+  expect(await light($)).toBe(GREEN)
+  expect(await closingIn(ui)).toMatch(/in 60s/)
+  await ui.unmount()
+})
+
+test('❌ Close now closes the pane at once', async ($, on) => {
+  const world = await start($, on, SUBTASK)
+  expect(await light($)).toBe(GREEN)
+  const ui = await $.ui.mount({ ...BAND, surface: 'terminal' })
+
+  await ui.press({ key: 'close-now' })
+  expect(world.calls).toContain(CLOSE)
+  await ui.unmount()
 })
 
 test('a GitHub Enterprise origin is read with gh on its own host', async ($, on) => {

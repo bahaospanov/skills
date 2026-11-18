@@ -50,8 +50,7 @@ One mod per purpose. Why each one and each of its rules exists: [STORY.md](STORY
 | [lean-comments](#lean-comments) | Comments worth keeping |
 | [lean-scripts](#lean-scripts) | Scripts worth keeping |
 | [lean-tests](#lean-tests) | Tests worth keeping |
-| [herdr-rules](#herdr-rules) | A Herdr pane counts down before it closes |
-| [traffic-light](#traffic-light) | The band says whether the session's work is done |
+| [traffic-light](#traffic-light) | The band says whether the session's work is done, and closes a finished Herdr subtask |
 
 Haiku reviews are gated in code first, so a call that cannot fail the review
 costs no model call. End-of-turn checks read the git diff of repos the turn
@@ -132,18 +131,6 @@ A UI test is a `.test` or `.spec` file in JSX or TSX, or one using Testing Libra
 
 Media and marketing work is out of scope too: a file its own checkout ignores (a local `reels/` or `renders/` folder) or one under a folder holding a `.lean-skip` file.
 
-### herdr-rules
-
-A Herdr subtask closing its own pane shows it first, so whoever watches can stop it.
-
-| Part | What it does |
-| --- | --- |
-| `close_pane_later` tool | Closes this session's Herdr pane, or `pane`, after `seconds` (default 60) and returns at once; `note` is shown beside the countdown |
-| The band | `⏻ Closing this pane in 42s · <note> [ ✋ Keep open ] [ ❌ Close now ]` above the prompt, a draining bar under it |
-| Cancel | A message typed into the session, ✋ Keep open or `/keep-open`; ❌ Close now closes the pane at once |
-
-It runs `herdr pane close`, so the session needs `herdr` on its PATH and a Herdr pane (`HERDR_PANE_ID`).
-
 ### traffic-light
 
 A band above the prompt says whether you can leave the session.
@@ -155,6 +142,8 @@ A band above the prompt says whether you can leave the session.
 | 🔴 working | Claude is asking you, a turn is running where the light would be green, the repo holds uncommitted or unpushed work, a feature branch has no PR and sits on no integration branch, it closed unmerged or merged elsewhere, the pipeline failed, work began after the PR merged or the commit was pushed, or the forge can't be read |
 
 A PR here is an MR on GitLab. Work starts with the session's first edit in a git checkout, commit, push, branch, worktree, issue or PR. The repo is the one Claude last edited a file in. A session that edited none is judged by its last push to an integration branch, as `git push` reported it, whichever ref it pushed (`git push origin <ref>:main`) and whatever the session's checkout holds, such as another session's uncommitted changes; a commit, branch, worktree, issue or PR after that push hands the light back to the checkout. A feature branch is judged by its own PR, and with none, as a push to the integration branch whose head on origin contains it (`git push origin HEAD:dev`); on an integration branch, or once the worktree is gone, by the PR a `gh pr` or `glab mr` command or a `merge_requests` API call last printed (output naming several, a listing, follows none), and with none, by the integration branch's pushed head. A turn that changes nothing, such as a question, ends green again. A turn that edits a file git does not ignore, or creates a commit, branch, worktree, issue or PR (`gh`, `glab`, or a curl POST to GitLab's API), leaves that merged PR or pushed commit unable to turn the light green: green waits for the new work's PR or push. The light refreshes after git, gh and glab commands and GitLab API calls, and every 30 seconds while yellow. `/traffic-light` prints it; `/traffic-light demo` shows each color.
+
+A Herdr subtask closes itself once its work is done: when the light turns green for merged or pushed work and no turn runs, a session in a Herdr pane whose agent has a name (as `herdr agent start <name>` gives one) adds a second row to the band, `⏻ Closing this pane in 42s ████░░ [ ✋ Keep open ] [ ❌ Close now ]`, and at zero runs `herdr pane close`. A turn that starts stops the count, and it starts over at a minute when the turn ends green. ✋ Keep open, a message typed into the session or `/traffic-light keep-open` keeps the pane open until new work turns green; ❌ Close now closes it at once.
 
 It runs `git` and reads the forge `origin` points at. A host named github (github.com or Enterprise) is read with `gh`, which must be on the PATH and signed in. A host named gitlab (gitlab.com or self-hosted), or the one `GITLAB_URL` names, is read through GitLab's REST API with the first of:
 

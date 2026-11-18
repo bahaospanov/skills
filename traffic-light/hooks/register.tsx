@@ -1,5 +1,5 @@
 import { atom, read, update } from 'claude-code'
-import type { EngineInterface, ProcessRunResult, Register } from 'claude-code'
+import type { EngineInterface, ProcessRunResult, Register, Timer } from 'claude-code'
 
 import type { Color, Light, Push, Repo } from '../types'
 
@@ -27,6 +27,8 @@ const PUSHED_REF = /^\s*[+*]?\s*(?:\[[^\]]*\]|[0-9a-f]+\.\.\.?([0-9a-f]+))\s+\S+
 const POLL_MS = 30_000
 const PIPELINE_START_MS = 3 * 60_000
 const DEMO_STEP_MS = 4_000
+const CLOSE_SECONDS = 60
+const BAR = 40
 const NO_GITLAB_ACCESS = "can't read GitLab: set GITLAB_TOKEN or sign in glab"
 
 const light = atom({ plugin: 'traffic-light', key: 'light' } as const, null)
@@ -35,6 +37,9 @@ const workDir = atom({ plugin: 'traffic-light', key: 'workDir' } as const, null)
 const lastPush = atom({ plugin: 'traffic-light', key: 'lastPush' } as const, null)
 const spent = atom({ plugin: 'traffic-light', key: 'spent' } as const, [])
 const started = atom({ plugin: 'traffic-light', key: 'started' } as const, false)
+const closing = atom({ plugin: 'traffic-light', key: 'closing' } as const, null)
+const closeClock = atom({ plugin: 'traffic-light', key: 'closeClock' } as const, 0)
+const keptOpen = atom({ plugin: 'traffic-light', key: 'keptOpen' } as const, null)
 
 const DOT: Record<Color, string> = { green: '🟢', yellow: '🟡', red: '🔴' }
 const HEADLINE: Record<Color, string> = {
@@ -121,6 +126,7 @@ let pending: string | undefined
 let isDemo = false
 let refreshing: Promise<void> | undefined
 let isStale = false
+let ticking: Timer | undefined
 
 // Never the session's folder by default: cleanup removes the worktree a session often runs in, and nothing starts in a
 // folder that is gone. Every command names its checkout with `-C` or needs none.
@@ -506,7 +512,11 @@ function refresh($: Engine): Promise<void> {
         (error: unknown): Verdict => lit('red', error instanceof Blind ? error.message : "couldn't read the work state"),
       )
       greenWork = done
-      if (!isDemo) await show($, face(next))
+      if (!isDemo) {
+        const shown = face(next)
+        await show($, shown)
+        await closeWhenDone($, shown)
+      }
     } while (isStale)
   })().finally(() => {
     refreshing = undefined
@@ -520,7 +530,72 @@ function soon($: Engine) {
 
 async function ask($: Engine) {
   asking = true
+  await stopClosing($)
   if (!isDemo) await show($, ASKING)
+}
+
+// `herdr agent start <name>` names the agent it starts: a named Herdr agent is a subtask another agent started.
+async function subtaskPane($: Engine) {
+  const pane = (await $.env.get('HERDR_PANE_ID')) ?? ''
+  if (pane === '') return undefined
+  const out = await run($, ['herdr', 'agent', 'get', pane])
+  if (out?.exitCode !== 0) return undefined
+  try {
+    const agent = (JSON.parse(out.stdout) as { result?: { agent?: { name?: string | null } } }).result?.agent
+    return agent?.name ? pane : undefined
+  } catch {
+    return undefined
+  }
+}
+
+async function closeWhenDone($: Engine, shown: Light) {
+  const work = greenWork
+  if (shown.color !== 'green' || work === undefined || working || asking) return stopClosing($)
+  if ((await read($, closing)) !== null || (await read($, keptOpen)) === work) return
+  const pane = await subtaskPane($)
+  if (pane === undefined || working || asking || greenWork !== work) return
+  const t = await $.clock.now()
+  await update($, closeClock, () => t)
+  await update($, closing, () => ({ pane, work, endsAt: t + CLOSE_SECONDS * 1000 }))
+  startTicking($)
+}
+
+function startTicking($: Engine) {
+  ticking?.cancel()
+  ticking = $.clock.every(1000, () => {
+    void (async () => {
+      const c = await read($, closing)
+      if (c === null) return stopTicking()
+      const t = await $.clock.now()
+      await update($, closeClock, () => t)
+      if (t >= c.endsAt) await closePane($)
+    })()
+  })
+}
+
+function stopTicking() {
+  ticking?.cancel()
+  ticking = undefined
+}
+
+async function stopClosing($: Engine) {
+  stopTicking()
+  if ((await read($, closing)) !== null) await update($, closing, () => null)
+}
+
+async function keepOpen($: Engine, why: string) {
+  const c = await read($, closing)
+  if (c === null) return false
+  await stopClosing($)
+  await update($, keptOpen, () => c.work)
+  $.ui.toast(`Pane close cancelled: ${why}`)
+  return true
+}
+
+async function closePane($: Engine) {
+  const c = await read($, closing)
+  await stopClosing($)
+  if (c !== null) await run($, ['herdr', 'pane', 'close', c.pane])
 }
 
 function stopAsking($: Engine) {
@@ -570,11 +645,12 @@ export const register: Register = on => {
   on('session.start', async ($, e, next) => {
     await $.command.register({
       name: 'traffic-light',
-      description: 'Refresh the traffic light; "demo" shows green, yellow and red',
+      description: 'Refresh the traffic light; "demo" shows green, yellow and red; "keep-open" stops the pane closing',
     })
     $.clock.every(POLL_MS, () => {
       void read($, light).then(now => (now?.color === 'yellow' ? refresh($) : undefined))
     })
+    if ((await read($, closing)) !== null) startTicking($)
     soon($)
 
     return next(e)
@@ -585,6 +661,9 @@ export const register: Register = on => {
       demo($)
       return { text: 'Showing green, yellow and red for 4 seconds each, then the real state.' }
     }
+    if (e.args.trim() === 'keep-open') {
+      return { text: (await keepOpen($, '/traffic-light keep-open')) ? 'The pane stays open.' : 'No close was scheduled.' }
+    }
     await refresh($)
     const now = await read($, light)
 
@@ -593,8 +672,9 @@ export const register: Register = on => {
     }
   })
 
-  on('prompt.submit', ($, e, next) => {
+  on('prompt.submit', async ($, e, next) => {
     asking = false
+    if (e.origin.kind === 'composer' || e.origin.kind === 'bridge') await keepOpen($, 'a message was typed')
     soon($)
     return next(e)
   })
@@ -603,6 +683,7 @@ export const register: Register = on => {
     if (e.agentId === undefined) {
       working = true
       pending = greenWork
+      await stopClosing($)
       if (!isDemo && (await read($, light))?.color === 'green') await show($, WORKING)
     }
     return next(e)
@@ -650,14 +731,36 @@ export const register: Register = on => {
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
     const now = await read($, light)
     if (now === null || e.props.hasSurvey) return next(e)
-    const { Box, Text } = $.ui.resolve(e)
-
-    return (
+    const { Box, Button, Text } = $.ui.resolve(e)
+    const row = (
       <Box>
         <Text color={THEME[now.color]} weight="bold">
           ● {now.headline ?? HEADLINE[now.color]}
         </Text>
         <Text dimColor>  {now.reason}</Text>
+      </Box>
+    )
+    const c = await read($, closing)
+    if (c === null) return row
+
+    const left = Math.max(0, Math.ceil((c.endsAt - (await read($, closeClock))) / 1000))
+    const width = Math.max(10, Math.min(BAR, e.props.bodyColumns - 24))
+    const filled = Math.min(width, Math.round((width * left) / CLOSE_SECONDS))
+    return (
+      <Box flexDirection="column">
+        {row}
+        <Box>
+          <Text color="success">⏻ Pane closes in {left}s </Text>
+          <Text color="success">
+            {'█'.repeat(filled)}
+            <Text dimColor>{'░'.repeat(width - filled)}</Text>
+          </Text>
+        </Box>
+        <Box>
+          <Button key="keep-open" label="✋ Keep open" onPress={() => void keepOpen($, 'Keep open pressed')} />
+          <Text> </Text>
+          <Button key="close-now" label="❌ Close now" onPress={() => void closePane($)} />
+        </Box>
       </Box>
     )
   })
