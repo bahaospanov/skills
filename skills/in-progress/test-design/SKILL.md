@@ -20,6 +20,12 @@ retold after one read.
 A seam is where a unit's interface lives. The test acts and checks through
 that interface.
 
+A story stays on one **level**: its Given, When and Then all go through the
+same seam, so a reader follows one abstraction. State set up through use cases
+and then read over HTTP makes them hold two, and track how one turns into the
+other. Beneath the seam our code runs for real; only outside services are
+answered, at the wire ([Outside services](#the-story)).
+
 | Seam | Its public API | Driven by |
 | --- | --- | --- |
 | **Browser flow** | the product as a user meets it | a real browser on the running stack — only the few paths the product cannot live without (sign up, pay, get what was paid for), one flow each |
@@ -69,9 +75,10 @@ test('a member who cancels keeps access until the paid period ends', async () =>
   steps or every check together with _and_ and _but_ is a transcript of the
   code: name what holds. The group around it (`describe`, class, file) names
   the seam. Why the test exists — the bug, the issue — belongs to the commit.
-- **Given**: state built the way production builds it — factories that call
-  real use cases, calls through public seams; never a row or object written
-  by hand into a shape the code would reach on its own. Input from outside the
+- **Given**: state built the way production builds it, through the story's own
+  seam — an API story's earlier requests, delivered webhooks and run jobs; a
+  use case story's other use cases; never a row or object written by hand into
+  a shape the code would reach on its own. Input from outside the
   unit — an API response the frontend receives — is written by hand, typed in
   full by a shared fixture, never cast from a partial. A failure is reached
   through input the real path rejects (a missing file), a timeout through a
@@ -97,8 +104,9 @@ test('a member who cancels keeps access until the paid period ends', async () =>
   monkeypatch.setattr(paypal_client, "transport", MockTransport(paypal_mock.handler))
   ```
 
-  Helpers run our own code — a use case, a request to our route — and leave
-  declaring and patching to the story. The story reads what the service
+  Helpers run our own code through the story's seam — a request to our route,
+  a webhook delivered, a job run — and leave declaring and patching to the
+  story. The story reads what the service
   received from its routes' calls. A guard over every client fails a request
   no story declared, naming the service, so a forgotten route fails the test
   instead of reaching the network.
@@ -158,6 +166,8 @@ A tangled test cannot be retold after one read:
 - setup longer than the story, or comments explaining why a setup step is
   there;
 - several actions that are not one user's flow;
+- a story that changes level: set up through use cases or by hand, then
+  checked over the API, or the reverse;
 - a mock or patch of our own code — a private function, our own client's
   wrapper — or an assertion on which internal function ran with what and how
   often: the seam is in the wrong place;
