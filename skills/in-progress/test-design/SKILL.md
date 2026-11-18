@@ -13,7 +13,8 @@ The interaction around them — a gesture, a scroll, a zoom, layout, motion —
 holds no rule and gets no story: it is checked by **worked example**
 ([Interaction](#interaction)). A test earns its place by telling a story or
 working an example: a **thin** test does neither, a **tangled** one cannot be
-retold after one read.
+retold after one read, and one **told twice** repeats a story another already
+tells.
 
 ## Seams
 
@@ -55,7 +56,8 @@ is shown — layout and copy get none, its gestures and motion a worked example.
   while it waits to run, deleted with it once it has run.
 
 The bar is a story per rule, not a coverage number: a coverage floor pushes
-toward the thin tests this skill cuts.
+toward the thin tests this skill cuts. A bug put in by hand that no story
+catches asks for a new story only when it breaks a rule no story tells.
 
 ## The story
 
@@ -125,7 +127,8 @@ test('a member who cancels keeps access until the paid period ends', async () =>
 - **Then**: what the caller gets — the response, the return value, the next
   read through the same seam. An effect that leaves the system (a sent letter,
   a stored file, a pushed event) is checked where it lands; a row the seam
-  never shows is not checked at all.
+  never shows is not checked at all. A gap raised as a design issue — a
+  receipt never issued — stays unchecked, so fixing it turns no story red.
 - **Contrast**: a rule that turns on an input is told by the same call with
   the input flipped, side by side — on and off, owner and stranger.
 - **Expected values**: literals from the spec or a worked example, written by
@@ -181,6 +184,23 @@ Amend a tangled test you touch: one test per story, setup moved into a factory
 named for the state (`paidMember`, `draftOrder`), connections and cleanup into
 a fixture that owns them, the check moved to the seam's own read. A story that needs our own code mocked to be told means the
 unit has no real seam: raise it as a design issue.
+
+## Told twice
+
+A test told twice tells a rule another story already tells. It can fail on a
+real bug, so coverage keeps it, yet a reader learns nothing from it the first
+story did not say:
+
+- a story per copy of the code that decides one rule — each purchase handler
+  catching the same failure: tell the rule through one; the copies are a design
+  issue, since one place should decide it;
+- rows the rule does not tell apart — a service down and a service refusing,
+  both taken down one path: one row, named for the case a reader would name;
+- a check another story makes — each label row asserting the amount again:
+  each story checks only what its own rule decides.
+
+Name the rule a test tells. When another story already names it, cut the test,
+or fold what it adds into that story.
 
 ## Interaction
 
@@ -252,5 +272,5 @@ session — is a module, not infrastructure.
 ## Reviewing
 
 Give every test in the change a verdict: the story it tells and its seam, the
-example it works, the invariant it guards, or thin, tangled or out of scope
-with the fix. Done when no test is left without one.
+example it works, the invariant it guards, or thin, tangled, told twice or out
+of scope with the fix. Done when no test is left without one.
