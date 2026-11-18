@@ -34,13 +34,15 @@ answered, at the wire ([Outside services](#the-story)).
 | **Client** | our wrapper over an outside service the product depends on: payments, mail, a sign-in provider | a fake at the wire — a stub transport, a local double of the service — so our wrapper runs for real |
 | **Module** | exported functions of a self-contained piece: pricing, parsing, formatting, a store; a component's props, events and what a user does to it | its exports |
 
-Tell each rule at the seam that decides it, the nearest to its caller that
-keeps the story short. A rule a caller meets over the API is told there; a rule
-several APIs share is told once through its use case; arithmetic, parsing and
-formatting go through their module. A helper with one caller is reached through
-that caller, exported or not: its cases become rows of the caller's story. A
-component earns a story only for a rule it decides about what is shown — layout
-and copy get none, its gestures and motion a worked example.
+Tell each rule at the seam that decides it. A layer enters a test only when it
+is the test's **subject**. A rule a use case decides is told through that use
+case, its Given built through other use cases, with no request, token or route
+in it. The API is told only for what the route itself decides: who may call it,
+how it reads the request, which status and body an error becomes. Arithmetic,
+parsing and formatting go through their module. A helper with one caller is
+reached through that caller, exported or not: its cases become rows of the
+caller's story. A component earns a story only for a rule it decides about what
+is shown — layout and copy get none, its gestures and motion a worked example.
 
 ## Which stories
 
@@ -168,6 +170,8 @@ A tangled test cannot be retold after one read:
 - several actions that are not one user's flow;
 - a story that changes level: set up through use cases or by hand, then
   checked over the API, or the reverse;
+- a layer the story isn't about, such as a route, a token or a sign-in, set up
+  only to reach the rule beneath it;
 - a mock or patch of our own code — a private function, our own client's
   wrapper — or an assertion on which internal function ran with what and how
   often: the seam is in the wrong place;
