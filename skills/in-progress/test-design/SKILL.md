@@ -80,13 +80,25 @@ test('a member who cancels keeps access until the paid period ends', async () =>
   instant — a clock setting or a time-freezing library — and asserts literals
   for it (10 unused days, not 9 to 10). Random input comes from a seeded
   generator; a random id appears only where its value is never asserted.
-- **Outside services**: a story that reaches one plays it in its own body, as
-  its first lines: a fake set as the client's transport, undone with the test
-  (`monkeypatch.setattr(paypal_client, "transport", MockTransport(paypal.answer))`),
-  so a reader sees what is played and the story reads what the service
-  received from the fake. A guard over every client fails a request no story
-  declared, naming the service, so a forgotten line fails the test instead of
-  reaching the network.
+- **Outside services**: a story that reaches one declares, in its own body,
+  every answer the service gives it: a mock named for the service, one route
+  per call, each answer a literal or a named constant. A reader follows one
+  program, ours, with the service as plain data; a fake with logic of its own
+  is a second program to learn beside it. The mock becomes the client's
+  transport, undone with the test:
+
+  ```python
+  paypal_mock = respx.Router()
+  paypal_mock.post("/v1/oauth2/token").respond(json=_TOKEN)
+  paypal_mock.post("/v2/checkout/orders").respond(201, json=_ORDER_1)
+  monkeypatch.setattr(paypal_client, "transport", MockTransport(paypal_mock.handler))
+  ```
+
+  Helpers run our own code — a use case, a request to our route — and leave
+  declaring and patching to the story. The story reads what the service
+  received from its routes' calls. A guard over every client fails a request
+  no story declared, naming the service, so a forgotten route fails the test
+  instead of reaching the network.
 - **When**: one action through the seam. A **flow** — one user's steps in
   order: sign up, confirm, buy — chains several, each followed by what the
   user sees after it. Each step reads as the user's action (`stop`, `resume`,
