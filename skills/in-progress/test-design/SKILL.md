@@ -80,6 +80,13 @@ test('a member who cancels keeps access until the paid period ends', async () =>
   instant — a clock setting or a time-freezing library — and asserts literals
   for it (10 unused days, not 9 to 10). Random input comes from a seeded
   generator; a random id appears only where its value is never asserted.
+- **Outside services**: a story that reaches one plays it in its own body, as
+  its first lines: a fake set as the client's transport, undone with the test
+  (`monkeypatch.setattr(paypal_client, "transport", MockTransport(paypal.answer))`),
+  so a reader sees what is played and the story reads what the service
+  received from the fake. A guard over every client fails a request no story
+  declared, naming the service, so a forgotten line fails the test instead of
+  reaching the network.
 - **When**: one action through the seam. A **flow** — one user's steps in
   order: sign up, confirm, buy — chains several, each followed by what the
   user sees after it. Each step reads as the user's action (`stop`, `resume`,
