@@ -475,14 +475,21 @@ async function judge($: Engine): Promise<Verdict> {
   const tracked = await read($, pr)
   if (root !== undefined && INTEGRATION.includes(branch) && tracked === null) return pushedLight($, root, branch, repo)
   const feature = root !== undefined && branch !== '' && !INTEGRATION.includes(branch) ? branch : undefined
-  const found =
-    feature !== undefined && root !== undefined
-      ? repo === undefined
-        ? 'none'
-        : await changeFor($, repo, feature, root)
-      : tracked !== null
-        ? await changeAt($, tracked, root)
-        : 'none'
+  let found: Change | 'none'
+  try {
+    found =
+      feature !== undefined && root !== undefined
+        ? repo === undefined
+          ? 'none'
+          : await changeFor($, repo, feature, root)
+        : tracked !== null
+          ? await changeAt($, tracked, root)
+          : 'none'
+  } catch (error) {
+    // Cleanup removes the edited worktree only once its work is done, and the token its env file gave goes with it.
+    if (!(error instanceof Blind) || edited === null || root !== undefined) throw error
+    return unlessSpent($, lit('green', 'worktree removed, cleaned up'), edited, 'cleanup')
+  }
   if (found === 'none') {
     const pushed = root === undefined ? undefined : await pushedTo($, root)
     return root === undefined || pushed === undefined ? lit('red', `no ${noun(repo)} yet`) : pushedLight($, root, pushed, repo)
