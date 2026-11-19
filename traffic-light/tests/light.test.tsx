@@ -709,6 +709,25 @@ test('the env file git config names gives the token, read and never run', async 
   expect(await light($)).toBe('🟢 safe to leave · !360 merged into dev, pipeline #446 passed')
 })
 
+test('work stays green once cleanup removed its worktree, though GitLab can no longer be read', async ($, on) => {
+  const world = await start($, on, {
+    remote: GITLAB.remote,
+    envFile: '.env.infra',
+    files: { '/main/.env.infra': `GITLAB_URL=https://gitlab.example.com\nGITLAB_TOKEN=${TOKEN}\n` },
+    mrs: [merge('merged')],
+    pipelines: [pipeline(446, 'success')],
+    printed: CREATED,
+  })
+  await $.tool.call({
+    tool: 'Bash',
+    command: 'curl -sS -X POST -H "PRIVATE-TOKEN: $GITLAB_TOKEN" "$GITLAB_URL/api/v4/projects/3/merge_requests" -d title=x',
+  })
+  expect(await light($)).toBe('🟢 safe to leave · !360 merged into dev, pipeline #446 passed')
+
+  world.hasCheckout = false
+  expect(await light($)).toBe('🟢 safe to leave · worktree removed, cleaned up')
+})
+
 const GITLAB_PUSH = 'To gitlab.example.com:team/app.git\n   f6f58fb..abc1234  HEAD -> dev\n'
 
 test('a commit pushed straight to a GitLab integration branch is judged by its pipeline', async ($, on) => {
