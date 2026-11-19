@@ -81,8 +81,12 @@ export const namesBranch = (text: string, branch: string) => {
 export const noUserMessage = () => 'git-gates: no user message found in this session; blocking'
 
 export const pushRefused = (command: string) => `git-gates: blocking '${command}' — "commit" authorizes the commit, not a push.
-A push needs push, ship, deploy, pr, mr, tag or release in the current turn.
+A push needs push, ship, deploy, pr, mr, tag or release in the current turn;
+"merge" covers only re-pushing a branch rebased onto its moved base.
 Stop at the commit, say the branch is ready, and let the user say when to push.`
+
+export const rebasePushNote = (branch: string, base: string) =>
+  `git-gates: push of '${branch}', rebased onto the moved '${base}' — authorized by "merge" in the user's message`
 
 export const forbiddenRefused = (command: string, verb: Verb) => `git-gates: blocking '${command}' — the user said not to ${verb} in this turn.
 Other keywords in the message do not override that. Stop here, say what is
