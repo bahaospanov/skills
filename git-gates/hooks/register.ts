@@ -18,6 +18,7 @@ import {
   protectedPushRefused,
   pushRefused,
   pushUndetermined,
+  rebasePushNote,
 } from './consent'
 import { GRANT_DEFAULT_TTL_S, grantArgsOf, isLive, openGrant, spend, type Grant } from './grants'
 import {
@@ -107,6 +108,24 @@ const deletesBase = async ($: EngineInterface, branches: string[], cwd?: string)
   return branches.some((branch) => bases.includes(branch))
 }
 
+// 2026-11-19, scanwow MR !433: the user said "merge", the base had moved, and the rebase's push was refused for want of "push".
+// The base the push carries that its branch on origin lacks: the branch already pushed, now rebased onto the moved base.
+const rebasedOntoMovedBase = async ($: EngineInterface, command: string, cwd?: string) => {
+  const branch = await currentBranch($, cwd)
+  const targets = pushTargets(command, branch)
+  if (branch === undefined || targets?.length !== 1 || targets[0] !== branch) return undefined
+  const pushed = `refs/remotes/origin/${branch}`
+  if ((await git($, ['rev-parse', '--verify', '--quiet', pushed], cwd)) === undefined) return undefined
+  for (const base of await integrationBases($, cwd)) {
+    if (base === branch) continue
+    const tip = `refs/remotes/origin/${base}`
+    const carried = await git($, ['merge-base', '--is-ancestor', tip, `refs/heads/${branch}`], cwd)
+    const held = await git($, ['merge-base', '--is-ancestor', tip, pushed], cwd)
+    if (carried !== undefined && held === undefined) return { branch, base }
+  }
+  return undefined
+}
+
 const consent = async ($: EngineInterface, command: string, verb: Verb | 'open'): Promise<Verdict> => {
   const now = await $.clock.now()
   const typed = await typedThisTurn($)
@@ -145,7 +164,10 @@ const consent = async ($: EngineInterface, command: string, verb: Verb | 'open')
   }
 
   if (!typed.some(authorizes)) return { reason: noKeyword(command, grantTool) }
-  if (verb === 'push' && !typed.some(authorizesPush)) return { reason: pushRefused(command) }
+  if (verb === 'push' && !typed.some(authorizesPush)) {
+    const rebased = typed.some(authorizesMerge) ? await rebasedOntoMovedBase($, command, await repoOf($, command)) : undefined
+    return rebased === undefined ? { reason: pushRefused(command) } : { note: rebasePushNote(rebased.branch, rebased.base) }
+  }
 
   const asking = verb === 'commit' ? typed.find((text) => grantRequest(text) !== undefined) : undefined
   const uses = asking === undefined ? undefined : grantRequest(asking)
