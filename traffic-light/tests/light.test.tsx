@@ -536,19 +536,30 @@ test('a Herdr session no agent started stays open once its work is green', async
   await ui.unmount()
 })
 
-test("a branch still at the commit it was created from holds no work, though dev contains it, so a subtask's pane stays open", async ($, on) => {
-  const branch = { pr: null, branch: 'chore/test-design-users-252', landed: 'dev\n', reflog: 'abc1234000\n' }
-  const world = await start($, on, { ...SUBTASK, ...branch })
-  expect(await light($)).toBe('🔴 working · no PR yet')
-  await world.clock.advance(120_000)
-  expect(world.calls).not.toContain(CLOSE)
+const FRESH = 'chore/test-design-users-252'
+const BORN = '1c5eb7f000 branch: Created from origin/dev'
+const NO_WORK = '🔴 working · no PR yet'
+const ON_DEV = '🟢 safe to leave · abc1234 pushed to dev, deploy-dev passed'
+const REFLOGS = [
+  { id: 'only created', reflog: [BORN], light: NO_WORK, closes: false },
+  { id: 'rebased with nothing to replay', reflog: [`abc1234000 rebase (finish): refs/heads/${FRESH} onto abc1234000`, BORN], light: NO_WORK, closes: false },
+  { id: 'fast-forwarded to dev', reflog: ['abc1234000 merge origin/dev: Fast-forward', BORN], light: NO_WORK, closes: false },
+  { id: 'a commit', reflog: ['abc1234000 commit: test: a', BORN], light: ON_DEV, closes: true },
+  { id: 'a cherry-pick', reflog: ['abc1234000 cherry-pick: test: a', BORN], light: ON_DEV, closes: true },
+  { id: 'a revert', reflog: ['abc1234000 revert: Revert "test: a"', BORN], light: ON_DEV, closes: true },
+  { id: 'a merge commit', reflog: ["abc1234000 merge origin/dev: Merge made by the 'ort' strategy.", BORN], light: ON_DEV, closes: true },
+  { id: 'commits a rebase replayed', reflog: [`abc1234000 rebase (finish): refs/heads/${FRESH} onto 9f8e7d6000`, BORN], light: ON_DEV, closes: true },
+]
 
-  world.reflog = 'abc1234000\n1c5eb7f000\n'
-  await $.tool.call({ tool: 'Bash', command: 'git commit -q -m "test: a" && git push origin HEAD:dev' })
-  expect(await light($)).toBe('🟢 safe to leave · abc1234 pushed to dev, deploy-dev passed')
-  await world.clock.advance(60_000)
-  expect(world.calls).toContain(CLOSE)
-})
+for (const { id, reflog, light: expected, closes } of REFLOGS) {
+  test(`a branch dev contains holds work only once a commit was made on it: ${id}`, async ($, on) => {
+    const world = await start($, on, { ...SUBTASK, pr: null, branch: FRESH, landed: 'dev\n', reflog: reflog.join('\n') })
+    expect(await light($)).toBe(expected)
+
+    await world.clock.advance(60_000)
+    expect(world.calls.includes(CLOSE)).toBe(closes)
+  })
+}
 
 const PRESENTATION = { isFullscreen: false, columns: 120 }
 const KEEPERS = [

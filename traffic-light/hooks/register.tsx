@@ -410,11 +410,17 @@ async function pushedTo($: Engine, root: string) {
   return out?.exitCode === 0 ? out.stdout.split('\n').find(name => name !== '') : undefined
 }
 
-// A branch whose reflog ends where it began holds no commit of its own: an integration branch contains it from birth.
-async function isUntouched($: Engine, root: string, branch: string) {
-  const out = await run($, ['git', '-C', root, 'reflog', 'show', '--format=%H', `refs/heads/${branch}`])
-  const shas = out?.exitCode === 0 ? out.stdout.split('\n').filter(sha => sha !== '') : []
-  return shas.length > 0 && shas[0] === shas.at(-1)
+// Whether its reflog shows a commit made on the branch. One only created, fast-forwarded or rebased with nothing to
+// replay holds none, though an integration branch contains it. An unreadable reflog counts as work.
+async function hasOwnCommit($: Engine, root: string, branch: string) {
+  const out = await run($, ['git', '-C', root, 'reflog', 'show', '--format=%H %gs', `refs/heads/${branch}`])
+  if (out?.exitCode !== 0) return true
+  return out.stdout.split('\n').some(entry => {
+    const [sha, action = ''] = entry.split(/ (.*)/)
+    const onto = /\(finish\): \S+ onto ([0-9a-f]+)$/.exec(action)?.[1]
+    if (onto !== undefined) return onto !== sha
+    return /^(commit|cherry-pick|revert|am)\b/.test(action) || (/^merge\b/.test(action) && !action.endsWith(': Fast-forward'))
+  })
 }
 
 // The reflog of origin's branch dates when its head reached the remote, the push the pipeline runs for.
@@ -498,7 +504,7 @@ async function judge($: Engine): Promise<Verdict> {
     return unlessSpent($, lit('green', 'worktree removed, cleaned up'), edited, 'cleanup')
   }
   if (found === 'none') {
-    const isFresh = root !== undefined && feature !== undefined && (await isUntouched($, root, feature))
+    const isFresh = root !== undefined && feature !== undefined && !(await hasOwnCommit($, root, feature))
     const pushed = root === undefined || isFresh ? undefined : await pushedTo($, root)
     return root === undefined || pushed === undefined ? lit('red', `no ${noun(repo)} yet`) : pushedLight($, root, pushed, repo)
   }
