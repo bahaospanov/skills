@@ -33,6 +33,7 @@ type World = {
   head: string
   pushedAt: string
   landed: string
+  reflog: string | null
   isFresh: boolean
   hasCheckout: boolean
   isSessionInCheckout: boolean
@@ -146,6 +147,7 @@ function reply(world: World, argv: readonly string[]) {
   if (line.includes('log -1')) return ok(`${world.head}000 ${world.head}\n`)
   if (line.includes('remote get-url origin')) return ok(`${world.remote}\n`)
   if (line.includes('for-each-ref --contains HEAD')) return ok(world.landed)
+  if (line.includes('reflog show')) return world.reflog === null ? fail('') : ok(world.reflog)
   if (line.startsWith('gh pr view')) {
     return world.pr === null ? fail(`no pull requests found for branch "${world.branch}"`) : ok(JSON.stringify(world.pr))
   }
@@ -168,6 +170,7 @@ async function start($: Engine, on: On, world: Partial<World>) {
     head: 'abc1234',
     pushedAt: '2026-10-25T10:00:00Z',
     landed: '',
+    reflog: null,
     isFresh: false,
     hasCheckout: true,
     isSessionInCheckout: false,
@@ -531,6 +534,20 @@ test('a Herdr session no agent started stays open once its work is green', async
   expect(await closingIn(ui)).toBeUndefined()
   expect(world.calls).not.toContain(CLOSE)
   await ui.unmount()
+})
+
+test("a branch still at the commit it was created from holds no work, though dev contains it, so a subtask's pane stays open", async ($, on) => {
+  const branch = { pr: null, branch: 'chore/test-design-users-252', landed: 'dev\n', reflog: 'abc1234000\n' }
+  const world = await start($, on, { ...SUBTASK, ...branch })
+  expect(await light($)).toBe('🔴 working · no PR yet')
+  await world.clock.advance(120_000)
+  expect(world.calls).not.toContain(CLOSE)
+
+  world.reflog = 'abc1234000\n1c5eb7f000\n'
+  await $.tool.call({ tool: 'Bash', command: 'git commit -q -m "test: a" && git push origin HEAD:dev' })
+  expect(await light($)).toBe('🟢 safe to leave · abc1234 pushed to dev, deploy-dev passed')
+  await world.clock.advance(60_000)
+  expect(world.calls).toContain(CLOSE)
 })
 
 const PRESENTATION = { isFullscreen: false, columns: 120 }

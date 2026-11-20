@@ -410,6 +410,13 @@ async function pushedTo($: Engine, root: string) {
   return out?.exitCode === 0 ? out.stdout.split('\n').find(name => name !== '') : undefined
 }
 
+// A branch whose reflog ends where it began holds no commit of its own: an integration branch contains it from birth.
+async function isUntouched($: Engine, root: string, branch: string) {
+  const out = await run($, ['git', '-C', root, 'reflog', 'show', '--format=%H', `refs/heads/${branch}`])
+  const shas = out?.exitCode === 0 ? out.stdout.split('\n').filter(sha => sha !== '') : []
+  return shas.length > 0 && shas[0] === shas.at(-1)
+}
+
 // The reflog of origin's branch dates when its head reached the remote, the push the pipeline runs for.
 async function pushedLight($: Engine, root: string, branch: string, repo: Repo | undefined): Promise<Verdict> {
   const head = await run($, ['git', '-C', root, 'log', '-1', '--format=%H %h'])
@@ -491,7 +498,8 @@ async function judge($: Engine): Promise<Verdict> {
     return unlessSpent($, lit('green', 'worktree removed, cleaned up'), edited, 'cleanup')
   }
   if (found === 'none') {
-    const pushed = root === undefined ? undefined : await pushedTo($, root)
+    const isFresh = root !== undefined && feature !== undefined && (await isUntouched($, root, feature))
+    const pushed = root === undefined || isFresh ? undefined : await pushedTo($, root)
     return root === undefined || pushed === undefined ? lit('red', `no ${noun(repo)} yet`) : pushedLight($, root, pushed, repo)
   }
   return unlessSpent($, await changeLight($, found, root), found.url, `${found.label} merged`)
