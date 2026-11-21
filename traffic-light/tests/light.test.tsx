@@ -23,7 +23,10 @@ const GITLAB = { remote: 'git@gitlab.example.com:team/app.git', env: { GITLAB_TO
 type Run = { id: number; workflow_id: number; name: string; status: string; conclusion: string | null; created_at: string }
 type Pipeline = { id: number; status: string; ref: string; sha: string; name: null; created_at: string }
 type Merge = { iid: number; source_branch: string }
+// A second checkout of the same origin, holding other work than the session's first edit.
+type Side = { root: string; branch: string; pr: Record<string, unknown> | null }
 type World = {
+  side: Side | null
   branch: string
   status: string
   pr: Record<string, unknown> | null
@@ -130,6 +133,14 @@ function reply(world: World, argv: readonly string[]) {
     return world.envFile === null ? fail('') : ok(`${world.envFile}\n`)
   }
   if (line.includes('rev-parse --path-format=absolute --git-common-dir')) return ok('/main/.git\n')
+  const side = world.side
+  if (side !== null && line.includes(`-C ${side.root}`)) {
+    if (line.includes('rev-parse --show-toplevel')) return ok(`${side.root}\n`)
+    if (line.includes('branch --show-current')) return ok(`${side.branch}\n`)
+  }
+  if (side !== null && line.startsWith('gh pr view') && [side.branch, side.pr?.url].includes(argv[3])) {
+    return side.pr === null ? fail(`no pull requests found for branch "${side.branch}"`) : ok(JSON.stringify(side.pr))
+  }
   if (line.includes('rev-parse --show-toplevel')) return world.hasCheckout ? ok('/repo\n') : fail('not a git repository')
   if (line.includes('rev-parse --verify --quiet refs/heads/')) {
     return world.localBranches.some(name => line.endsWith(`refs/heads/${name}`)) ? ok('abc1234000\n') : fail('')
@@ -161,6 +172,7 @@ function reply(world: World, argv: readonly string[]) {
 // fresh, the session has started work with an edit. A session in the checkout starts no process there once it is gone.
 async function start($: Engine, on: On, world: Partial<World>) {
   const full: World = {
+    side: null,
     branch: 'feat/x',
     status: '',
     pr: null,
@@ -190,6 +202,7 @@ async function start($: Engine, on: On, world: Partial<World>) {
   }
   const clock = mock.clock(on, { now: Date.parse('2026-10-25T10:01:00Z') })
   on('command.register', () => ({ value: { command: 'traffic-light' } }))
+  on('tool.register', (_, e) => ({ value: { tool: `mcp__traffic-light__${e.name}` } }))
   on('session.cwd', () => ({ value: '/repo' }))
   on('env.get', (_, e) => ({ value: full.env[e.name] }))
   on('fs.read', (_, e) => {
@@ -534,6 +547,59 @@ test('a Herdr session no agent started stays open once its work is green', async
   expect(await closingIn(ui)).toBeUndefined()
   expect(world.calls).not.toContain(CLOSE)
   await ui.unmount()
+})
+
+const SIDE_URL = 'https://github.com/o/r/pull/28'
+const SIDE: Side = { root: '/side', branch: 'feat/side', pr: pull('MERGED', { number: 28, url: SIDE_URL, headRefName: 'feat/side' }) }
+const WAITING = '🟡 waiting on PR · #7 open, waiting for merge'
+
+// Side work as a session does it: an edit in another checkout, then a commit there and its PR.
+async function sideWork($: Engine, world: World) {
+  world.printed = `${SIDE_URL}\n`
+  const edit = await $.tool.call({ tool: 'Edit', file_path: '/side/SKILL.md', old_string: 'a', new_string: 'b' })
+  await $.tool.call({ tool: 'Bash', command: 'cd /side && git commit -qam "feat: a" && gh pr create --fill' })
+  world.printed = ''
+  return edit
+}
+
+test("a subtask's side work merging leaves its pane open, the light on its main work", async ($, on) => {
+  const world = await start($, on, { ...SUBTASK, pr: null, side: SIDE })
+  expect(await light($)).toBe('🔴 working · no PR yet')
+
+  const edit = await sideWork($, world)
+  expect(edit.context?.join('\n')).toMatch(/\/side is side work[^]*main work in \/repo[^]*mcp__traffic-light__main/)
+  expect(await light($)).toBe('🔴 working · no PR yet')
+  await world.clock.advance(120_000)
+  expect(world.calls).not.toContain(CLOSE)
+})
+
+test("a session's side work leaves the light on its main work until that is done, then the next checkout is", async ($, on) => {
+  const world = await start($, on, { pr: pull('OPEN'), runs: [run('completed', 'success')], side: SIDE })
+  expect(await light($)).toBe(WAITING)
+
+  await sideWork($, world)
+  expect(await light($)).toBe(WAITING)
+
+  world.pr = pull('MERGED')
+  expect(await light($)).toBe(GREEN)
+
+  world.side = { ...SIDE, pr: null }
+  await $.turn.start({ text: 'now the skill', turnId: 't1' })
+  await $.tool.call({ tool: 'Edit', file_path: '/side/SKILL.md', old_string: 'b', new_string: 'c' })
+  await $.turn.complete(ENDED)
+  expect(await light($)).toBe('🔴 working · no PR yet')
+})
+
+test('marking the main work moves the light and the pane close to it', async ($, on) => {
+  const world = await start($, on, { ...SUBTASK, isFresh: true, pr: null, side: SIDE })
+  await $.tool.call({ tool: 'Edit', file_path: '/side/notes.md', old_string: 'a', new_string: 'b' })
+  expect(await light($)).toBe('🟢 safe to leave · #28 merged into dev, deploy-dev passed')
+
+  const marked = await $.tool.call({ tool: 'mcp__traffic-light__main', path: '/repo' })
+  expect(String(marked.result)).toMatch(/main work is \/repo/)
+  expect(await light($)).toBe('🔴 working · no PR yet')
+  await world.clock.advance(120_000)
+  expect(world.calls).not.toContain(CLOSE)
 })
 
 const FRESH = 'chore/test-design-users-252'
