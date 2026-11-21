@@ -274,3 +274,10 @@ session — is a module, not infrastructure.
 Give every test in the change a verdict: the story it tells and its seam, the
 example it works, the invariant it guards, or thin, tangled, told twice or out
 of scope with the fix. Done when no test is left without one.
+
+## Running
+
+Working on one module, run its **zone**: the module's own tests, plus any test
+you changed outside it. The zone covers every run, from each story's red and
+green to the checks before a commit. The full suite runs in the pipeline that
+merges into the base branch, and that is where a break outside the zone shows.
