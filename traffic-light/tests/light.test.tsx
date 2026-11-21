@@ -602,6 +602,34 @@ test('marking the main work moves the light and the pane close to it', async ($,
   expect(world.calls).not.toContain(CLOSE)
 })
 
+const SIDE_OPEN: Side = { ...SIDE, pr: pull('OPEN', { number: 28, url: SIDE_URL, headRefName: 'feat/side' }) }
+
+test("a subtask's main work merging leaves its pane open while its side work is in flight", async ($, on) => {
+  const world = await start($, on, { ...SUBTASK, side: SIDE_OPEN })
+  await sideWork($, world)
+  expect(await light($)).toBe('🟡 waiting on PR · side work in /side: #28 open, waiting for merge')
+  await world.clock.advance(120_000)
+  expect(world.calls).not.toContain(CLOSE)
+
+  world.side = SIDE
+  expect(await light($)).toBe(GREEN)
+  await world.clock.advance(60_000)
+  expect(world.calls).toContain(CLOSE)
+})
+
+test('the checkout the main work moves from stays waited on as side work', async ($, on) => {
+  const world = await start($, on, { ...SUBTASK, pr: pull('OPEN'), side: SIDE })
+  expect(await light($)).toBe(WAITING)
+
+  await $.tool.call({ tool: 'mcp__traffic-light__main', path: '/side' })
+  expect(await light($)).toBe('🟡 waiting on PR · side work in /repo: #7 open, waiting for merge')
+  await world.clock.advance(120_000)
+  expect(world.calls).not.toContain(CLOSE)
+
+  world.hasCheckout = false
+  expect(await light($)).toBe('🟢 safe to leave · #28 merged into dev, deploy-dev passed')
+})
+
 const FRESH = 'chore/test-design-users-252'
 const BORN = '1c5eb7f000 branch: Created from origin/dev'
 const NO_WORK = '🔴 working · no PR yet'

@@ -21,6 +21,7 @@ const CHANGE_COMMAND =
 const REST_CREATE =
   /^(?=[^]*\bcurl\b)(?=[^]*(?:-X\s*POST|--request\s+POST|\s(?:-d|--data\S*|-F|--form|--json)\s))(?=[^]*\/(?:merge_requests|issues)(?![\w/]))/
 const PUSH_COMMAND = /\bgit\s+(-C\s+\S+\s+)?push\b/
+const COMMIT_COMMAND = /\bgit\s+(-C\s+\S+\s+)?(commit|revert|cherry-pick)\b/
 // The folder a command works in: `git -C <dir>`, else a leading `cd <dir>`.
 const GIT_DIR = /\bgit\s+-C\s+("[^"]*"|'[^']*'|[^\s;&|]+)/
 const CD_DIR = /^\s*cd\s+("[^"]*"|'[^']*'|[^\s;&|]+)\s*(?:&&|;)/
@@ -38,6 +39,7 @@ const NO_GITLAB_ACCESS = "can't read GitLab: set GITLAB_TOKEN or sign in glab"
 const light = atom({ plugin: 'traffic-light', key: 'light' } as const, null)
 const pr = atom({ plugin: 'traffic-light', key: 'pr' } as const, null)
 const workDir = atom({ plugin: 'traffic-light', key: 'workDir' } as const, null)
+const sides = atom({ plugin: 'traffic-light', key: 'sides' } as const, [])
 const lastPush = atom({ plugin: 'traffic-light', key: 'lastPush' } as const, null)
 const spent = atom({ plugin: 'traffic-light', key: 'spent' } as const, [])
 const started = atom({ plugin: 'traffic-light', key: 'started' } as const, false)
@@ -520,6 +522,35 @@ async function judge($: Engine): Promise<Verdict> {
   return unlessSpent($, await changeLight($, found, root), url, `${found.label} merged`)
 }
 
+// A side checkout's own work: its PR, or its push to an integration branch. Its uncommitted files are not judged: a
+// shared checkout carries other agents' too.
+async function sideLight($: Engine, root: string): Promise<Light | undefined> {
+  const branch = await currentBranch($, root)
+  const repo = await origin($, root)
+  if (repo === undefined || branch === '') return undefined
+  if (INTEGRATION.includes(branch)) {
+    return (await hasOwnCommit($, root, branch)) ? pushedLight($, root, branch, repo) : undefined
+  }
+  const found = await changeFor($, repo, branch, root)
+  if (found !== 'none') return changeLight($, found, root)
+  return (await hasOwnCommit($, root, branch)) ? lit('red', `no ${noun(repo)} yet`) : undefined
+}
+
+// The main work's green waits on every side checkout still in flight; cleanup removing one ends its wait.
+async function heldBySide($: Engine): Promise<Light | undefined> {
+  const main = await read($, workDir)
+  for (const root of await read($, sides)) {
+    if (root === main) continue
+    if ((await gitRoot($, root)) !== root) {
+      await update($, sides, list => list.filter(one => one !== root))
+      continue
+    }
+    const side = await sideLight($, root).catch(() => undefined)
+    if (side !== undefined && side.color !== 'green') return { ...side, reason: `side work in ${root}: ${side.reason}` }
+  }
+  return undefined
+}
+
 async function show($: Engine, next: Light) {
   await update($, light, () => next)
 }
@@ -538,9 +569,11 @@ function refresh($: Engine): Promise<void> {
   refreshing = (async () => {
     do {
       isStale = false
-      const { done, ...next } = await judge($).catch(
+      const verdict = await judge($).catch(
         (error: unknown): Verdict => lit('red', error instanceof Blind ? error.message : "couldn't read the work state"),
       )
+      const held = verdict.color === 'green' ? await heldBySide($).catch(() => undefined) : undefined
+      const { done, ...next }: Verdict = held ?? verdict
       greenWork = done
       if (!isDemo) {
         const shown = face(next)
@@ -672,9 +705,18 @@ function sideNote(root: string, main: string | null) {
   )
 }
 
+async function addSide($: Engine, root: string) {
+  if (!(await read($, sides)).includes(root)) await update($, sides, list => [...list, root])
+}
+
+// The checkout the main work leaves stays waited on as side work.
 async function makeMain($: Engine, root: string) {
   const main = await read($, workDir)
-  if (main !== null && main !== root) await update($, pr, () => null)
+  if (main !== null && main !== root) {
+    await update($, pr, () => null)
+    await addSide($, main)
+  }
+  await update($, sides, list => list.filter(one => one !== root))
   await update($, workDir, () => root)
   await startWork($)
 }
@@ -682,7 +724,10 @@ async function makeMain($: Engine, root: string) {
 async function edited($: Engine, file: string) {
   const root = await gitRoot($, parentOf(file))
   if (root === undefined) return undefined
-  if ((await sideOf($, root)) !== undefined) return sideNote(root, await read($, workDir))
+  if ((await sideOf($, root)) !== undefined) {
+    await addSide($, root)
+    return sideNote(root, await read($, workDir))
+  }
   await makeMain($, root)
   if (pending === undefined) return undefined
   const ignored = await run($, ['git', '-C', root, 'check-ignore', '-q', file])
@@ -698,7 +743,10 @@ async function ranCommand($: Engine, command: string, printed: string) {
   if (FORGE_COMMAND.test(command)) soon($)
   if (!isChange && !isPush && url === undefined) return undefined
   const side = await sideOf($, await commandRoot($, command))
-  if (side !== undefined) return sideNote(side, await read($, workDir))
+  if (side !== undefined) {
+    if (isPush || url !== undefined || COMMIT_COMMAND.test(command)) await addSide($, side)
+    return sideNote(side, await read($, workDir))
+  }
   if (isChange) {
     await spend($)
     await update($, lastPush, () => null)

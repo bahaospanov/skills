@@ -12,6 +12,7 @@ declare module 'claude-code' {
       light: Light | null
       pr: string | null
       workDir: string | null
+      sides: readonly string[]
       lastPush: Push | null
       spent: readonly string[]
       started: boolean
