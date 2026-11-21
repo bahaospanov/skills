@@ -21,6 +21,10 @@ const CHANGE_COMMAND =
 const REST_CREATE =
   /^(?=[^]*\bcurl\b)(?=[^]*(?:-X\s*POST|--request\s+POST|\s(?:-d|--data\S*|-F|--form|--json)\s))(?=[^]*\/(?:merge_requests|issues)(?![\w/]))/
 const PUSH_COMMAND = /\bgit\s+(-C\s+\S+\s+)?push\b/
+// The folder a command works in: `git -C <dir>`, else a leading `cd <dir>`.
+const GIT_DIR = /\bgit\s+-C\s+("[^"]*"|'[^']*'|[^\s;&|]+)/
+const CD_DIR = /^\s*cd\s+("[^"]*"|'[^']*'|[^\s;&|]+)\s*(?:&&|;)/
+const MAIN_TOOL = /^mcp__(plugin_)?traffic-light__main$/
 const PUSH_REMOTE = /^To\s+(\S+)/m
 // A ref `git push` updated: ` + a067441...b4135b7 reword -> main`, `   f6f58fb..9e417dc  main -> main`, ` * [new branch] dev -> dev`.
 const PUSHED_REF = /^\s*[+*]?\s*(?:\[[^\]]*\]|[0-9a-f]+\.\.\.?([0-9a-f]+))\s+\S+\s+->\s+(?:refs\/heads\/)?(\S+)/gm
@@ -127,6 +131,9 @@ let isDemo = false
 let refreshing: Promise<void> | undefined
 let isStale = false
 let ticking: Timer | undefined
+let mainTool = 'mcp__traffic-light__main'
+// The side checkouts the model has been told about, once each.
+const noted = new Set<string>()
 
 // Never the session's folder by default: cleanup removes the worktree a session often runs in, and nothing starts in a
 // folder that is gone. Every command names its checkout with `-C` or needs none.
@@ -508,7 +515,9 @@ async function judge($: Engine): Promise<Verdict> {
     const pushed = root === undefined || isFresh ? undefined : await pushedTo($, root)
     return root === undefined || pushed === undefined ? lit('red', `no ${noun(repo)} yet`) : pushedLight($, root, pushed, repo)
   }
-  return unlessSpent($, await changeLight($, found, root), found.url, `${found.label} merged`)
+  const url = found.url
+  if (feature !== undefined && url !== tracked) await update($, pr, () => url)
+  return unlessSpent($, await changeLight($, found, root), url, `${found.label} merged`)
 }
 
 async function show($: Engine, next: Light) {
@@ -625,24 +634,79 @@ function stopAsking($: Engine) {
   soon($)
 }
 
-async function remember($: Engine, file: string) {
-  const root = await gitRoot($, file.slice(0, Math.max(file.lastIndexOf('/'), 1)))
-  if (root === undefined) return
-  await update($, workDir, () => root)
-  await startWork($)
-  return root
-}
-
 async function startWork($: Engine) {
   await update($, started, () => true)
   soon($)
 }
 
+const parentOf = (file: string) => file.slice(0, Math.max(file.lastIndexOf('/'), 1))
+const pathOf = (input: Record<string, unknown>) => (typeof input.path === 'string' ? input.path : '')
+
+async function pathIn($: Engine, cwd: string, named: string) {
+  const bare = named.replace(/^(["'])(.*)\1$/, '$2')
+  if (bare.startsWith('/')) return bare
+  if (bare === '~' || bare.startsWith('~/')) return `${(await $.env.get('HOME')) ?? ''}${bare.slice(1)}`
+  return `${cwd}/${bare}`
+}
+
+async function commandRoot($: Engine, command: string) {
+  const cwd = await $.session.cwd()
+  const named = GIT_DIR.exec(command)?.[1] ?? CD_DIR.exec(command)?.[1]
+  return gitRoot($, named === undefined ? cwd : await pathIn($, cwd, named))
+}
+
+// The main work is the checkout `workDir` names: the first one edited, or the one marked with the main tool. Work in
+// another checkout is side work, unless the main work is done in a session no parent started: then that checkout is.
+async function sideOf($: Engine, root: string | undefined) {
+  const main = await read($, workDir)
+  if (root === undefined || main === null || root === main) return undefined
+  return greenWork === undefined || (await subtaskPane($)) !== undefined ? root : undefined
+}
+
+function sideNote(root: string, main: string | null) {
+  if (noted.has(root)) return undefined
+  noted.add(root)
+  return (
+    `traffic-light: ${root} is side work. The light, and a Herdr subtask's pane close, follow the main work in ${main}. ` +
+    `If ${root} holds the session's main work, mark it with the ${mainTool} tool.`
+  )
+}
+
+async function makeMain($: Engine, root: string) {
+  const main = await read($, workDir)
+  if (main !== null && main !== root) await update($, pr, () => null)
+  await update($, workDir, () => root)
+  await startWork($)
+}
+
 async function edited($: Engine, file: string) {
-  const root = await remember($, file)
-  if (root === undefined || pending === undefined) return
+  const root = await gitRoot($, parentOf(file))
+  if (root === undefined) return undefined
+  if ((await sideOf($, root)) !== undefined) return sideNote(root, await read($, workDir))
+  await makeMain($, root)
+  if (pending === undefined) return undefined
   const ignored = await run($, ['git', '-C', root, 'check-ignore', '-q', file])
   if (ignored?.exitCode !== 0) await spend($)
+  return undefined
+}
+
+// A command run in a side checkout leaves the main work's light, PR and push as they were.
+async function ranCommand($: Engine, command: string, printed: string) {
+  const isChange = CHANGE_COMMAND.test(command) || REST_CREATE.test(command)
+  const isPush = PUSH_COMMAND.test(command)
+  const url = changeUrl(command, printed)
+  if (FORGE_COMMAND.test(command)) soon($)
+  if (!isChange && !isPush && url === undefined) return undefined
+  const side = await sideOf($, await commandRoot($, command))
+  if (side !== undefined) return sideNote(side, await read($, workDir))
+  if (isChange) {
+    await spend($)
+    await update($, lastPush, () => null)
+  }
+  if (isPush) await recordPush($, printed)
+  if (url !== undefined) await update($, pr, () => url)
+  await startWork($)
+  return undefined
 }
 
 async function spend($: Engine) {
@@ -668,6 +732,19 @@ export const register: Register = on => {
       name: 'traffic-light',
       description: 'Refresh the traffic light; "demo" shows green, yellow and red; "keep-open" stops the pane closing',
     })
+    const registered = await $.tool.register({
+      name: 'main',
+      description:
+        "Mark the session's main work: the checkout (worktree) that holds it, given as any path inside it. " +
+        "The traffic light, and a Herdr subtask's pane close, follow the main work only; work in any other checkout " +
+        'is side work. Unmarked, the first checkout the session edits in is the main work.',
+      inputSchema: {
+        type: 'object',
+        properties: { path: { type: 'string', description: "A file or folder inside the main work's checkout" } },
+        required: ['path'],
+      },
+    })
+    mainTool = registered.tool
     $.clock.every(POLL_MS, () => {
       void read($, light).then(now => (now?.color === 'yellow' ? refresh($) : undefined))
     })
@@ -725,28 +802,31 @@ export const register: Register = on => {
     return next(e)
   })
 
+  on('tool.call', { tool: MAIN_TOOL }, async ($, e) => {
+    const path = pathOf(e)
+    const root = path === '' ? undefined : ((await gitRoot($, path)) ?? (await gitRoot($, parentOf(path))))
+    if (root === undefined) return { deny: `traffic-light: ${path || 'no path'} is in no git checkout` }
+    await makeMain($, root)
+    return {
+      result:
+        `traffic-light: the main work is ${root}. Work in any other checkout is side work: ` +
+        "it never turns the light green or closes a Herdr subtask's pane.",
+    }
+  }).catch(() => ({ deny: "traffic-light: couldn't mark the main work" }))
+
   on('tool.call', async ($, e, next) => {
     if (e.tool === 'AskUserQuestion') await ask($)
     const ran = await next(e)
+    let note: string | undefined
     try {
       stopAsking($)
-      if (e.tool === 'Edit' || e.tool === 'Write') await edited($, e.file_path)
-      if (e.tool === 'NotebookEdit') await edited($, e.notebook_path)
-      if (e.tool === 'Bash') {
-        const isChange = CHANGE_COMMAND.test(e.command) || REST_CREATE.test(e.command)
-        if (isChange) {
-          await spend($)
-          await update($, lastPush, () => null)
-        }
-        if (PUSH_COMMAND.test(e.command)) await recordPush($, ran.text ?? '')
-        const url = changeUrl(e.command, ran.text ?? '')
-        if (url !== undefined) await update($, pr, () => url)
-        if (isChange || PUSH_COMMAND.test(e.command) || url !== undefined) await startWork($)
-        if (FORGE_COMMAND.test(e.command)) soon($)
-      }
+      if (e.tool === 'Edit' || e.tool === 'Write') note = await edited($, e.file_path)
+      if (e.tool === 'NotebookEdit') note = await edited($, e.notebook_path)
+      if (e.tool === 'Bash') note = await ranCommand($, e.command, ran.text ?? '')
     } catch {}
 
-    return ran
+    if (note === undefined || ran.deny !== undefined) return ran
+    return { ...ran, context: [...(ran.context ?? []), note] }
   }).catch(($, e, next) => next(e))
 
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
