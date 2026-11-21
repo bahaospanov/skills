@@ -109,7 +109,10 @@ function gitlab(world: World, path: string) {
   const one = world.mrs.find(mr => mr.iid === Number(iid))
   if (iid !== undefined) return one === undefined ? missing('Merge Request') : found(one)
   if (route === 'pipelines') {
-    const list = world.pipelines.filter(one => one.ref === params.ref && (params.sha ?? one.sha) === one.sha)
+    const list = world.pipelines.filter(
+      one =>
+        one.ref === params.ref && (params.sha ?? one.sha) === one.sha && (params.status ?? one.status) === one.status,
+    )
     return found(list.sort((a, b) => b.id - a.id).slice(0, Number(params.per_page ?? 20)))
   }
   const branch = /^repository\/branches\/(.+)$/.exec(route)?.[1]
@@ -315,6 +318,18 @@ test('a run cancelled by a newer push is settled by that push', async ($, on) =>
     newest: [run('completed', 'success', '2026-10-25T10:02:00Z')],
   })
 
+  expect(await light($)).toBe('🟢 safe to leave · #7 merged into dev, deploy-dev passed')
+})
+
+test('a failed run is settled by a newer one of its workflow that passed', async ($, on) => {
+  const world = await start($, on, {
+    pr: pull('MERGED'),
+    runs: [run('completed', 'failure')],
+    newest: [run('completed', 'failure', '2026-10-25T10:02:00Z')],
+  })
+  expect(await light($)).toBe('🔴 working · #7 merged into dev, deploy-dev failure')
+
+  world.newest = [run('completed', 'success', '2026-10-25T10:02:00Z')]
   expect(await light($)).toBe('🟢 safe to leave · #7 merged into dev, deploy-dev passed')
 })
 
@@ -764,6 +779,18 @@ test('a GitLab pipeline the next push cancelled is settled by the newer one', as
   })
 
   expect(await light($)).toBe('🟢 safe to leave · !360 merged into dev, pipeline #448 passed')
+})
+
+test('a failed GitLab pipeline is settled by a newer one on the branch that passed, not one still running', async ($, on) => {
+  const world = await start($, on, {
+    ...GITLAB,
+    mrs: [merge('merged')],
+    pipelines: [pipeline(583, 'failed'), pipeline(586, 'running', 'fed9876000')],
+  })
+  expect(await light($)).toBe('🔴 working · !360 merged into dev, pipeline #583 failed')
+
+  world.pipelines = [pipeline(583, 'failed'), pipeline(585, 'success', 'def5678000'), pipeline(586, 'running', 'fed9876000')]
+  expect(await light($)).toBe('🟢 safe to leave · !360 merged into dev, pipeline #585 passed')
 })
 
 test('a GitLab branch with no MR, or an MR closed unmerged or merged elsewhere, is red', async ($, on) => {

@@ -308,13 +308,17 @@ async function listRuns($: Engine, repo: Repo, path: string) {
   return out?.exitCode === 0 ? (JSON.parse(out.stdout) as { workflow_runs: ActionsRun[] }).workflow_runs : undefined
 }
 
-// A run cancelled by a newer push to the same branch (concurrency
-// cancel-in-progress) is settled by that newer run, which carries this commit.
+// A run cancelled by a newer push to the same branch (concurrency cancel-in-progress) is settled by that newer run,
+// which carries this commit; a failed one by a newer run that passed, as a fix pushed after it ships this commit too.
 async function settle($: Engine, repo: Repo, base: string, one: ActionsRun) {
-  if (one.conclusion !== 'cancelled') return one
-  const path = `repos/${repo.path}/actions/workflows/${one.workflow_id}/runs?branch=${base}&event=push&per_page=1`
+  const isFailed = one.status === 'completed' && !PASSED_RUN.has(one.conclusion ?? '')
+  if (!isFailed) return one
+  const cancelled = one.conclusion === 'cancelled'
+  const only = cancelled ? '' : '&status=success'
+  const path = `repos/${repo.path}/actions/workflows/${one.workflow_id}/runs?branch=${base}&event=push${only}&per_page=1`
   const newest = (await listRuns($, repo, path))?.[0]
-  return newest !== undefined && newest.created_at > one.created_at ? newest : one
+  const settles = newest !== undefined && newest.created_at > one.created_at
+  return settles && (cancelled || newest.conclusion === 'success') ? newest : one
 }
 
 async function githubRuns($: Engine, repo: Repo, base: string, sha: string) {
@@ -328,13 +332,18 @@ async function githubRuns($: Engine, repo: Repo, base: string, sha: string) {
   })
 }
 
-// A pipeline auto-cancelled by a newer push to the branch is settled by the newer one, as `settle` does.
+// A pipeline auto-cancelled by a newer push to the branch, or failed and then passed by a newer one, is settled by the
+// newer one, as `settle` does.
 async function gitlabRuns($: Engine, repo: Repo, base: string, sha: string): Promise<Run[]> {
   const ref = encodeURIComponent(base)
   const [first] = await gitlabRead<Pipeline[]>($, repo, `pipelines?sha=${sha}&ref=${ref}&per_page=1`)
   if (first === undefined) return []
-  const [newest] = first.status === 'canceled' ? await gitlabRead<Pipeline[]>($, repo, `pipelines?ref=${ref}&per_page=1`) : []
-  const one = newest !== undefined && newest.id > first.id ? newest : first
+  const only = first.status === 'failed' ? '&status=success' : ''
+  const [newest] = GITLAB_FAILED.has(first.status)
+    ? await gitlabRead<Pipeline[]>($, repo, `pipelines?ref=${ref}${only}&per_page=1`)
+    : []
+  const settles = newest !== undefined && newest.id > first.id
+  const one = settles && (first.status === 'canceled' || GITLAB_PASSED.has(newest.status)) ? newest : first
   const name = one.name ?? `pipeline #${one.id}`
   if (GITLAB_PASSED.has(one.status)) return [{ name, state: 'passed', word: 'passed' }]
   if (GITLAB_FAILED.has(one.status)) return [{ name, state: 'failed', word: one.status }]
