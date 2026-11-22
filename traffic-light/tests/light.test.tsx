@@ -424,6 +424,24 @@ test('a worktree opened in a turn after green spends it too', async ($, on) => {
   expect(await light($)).toBe('🔴 working · new work since #7 merged')
 })
 
+// curl's -G and --get send the --data fields as the query of a GET: a read, though the flags look like a POST body.
+test('a REST read in a turn after green leaves it green, a REST create spends it', async ($, on) => {
+  await start($, on, { pr: pull('MERGED'), runs: [run('completed', 'success')] })
+  const issues = '"$GITLAB_URL/api/v4/projects/3/issues"'
+  expect(await light($)).toBe(GREEN)
+
+  await $.turn.start({ text: 'which issues are on dev?', turnId: 't1' })
+  await $.tool.call({ tool: 'Bash', command: `curl -sS -G ${issues} --data 'state=opened' --data-urlencode 'labels=x'` })
+  await $.tool.call({ tool: 'Bash', command: `curl -sS --get ${issues} -d 'state=opened'` })
+  await $.turn.complete(ENDED)
+  expect(await light($)).toBe(GREEN)
+
+  await $.turn.start({ text: 'file the next bug', turnId: 't2' })
+  await $.tool.call({ tool: 'Bash', command: `curl -sS ${issues} --data 'title=x'` })
+  await $.turn.complete({ ...ENDED, turnId: 't2' })
+  expect(await light($)).toBe('🔴 working · new work since #7 merged')
+})
+
 const PUSHED = '🟢 safe to leave · abc1234 pushed to main, deploy-dev passed'
 
 test('work pushed straight to an integration branch, with no PR, is judged by its pushed head', async ($, on) => {

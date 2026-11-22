@@ -17,9 +17,10 @@ const MR_COMMAND = /\bglab\s+mr\s+(create|view|merge|update|approve|rebase)\b|\/
 const FORGE_COMMAND = /\b(git|gh|glab)\s|\/api\/v4\//
 const CHANGE_COMMAND =
   /\b(git\s+(-C\s+\S+\s+)?(commit|revert|cherry-pick|worktree\s+add|checkout\s+-[bB]|switch\s+(-[cC]|--create))|(gh\s+(pr|issue)|glab\s+(mr|issue))\s+create)\b/
-// A curl POST creating a GitLab MR or issue; a POST to a path past one (a note, a merge) creates no work.
+// A curl POST creating a GitLab MR or issue; a POST to a path past one (a note, a merge) creates no work, and -G or
+// --get, alone or in a short-flag cluster, sends the data as a GET's query: a read.
 const REST_CREATE =
-  /^(?=[^]*\bcurl\b)(?=[^]*(?:-X\s*POST|--request\s+POST|\s(?:-d|--data\S*|-F|--form|--json)\s))(?=[^]*\/(?:merge_requests|issues)(?![\w/]))/
+  /^(?=[^]*\bcurl\b)(?![^]*\s(?:--get|-[a-zA-Z]*G[a-zA-Z]*)(?=\s|$))(?=[^]*(?:-X\s*POST|--request\s+POST|\s(?:-d|--data\S*|-F|--form|--json)\s))(?=[^]*\/(?:merge_requests|issues)(?![\w/]))/
 const PUSH_COMMAND = /\bgit\s+(-C\s+\S+\s+)?push\b/
 const COMMIT_COMMAND = /\bgit\s+(-C\s+\S+\s+)?(commit|revert|cherry-pick)\b/
 // The folder a command works in: `git -C <dir>`, else a leading `cd <dir>`.
