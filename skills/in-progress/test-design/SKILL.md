@@ -39,7 +39,8 @@ Tell each rule at the seam that decides it. A layer enters a test only when it
 is the test's **subject**. A rule a use case decides is told through that use
 case, its Given built through other use cases, with no request, token or route
 in it. The API is told only for what the route itself decides: who may call it,
-how it reads the request, which status and body an error becomes. Arithmetic,
+how it reads the request, which status and body an error becomes, and one row
+per rule told below it, showing the route reaches that rule. Arithmetic,
 parsing and formatting go through their module. A helper with one caller is
 reached through that caller, exported or not: its cases become rows of the
 caller's story. A component earns a story only for a rule it decides about what
@@ -53,7 +54,8 @@ is shown — layout and copy get none, its gestures and motion a worked example.
 - **A bug fix**: its own story, named for the case, seen red on the bug before
   the fix lands — never an extra line slipped into another story's setup.
 - **A one-off** — a data move, a backfill — that cannot be undone: stories
-  while it waits to run, deleted with it once it has run.
+  while it waits to run, deleted with it once the release carrying it is on
+  production; code a kept story still reaches stays.
 
 The bar is a story per rule, not a coverage number: a coverage floor pushes
 toward the thin tests this skill cuts. A bug put in by hand that no story
@@ -84,9 +86,12 @@ test('a member who cancels keeps access until the paid period ends', async () =>
   use case story's other use cases; never a row or object written by hand into
   a shape the code would reach on its own. Input from outside the
   unit — an API response the frontend receives — is written by hand, typed in
-  full by a shared fixture, never cast from a partial. A failure is reached
-  through input the real path rejects (a missing file), a timeout through a
-  config knob (a 10 ms limit); a branch no input can reach is a design issue.
+  full by a shared fixture, never cast from a partial. It builds only what the
+  Then reads: a choice no assert reads takes the cheapest value production
+  allows. A failure is reached through input the real path rejects (a missing
+  file), a timeout through a config knob (a 10 ms limit); a branch no input can
+  reach is a design issue. A limit is worked small, its knob turned down (a
+  64 px box over a 200×100 image).
 - **Time and chance**: a story whose outcome turns on the time fixes the
   instant — a clock setting or a time-freezing library — and asserts literals
   for it (10 unused days, not 9 to 10). Random input comes from a seeded
@@ -140,7 +145,9 @@ test('a member who cancels keeps access until the paid period ends', async () =>
 - **Table**: rows of one rule. Each row has an id naming its case and carries
   everything that differs — input, expected value, even the function called —
   so the body runs the same lines for every row. A row that needs its own
-  setup or steps is its own story.
+  setup or steps is its own story. Rows that share one costly Given and differ
+  only in what they read are one story: the Given once, each read keyed by its
+  case, one assert on them all.
 
 ## Too thin
 
@@ -199,8 +206,11 @@ story did not say:
 - a check another story makes — each label row asserting the amount again:
   each story checks only what its own rule decides.
 
-Name the rule a test tells. When another story already names it, cut the test,
-or fold what it adds into that story.
+Name the rule a test tells and the bug that turns it red. It is told twice
+only when a kept story goes red on that bug too: follow the code to the same
+branch, not the name to a similar story. A keeper that stays green on the bug
+is sharpened until it goes red. Then cut the test, or fold what it adds into
+that story.
 
 ## Interaction
 
