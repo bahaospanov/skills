@@ -35,6 +35,7 @@ Model- or user-reachable.
 - **[playbook](skills/playbook/SKILL.md)**: How a change goes from issue to merged branch and closed issue, in parts: issues, branches, commits, cleanup, the issue's lifecycle, with mr for the MR. A project states its facts (base branch, issue number format, deviations) in a `### Playbook` block of its AGENTS.md.
 - **[prototype-stages](skills/prototype-stages/SKILL.md)**: [mattpocock/skills `prototype`](https://github.com/mattpocock/skills/tree/main/skills/engineering/prototype) (MIT), its UI branch reworked: whole flows, options grouped by stage in a one-click panel.
 - **[scheme](skills/scheme/SKILL.md)**: ASCII schematic of a code change: control flow, data flow, before/after, or layers.
+- **[test-design](skills/test-design/SKILL.md)**: How a test earns its place: each business rule told once, as one story through one seam, interaction checked by worked example, nothing too thin or too tangled to keep.
 
 ## Mods
 
