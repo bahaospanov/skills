@@ -1,5 +1,29 @@
 # bahaospanov
 
+## 1.32.0
+
+### Minor Changes
+
+- 3d3604c: - **bahaospanov-skills**: playbook: an issue's states, created to closed, live in one part, LIFECYCLE.md. Merged work assigns the issue to the user and dates its start, production dates its finish, and an issue whose How to test runs read-only and passes closes itself; reverts, rollbacks and failed checks move it back. Release and setup-triage-labels follow it, and GitHub issues keep their dates in one comment.
+- e28473c: - **bahaospanov-skills**: mr: a screenshot explains itself. A band above it carries a BEFORE or AFTER title and numbered notes on what was wrong and what changed, numbered markers on the shot point at each, and ANNOTATING.md does it in one ImageMagick call.
+- 58351ed: - **bahaospanov-skills**: test-design ships, a model-invoked skill on how a test earns its place: each business rule told once, as one story through one seam, outside answers declared in the story's own body, interaction checked by worked example, and nothing kept too thin or too tangled to read.
+- f9272ce: - **traffic-light**: a Herdr subtask closes itself once its work is done. When the light turns green for merged or pushed work and no turn runs, a named Herdr agent's pane counts a minute down in the band, with ✋ Keep open and ❌ Close now; a turn that starts stops the count, and Keep open, a typed message or `/traffic-light keep-open` keeps the pane open until new work turns green.
+  - **herdr-rules**: removed. Its pane countdown moved into traffic-light, which starts it on its own when the work is green instead of on a `close_pane_later` call.
+  - **bahaospanov-skills**: playbook: a Herdr subtask with traffic-light leaves its pane's close to the band.
+- 3bd7a8b: - **traffic-light**: the light follows the session's main work: the checkout Claude first edits in, or the one it marks with the new `main` tool. Work in any other checkout is side work, so its PR merging no longer turns the light green or closes a Herdr subtask's pane, and Claude is told so once per side checkout. Once the main work is done, a session no parent started takes the next checkout it edits as its main work; a Herdr subtask keeps its one.
+
+### Patch Changes
+
+- 509614f: - **git-gates**: "merge" re-pushes a branch already on origin that was rebased onto its moved base, so a merge no longer stops at the rebase's push.
+- 9ee34db: - **bahaospanov-skills**: mr: screenshots go with work that changes what a screen shows. A refactor that leaves every screen as it was argues from reasoning instead: a few plain lines on what moved and why, the tests that now reach the code, and a benchmark of the path it touches.
+- 967ef59: - **bahaospanov-skills**: playbook: the user's "ship" is commit, push the branch and open its MR or PR; a merge or a release waits for the user to name it.
+- 366070e: - **traffic-light**: a merged change whose pipeline failed turns green once a newer pipeline on its base branch passes: the fix pushed after it ships the change too. A newer one still running or failing leaves it red.
+- 6d6891c: - **traffic-light**: a feature branch with no commit made on it stays red with "no PR yet" instead of green as "pushed to dev". That covers a branch only created, fast-forwarded, or rebased with nothing to replay. The integration branch already holds its head, so a Herdr subtask that stopped for review before its first commit had its pane closed.
+- 2d54b49: - **traffic-light**: a merged PR is green once cleanup removed the worktree the session runs in, instead of red with "can't reach GitHub (gh)": its commands no longer start in the session's folder.
+- 8c6ab8e: - **traffic-light**: work stays green once cleanup removed the worktree it was edited in, instead of red with "can't read GitLab": the GitLab token came from the env file that worktree's git config names, and went with it.
+- 7c15807: - **traffic-light**: a curl call with `-G` or `--get` is a read, though its `--data` fields look like a POST body, so listing issues after a merge no longer spends the green as new work.
+- d1be1bd: - **traffic-light**: the main work's green waits on side work still in flight. A checkout the session edited, committed, pushed or opened a PR in holds the light, and a Herdr subtask's pane, while its PR is open or its pipeline runs or failed, until cleanup removes it. The checkout the `main` tool moves the main work from stays waited on.
+
 ## 1.31.2
 
 ### Patch Changes
