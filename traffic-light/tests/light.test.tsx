@@ -1,6 +1,6 @@
 import { expect, mock, test } from 'claude-code/testing'
 import type { Engine, Mounted } from 'claude-code/testing'
-import type { On } from 'claude-code'
+import type { AgentStatus, On } from 'claude-code'
 
 const BAND = {
   plugin: 'traffic-light',
@@ -52,6 +52,7 @@ type World = {
   fetched: string[]
   calls: string[]
   agentName: string | null
+  agents: AgentStatus[]
 }
 
 const run = (status: string, conclusion: string | null, created_at = '2026-10-25T10:00:05Z'): Run => ({
@@ -201,6 +202,7 @@ async function start($: Engine, on: On, world: Partial<World>) {
     fetched: [],
     calls: [],
     agentName: null,
+    agents: [],
     ...world,
   }
   const clock = mock.clock(on, { now: Date.parse('2026-10-25T10:01:00Z') })
@@ -230,6 +232,9 @@ async function start($: Engine, on: On, world: Partial<World>) {
     return { value: { status, ok: status < 300, headers: {}, text: JSON.stringify(body) } }
   })
   on('tool.call', () => ({ result: {}, text: full.printed }))
+  on('agent.list', () => ({
+    value: full.agents.map((status, i) => ({ id: `a${i}`, description: 'a subtask', type: 'fork', status })),
+  }))
   on('session.start', (_, e) => ({ cwd: e.cwd }))
   on('prompt.submit', (_, e) => ({ text: e.text }))
   on('turn.start', (_, e) => ({ turnId: e.turnId }))
@@ -569,6 +574,38 @@ test("a subtask's pane closes a minute after its work turns green, the band coun
   await world.clock.advance(15_000)
   expect(world.calls).toContain(CLOSE)
   await ui.unmount()
+})
+
+const SUBAGENTS: { status: AgentStatus; closes: boolean }[] = [
+  { status: 'pending', closes: false },
+  { status: 'running', closes: false },
+  { status: 'waiting', closes: false },
+  { status: 'completed', closes: true },
+  { status: 'failed', closes: true },
+  { status: 'killed', closes: true },
+]
+
+for (const { status, closes } of SUBAGENTS) {
+  test(`a subtask's pane stays open while a subagent of its works: ${status}`, async ($, on) => {
+    const world = await start($, on, { ...SUBTASK, agents: ['completed', status] })
+    expect(await light($)).toBe(GREEN)
+
+    await world.clock.advance(120_000)
+    expect(world.calls.includes(CLOSE)).toBe(closes)
+  })
+}
+
+test("a subtask's pane closes a minute after its last subagent ends", async ($, on) => {
+  const world = await start($, on, { ...SUBTASK, agents: ['running'] })
+  expect(await light($)).toBe(GREEN)
+  await world.clock.advance(120_000)
+
+  world.agents = ['completed']
+  await $.turn.start({ text: 'the subagent finished', turnId: 't1' })
+  await $.turn.complete(ENDED)
+  expect(await light($)).toBe(GREEN)
+  await world.clock.advance(60_000)
+  expect(world.calls).toContain(CLOSE)
 })
 
 test('a Herdr session no agent started stays open once its work is green', async ($, on) => {

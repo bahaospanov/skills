@@ -1,5 +1,5 @@
 import { atom, read, update } from 'claude-code'
-import type { EngineInterface, ProcessRunResult, Register, Timer } from 'claude-code'
+import type { AgentStatus, EngineInterface, ProcessRunResult, Register, Timer } from 'claude-code'
 
 import type { Color, Light, Push, Repo } from '../types'
 
@@ -34,6 +34,7 @@ const POLL_MS = 30_000
 const PIPELINE_START_MS = 3 * 60_000
 const DEMO_STEP_MS = 4_000
 const CLOSE_SECONDS = 60
+const WORKING_AGENT = new Set<AgentStatus>(['pending', 'running', 'waiting'])
 const BAR = 40
 const NO_GITLAB_ACCESS = "can't read GitLab: set GITLAB_TOKEN or sign in glab"
 
@@ -621,12 +622,18 @@ async function subtaskPane($: Engine) {
   }
 }
 
+// Closing the pane ends the session, and with it every subagent still working in it.
+async function subagentsWorking($: Engine) {
+  const agents = await $.agent.list().catch(() => [])
+  return agents.some(agent => WORKING_AGENT.has(agent.status))
+}
+
 async function closeWhenDone($: Engine, shown: Light) {
   const work = greenWork
   if (shown.color !== 'green' || work === undefined || working || asking) return stopClosing($)
   if ((await read($, closing)) !== null || (await read($, keptOpen)) === work) return
   const pane = await subtaskPane($)
-  if (pane === undefined || working || asking || greenWork !== work) return
+  if (pane === undefined || working || asking || greenWork !== work || (await subagentsWorking($))) return
   const t = await $.clock.now()
   await update($, closeClock, () => t)
   await update($, closing, () => ({ pane, work, endsAt: t + CLOSE_SECONDS * 1000 }))
