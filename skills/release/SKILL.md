@@ -16,7 +16,7 @@ Promote the commits the **source** branch (integration, usually `dev`) holds and
 - **runbook** — the tracker issue that carries the deploy: one checklist per wave.
 - **live view** — a page outside the terminal the user watches the run on, when one is named; it mirrors the run.
 
-History and production move only on the user's word in their latest message: plan approval (step 6), "push" for the force push (step 8, after a rewrite), "deploy" per wave (step 10), and "release" for the version tag (step 11) — words a push gate such as git-gates lets a push through on, so ask for them by name. A tick on the live view never stands in for it.
+History and production move only on the user's word in their latest message: plan approval (step 6), "push" for the force push (step 8, after a rewrite), "deploy" or "merge" per wave (step 10), and "release" for the version tag (step 11) — words a push gate such as git-gates lets a push through on, so ask for them by name. A tick on the live view never stands in for it.
 
 ## Steps
 
@@ -26,7 +26,7 @@ With a live view, every state change below also goes to it: [`LIVEVIEW.md`](LIVE
 
 Read CLAUDE.md / AGENTS.md, the docs they point to on CI, deploys, the tracker and commits, the CI config, and the git remote. Find:
 
-- source and target branch, and how production is promoted: a fast-forward push of the target branch, or a tag push (and its naming). Docs silent → infer from the CI workflow rules and the target's protection (who may push, force push refused; [`TRACKERS.md`](TRACKERS.md)), and mark it inferred in the plan. Any other mechanism (MR merge only, a manual job) puts the run in **runbook-only** mode: steps 1–9, and the runbook gives the user the exact promotion to perform.
+- source and target branch, and how production is promoted: the target branch moving, which the run does through an MR, or a tag push (and its naming). For an MR, the forge's merge method: a fast-forward merge keeps the wave's SHAs; any other method rewrites or wraps them, so the run pushes the SHA itself and the forge records the MR as merged ([`TRACKERS.md`](TRACKERS.md)). Docs silent → infer from the CI workflow rules and the target's protection (who may push or merge, force push refused; [`TRACKERS.md`](TRACKERS.md)), and mark it inferred in the plan. Any other mechanism (a manual job) puts the run in **runbook-only** mode: steps 1–9, and the runbook gives the user the exact promotion to perform.
 - the CI jobs that migrate and deploy, their order (migrate before or after deploy), and the paths each deploy job ships (its change rules, or its build context when it has none). Grep a large CI config for stages, rules, changes and needs.
 - the migration directory and how the tool orders revisions
 - feature flags: where each tier's values live (env files, CI File variables, a config service), and when the app reads them — at build time, baked into the image, or at runtime
@@ -102,7 +102,7 @@ Show the plan as one wave timeline in a fenced block, laid out as below:
 - a closing line: the folds, and `backup/*` tags older than 30 days for the user to delete — age from the date in the tag name, else the tagged commit's date
 
 ```
-dev → main · 11 commits → 8 (1 dropped, 2 folded) · 2 waves · trial tree-identical ✓ · promote: ff push of main (inferred)
+dev → main · 11 commits → 8 (1 dropped, 2 folded) · 2 waves · trial tree-identical ✓ · promote: MR into main, ff merge (inferred)
 drop   5e6f7a8 fix(api): webhook retry #36   (twin of main 1f2e3d4)
 wave 1 ─ tip: chore(infra): backup timer                  ─────────
   ├ BEFORE promote: add EXPORT_BUCKET to the prod env (#41)          unprobed
@@ -150,7 +150,7 @@ Deploy <source> → <target>, <date>. Backup: `backup/<source>-<date>-<sha>`.
 ## Wave 1 — <tip sha> <subject>
 - [ ] manual, before promote: <step> (<sha>, #N)
 - [ ] flag, <timing>: set <FLAG> in <where>, <build-time | runtime> (#N)
-- [ ] promote: `git push origin <full tip sha>:refs/heads/<target>`
+- [ ] promote: merge !N (`release/<date>-w<n>` at <full tip sha> → <target>)
 - [ ] pipeline green: <link>
 - [ ] auto: migrations <revisions> (CI)
 - [ ] manual, when <job> finishes: <step> (#N)
@@ -176,11 +176,12 @@ The backup sentence appears only after a rewrite. Referencing each `#N` cross-li
 
 Per wave, in order:
 
-1. Hand the user the wave's before-promote steps (and, in wave 1, the any-time ones); wait for their "deploy" for this wave. A flag the user asks the run to set goes through the flag script ([`TRACKERS.md`](TRACKERS.md), Scripts).
-2. Promote, after `git fetch`: resolve the tip to its full SHA (`git rev-parse --verify <tip>^{commit}`), confirm `git merge-base --is-ancestor origin/<target> <sha>`, then `git push origin "<sha>:refs/heads/<target>"` with the SHA written out literally — a short SHA can be mistyped, and a shell variable before `:` can be read as a modifier (zsh `$T:r…`). A failed check or a rejected push means the target moved — stop. Or push the wave's tag.
-3. Watch the target's pipeline with the watch script or `gh run watch` ([`TRACKERS.md`](TRACKERS.md)): call out each after-migrate and during-deploy step the moment its job finishes; wait for green; run the read-only probes.
-4. Tick the wave's automatic items in the runbook with the tick script.
-5. Hand the user the wave's manual steps and how-to-test items; wait until they report them done.
+1. Open the wave's MR. Resolve the tip to its full SHA (`git rev-parse --verify <tip>^{commit}`) and push a branch pinned at it, `git push origin "<sha>:refs/heads/release/<date>-w<n>"`, with the SHA written out literally — a short SHA can be mistyped, and a shell variable before `:` can be read as a modifier (zsh `$T:r…`). The pinned branch keeps a later push to the source out of the wave. Open the MR from it into the target ([`TRACKERS.md`](TRACKERS.md)): its description the wave's commits by issue, the runbook, and what the merge deploys; its link goes on the runbook's promote line. A tag-promoted repo skips this step.
+2. Hand the user the MR and the wave's before-promote steps (and, in wave 1, the any-time ones); wait for their "deploy" or "merge" for this wave. A flag the user asks the run to set goes through the flag script ([`TRACKERS.md`](TRACKERS.md), Scripts).
+3. Promote, after `git fetch`: confirm `git merge-base --is-ancestor origin/<target> <sha>`, then merge the MR pinned to that SHA ([`TRACKERS.md`](TRACKERS.md)). Where the forge's merge is not a fast-forward, push the SHA instead, `git push origin "<sha>:refs/heads/<target>"`, and the forge marks the MR merged. A failed check, a refused merge or a rejected push means the target moved — stop. The user may merge the MR themselves: once the target sits at the tip, go on. A tag-promoted repo pushes the wave's tag.
+4. Watch the target's pipeline with the watch script or `gh run watch` ([`TRACKERS.md`](TRACKERS.md)): call out each after-migrate and during-deploy step the moment its job finishes; wait for green; run the read-only probes.
+5. Tick the wave's automatic items in the runbook with the tick script.
+6. Hand the user the wave's manual steps and how-to-test items; wait until they report them done.
 
 A red pipeline or a failed probe stops the run: report the failing job and the decisive log line, note it in the runbook, ship no later wave. Fix-forward or revert is the user's call.
 

@@ -18,6 +18,9 @@ Load a token into the environment and pass it in a header; never print it.
 | notes | `GET issues/<iid>/notes?sort=asc&per_page=100`, keep `system == false` | `gh issue view <n> --comments` |
 | MRs linked to an issue | `GET issues/<iid>/closed_by`, plus `related_merge_requests` filtered to MRs with an in-range commit | `gh issue view <n> --json closedByPullRequestsReferences` |
 | branch protection | `GET protected_branches/<branch>` | `gh api repos/{owner}/{repo}/branches/<branch>/protection` |
+| merge method | `GET projects/<id>`, `merge_method`: `ff` keeps the SHAs | none fast-forwards: "rebase and merge" makes new SHAs, so the run pushes the SHA |
+| open a promotion MR | `POST merge_requests` with `source_branch`, `target_branch`, `title`, `description`, `assignee_id` | `gh pr create --base <target> --head <branch> --title … --body-file …` |
+| merge it at the tip | `PUT merge_requests/<iid>/merge` with `sha`, or `glab mr merge <iid> --sha <sha> --auto-merge=false --yes` | `git push origin "<sha>:refs/heads/<target>"`: GitHub marks the PR merged |
 | MR behind a commit | `GET repository/commits/<sha>/merge_requests` | `gh api repos/{owner}/{repo}/commits/<sha>/pulls` |
 | latest pipeline | `GET pipelines?ref=<branch>&per_page=1` | `gh run list --branch <branch> --limit 1` |
 | pipeline jobs | `GET pipelines/<id>/jobs?per_page=100` | `gh run view <id>` |
