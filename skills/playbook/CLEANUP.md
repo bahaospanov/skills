@@ -6,12 +6,12 @@ Merged is not shipped: the work is cleaned up once the pipeline holding the merg
 2. Once it passed, without asking:
    - add the issue's How to test ([ISSUES.md](ISSUES.md));
    - move the issue to Merged ([LIFECYCLE.md](LIFECYCLE.md)): its assignee, its start date, and `shipped::dev`, or on the direct path on to Shipped and its Verify;
-   - remove the worktree and every branch the work pushed, local and on origin: its own, and the one holding its MR's screenshots;
+   - remove the worktree and every branch the work pushed, local and on origin;
    - fast-forward the local base: `git merge --ff-only origin/<base>` where it is checked out, else `git fetch origin <base>:<base>`.
 
    Then tell the user in one line what was removed and where the issue moved.
 
-A branch is removed only once it has merged, into the base or through an MR naming it as the source, or when the user says to abandon it. A screenshots branch never merges: it goes with its MR's branch.
+A branch is removed only once it has merged, into the base or through an MR naming it as the source, or when the user says to abandon it.
 
 ## Herdr subtask
 

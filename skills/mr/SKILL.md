@@ -198,9 +198,9 @@ The blast radius is the potential impact or scope of the changes introduced by t
 
 ## Screenshots
 
-Work that changes what a screen shows carries screenshots in its Evidence: the real app running locally with seeded data, not component mocks, each with its viewport named. The reviewer sees the change before merging; a diff is not a look at the thing. The same shots later go in the issue's How to test, the playbook's ISSUES part.
+Work that changes what a screen shows carries screenshots in its Evidence: the real app running locally with seeded data, not component mocks, each with its viewport named. The reviewer sees the change before merging; a diff is not a look at the thing. The same shots, by the asset URLs their upload gave, later go in the issue's How to test, the playbook's ISSUES part.
 
-A shot is linked by the commit that holds it (`…/raw/<sha>/<path>`), so the link keeps loading after the playbook's cleanup removes the branch it was pushed on.
+Shots live in the MR and its issue, outside the repository: they are taken in a scratch directory beyond the checkout and go up with `--attach` on `gh pr create|edit` and `gh issue create|edit`, so a video plays in the page and git history holds only code. The body file references each shot where it belongs, `![after](./<file>)` or `<img src="./<file>" width="32%">`, and the upload swaps in its asset URL. A video plays only from a reference alone in its paragraph, blank lines around it, and is a plain link anywhere else. On GitLab, the project uploads API (`POST /projects/:id/uploads`) returns the Markdown to place. The upload is done when the posted body holds no `./` reference.
 
 A change a user walks through is told as a **storyboard**: one row per flow, read left to right, the before and then a frame for each state the user passes through, in order (typed, then saved; closed, then open, then picked). A state the reviewer would have to imagine is a missing frame. A second flow, such as a dialog behind another button, is a storyboard of its own under its own Evidence bullet, never one more frame of the first. A row's frames sit on one line of `<img src="…" width="32%">` tags (48% for two) and share one height, since the forge lines inline images up at their bottom edge.
 
@@ -220,7 +220,7 @@ Done when each mark sits on a change, every change the page shows has one, every
 
 A screenshot, GIF or video of the bug that the user handed over is their report. It goes in the issue's description and opens the Evidence as **Reported:**, above the Before and After. It goes as sent, with the user's own marks or none: marking is for the shots the work takes.
 
-It goes up with `--attach` on `gh pr create|edit` and `gh issue create|edit` rather than by a commit link, so a video plays in the page and the file stays out of git history. The body file references it where it belongs, `![reported](./<file>)`; a video plays only from a reference alone in its paragraph, blank lines around it, and is a plain link anywhere else. On GitLab, the project uploads API (`POST /projects/:id/uploads`) returns the Markdown to place.
+It goes up as the shots do ([Screenshots](#screenshots)), referenced as `![reported](./<file>)`.
 
 A public repo shows it to anyone: before the upload, ask the user whether it goes as sent, cropped or blurred, or stays out. A private repo takes it as sent.
 
