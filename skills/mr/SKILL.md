@@ -202,17 +202,19 @@ Work that changes what a screen shows carries screenshots in its Evidence: the r
 
 A shot is linked by the commit that holds it (`…/raw/<sha>/<path>`), so the link keeps loading after the playbook's cleanup removes the branch it was pushed on.
 
+A change a user walks through is told as a **storyboard**: one row per flow, read left to right, the before and then a frame for each state the user passes through, in order (typed, then saved; closed, then open, then picked). A state the reviewer would have to imagine is a missing frame. A second flow, such as a dialog behind another button, is a storyboard of its own under its own Evidence bullet, never one more frame of the first. A row's frames sit on one line of `<img src="…" width="32%">` tags (48% for two) and share one height, since the forge lines inline images up at their bottom edge.
+
 Every shot marks and explains what changed, so the reviewer reads it at a glance instead of comparing two pictures:
 
 - an outline on the changed area: dashed red on the before, solid in an accent colour on the after
 - a numbered marker, in the outline's colour, beside each element a note names, never over a label the reviewer must read
-- a band above the shot: a title in the outline's colour naming the side and where it ran (`BEFORE · main`, `AFTER · this branch`), then the numbered notes, one sentence each, saying what is wrong on the before and what changed on the after, in the project's domain words, quoting the page's own words where its language differs
+- a band above the shot: a title in the outline's colour naming the side and where it ran (`BEFORE · main`, `AFTER · this branch`, a storyboard's frames numbered by state: `AFTER 1 · typed`, `AFTER 2 · saved`), then the numbered notes, one sentence each, saying what is wrong on the before and what changed on the after, in the project's domain words, quoting the page's own words where its language differs
 - a label on the shot with the old or new value, for a change with no look of its own (an alt text, a heading's text or level)
 - the shot cropped to the marks, with enough page around them to place them
 
-[ANNOTATING.md](ANNOTATING.md) does all of it in one ImageMagick call per shot.
+[ANNOTATING.md](ANNOTATING.md) does all of it in one ImageMagick call per shot, and levels a storyboard's frames.
 
-Done when each mark sits on a change, every change the page shows has one, and the notes tell the change to someone who reads nothing else.
+Done when each mark sits on a change, every change the page shows has one, every state of each flow has its frame, and the notes tell the change to someone who reads nothing else.
 
 ## Reported
 
